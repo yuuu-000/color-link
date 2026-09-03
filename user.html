@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Color Receiver</title>
   <style>
     * {
@@ -13,24 +13,32 @@
     html,
     body {
       margin: 0;
-      min-height: 100%;
+      width: 100%;
+      height: 100%;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #0b0d12;
       color: #fff;
       overflow: hidden;
+      overscroll-behavior: none;
     }
 
     /* フルカラー背景モード */
     .fullscreen-bg {
       position: fixed;
       inset: 0;
+      width: 100%;
+      height: 100dvh;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       align-items: center;
-      padding: 30px;
+      padding: max(30px, env(safe-area-inset-top)) max(30px, env(safe-area-inset-right)) max(30px, env(safe-area-inset-bottom)) max(30px, env(safe-area-inset-left));
       transition: background 0.1s ease;
       z-index: 10;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      touch-action: manipulation;
     }
 
     .top-bar {
@@ -51,6 +59,9 @@
       justify-content: center;
       color: #fff;
       cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      touch-action: manipulation;
       transition: background 0.2s;
     }
 
@@ -66,18 +77,35 @@
       font: 600 15px ui-monospace, monospace;
       letter-spacing: 0.05em;
       border: 1px solid rgba(255, 255, 255, 0.15);
+      pointer-events: none;
     }
 
-    /* 初期セットアップ / ガイド画面 */
-    .setup-screen {
+    /* 初期セットアップ / モーダル画面共通 */
+    .setup-screen,
+    .settings-modal {
       position: fixed;
       inset: 0;
+      width: 100%;
+      height: 100dvh;
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 24px;
-      background: #0b0d12;
+      padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+      background: rgba(11, 13, 18, 0.85);
+      backdrop-filter: blur(6px);
       z-index: 20;
+      overflow-y: auto;
+      overscroll-behavior: none;
+    }
+
+    .settings-modal {
+      display: none;
+      z-index: 30;
+      cursor: pointer;
+    }
+
+    .settings-modal.active {
+      display: flex;
     }
 
     .panel {
@@ -88,6 +116,7 @@
       padding: 32px;
       box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
       text-align: center;
+      cursor: default;
     }
 
     h1 {
@@ -118,10 +147,34 @@
       cursor: pointer;
       font-size: 16px;
       font-weight: 700;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      touch-action: manipulation;
       transition: transform 0.1s;
     }
 
-    button.primary-btn:active {
+    button.danger-btn {
+      width: 100%;
+      border: 1px solid rgba(255, 75, 75, 0.3);
+      border-radius: 14px;
+      padding: 16px;
+      background: rgba(255, 75, 75, 0.1);
+      color: #ff6b6b;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 700;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      touch-action: manipulation;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    button.danger-btn:hover {
+      background: rgba(255, 75, 75, 0.2);
+    }
+
+    button.primary-btn:active,
+    button.danger-btn:active {
       transform: scale(0.98);
     }
   </style>
@@ -138,9 +191,20 @@
         <strong>ご利用方法:</strong><br>
         1. 下部のボタンを押してマイクを許可します。<br>
         2. 画面が自動で全画面になり、受信が始まります。<br>
-        3. 画面右上のアイコンからいつでもフルスクリーンを切り替えられます。
+        3. 受信画面をタップすると設定（マイク停止など）が開きます。
       </div>
       <button id="rxStart" class="primary-btn">受信を開始する</button>
+    </div>
+  </div>
+
+  <!-- 設定モーダル画面 -->
+  <div id="settingsModal" class="settings-modal">
+    <div class="panel">
+      <h1>設定</h1>
+      <div class="guide-text" style="text-align: center; margin-bottom: 20px;">
+        マイクの接続を解除し、初期画面に戻ります。
+      </div>
+      <button id="micStopBtn" class="danger-btn">マイクをオフにする</button>
     </div>
   </div>
 
@@ -165,9 +229,9 @@
 
       const MIN_FREQ = 18000;
       const MAX_FREQ = 21000;
-      const TX_GRAY_END = 18500;       // 18.50kHzまで黒〜白
-      const TX_COLOR_START = 18600;    // 18.60kHzからカラー領域
-      const RX_WHITE_BOUNDARY = 18550; // 18.55kHz以下は白、超えたらカラー領域へ
+      const TX_GRAY_END = 18500;
+      const TX_COLOR_START = 18600;
+      const RX_WHITE_BOUNDARY = 18550;
       const FFT_SIZE = 4096;
       const RX_THRESHOLD_DB = -110;
 
@@ -212,7 +276,6 @@
       function frequencyToColor(freq) {
         const f = Math.max(MIN_FREQ, Math.min(MAX_FREQ, freq));
         
-        // 18,550Hz以下は白系（18,500Hzまでグラデーション、超えたら白の保護バッファ）
         if (f <= RX_WHITE_BOUNDARY) {
           if (f <= TX_GRAY_END) {
             const t = (f - MIN_FREQ) / (TX_GRAY_END - MIN_FREQ);
@@ -222,7 +285,6 @@
           return "#FFFFFF";
         }
 
-        // 18,550Hz超はカラー領域（18,600Hzをスタートとする）
         const t = (f - TX_COLOR_START) / (MAX_FREQ - TX_COLOR_START);
         const clampedT = Math.max(0, Math.min(1, t));
         return hslToHex(clampedT * 360, 100, 50);
@@ -256,25 +318,109 @@
         }
       }
 
-      async function enterFullscreen() {
-        if (!document.fullscreenElement) {
+      async function releaseWakeLock() {
+        if (rx.wakeLock) {
           try {
-            await document.documentElement.requestFullscreen();
-          } catch (e) {}
+            await rx.wakeLock.release();
+          } catch (err) {}
+          rx.wakeLock = null;
         }
       }
 
-      $("fullscreenBtn").onclick = () => {
-        if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen().catch(() => {});
-        } else {
-          if (document.exitFullscreen) {
-            document.exitFullscreen();
-          }
-        }
-      };
+      function getFullscreenElement() {
+        return (
+          document.fullscreenElement ??
+          document.webkitFullscreenElement ??
+          null
+        );
+      }
 
-      $("rxStart").onclick = async () => {
+      async function enterFullscreen() {
+        try {
+          if (document.documentElement.requestFullscreen) {
+            await document.documentElement.requestFullscreen();
+            return true;
+          }
+          if (document.documentElement.webkitRequestFullscreen) {
+            document.documentElement.webkitRequestFullscreen();
+            return true;
+          }
+        } catch (error) {
+          console.debug("Fullscreen failed:", error);
+        }
+        return false;
+      }
+
+      async function exitFullscreen() {
+        try {
+          if (document.exitFullscreen) {
+            await document.exitFullscreen();
+            return true;
+          }
+          if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+            return true;
+          }
+        } catch (error) {
+          console.debug("Exit fullscreen failed:", error);
+        }
+        return false;
+      }
+
+      async function toggleFullscreen() {
+        if (getFullscreenElement()) {
+          await exitFullscreen();
+        } else {
+          await enterFullscreen();
+        }
+      }
+
+      $("fullscreenBtn").addEventListener("pointerup", (e) => {
+        e.stopPropagation();
+        toggleFullscreen();
+      });
+
+      // フルスクリーン背景タップで設定モーダルを開く
+      $("fullscreenBg").addEventListener("pointerup", (e) => {
+        // 右上のフルスクリーン切替ボタンを直接タップしたときはモーダルを開かない
+        if (e.target.closest("#fullscreenBtn")) return;
+        $("settingsModal").classList.add("active");
+      });
+
+      // 設定モーダルの背景部分タップでモーダルを閉じる
+      $("settingsModal").addEventListener("pointerup", (e) => {
+        if (e.target === $("settingsModal")) {
+          $("settingsModal").classList.remove("active");
+        }
+      });
+
+      // マイクオフボタン
+      $("micStopBtn").addEventListener("pointerup", async () => {
+        rx.running = false;
+        if (rx.raf) cancelAnimationFrame(rx.raf);
+
+        if (rx.stream) {
+          rx.stream.getTracks().forEach(track => track.stop());
+          rx.stream = null;
+        }
+
+        if (rx.ctx && rx.ctx.state !== "closed") {
+          await rx.ctx.close();
+          rx.ctx = null;
+        }
+
+        await releaseWakeLock();
+
+        // モーダルを閉じてセットアップ画面に戻す
+        $("settingsModal").classList.remove("active");
+        $("setupScreen").style.display = "flex";
+        $("centerStatus").textContent = "待機中...";
+        rx.lastColor = "#1f2533";
+        rx.lastFrequency = null;
+        $("fullscreenBg").style.background = rx.lastColor;
+      });
+
+      $("rxStart").addEventListener("pointerup", async () => {
         if (rx.running) return;
         try {
           rx.stream = await navigator.mediaDevices.getUserMedia({
@@ -322,7 +468,7 @@
         } catch (e) {
           alert("マイクの許可が必要です。");
         }
-      };
+      });
     })();
   </script>
 </body>
