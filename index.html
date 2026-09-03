@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Ultrasonic Color Demo</title>
+  <title>Ultrasonic Color Demo with Live Presets</title>
   <style>
     * {
       box-sizing: border-box;
@@ -60,6 +60,26 @@
     button.active {
       background: #fff;
       color: #111;
+    }
+
+    button.live-btn {
+      background: linear-gradient(135deg, #ff3366, #ff9933);
+      color: #fff;
+    }
+
+    button.live-gray-btn {
+      background: linear-gradient(135deg, #444444, #aaaaaa);
+      color: #fff;
+    }
+
+    button.live-ambient-btn {
+      background: linear-gradient(135deg, #3366ff, #33ccff);
+      color: #fff;
+    }
+
+    button.live-breathe-btn {
+      background: linear-gradient(135deg, #9933ff, #ff33cc);
+      color: #fff;
     }
 
     button:disabled {
@@ -139,7 +159,7 @@
       display: flex;
       align-items: flex-end;
       padding: 12px;
-      transition: background 0.1s ease;
+      transition: background 0.05s ease;
     }
 
     .color-box span {
@@ -188,6 +208,23 @@
       font-size: 12px;
       line-height: 1.5;
     }
+
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: #0d1017;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 12px;
+      display: none;
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #ff3366, #ff9933, #77e3a2, #7fc8ff);
+      transition: width 0.1s linear;
+    }
   </style>
 </head>
 
@@ -217,22 +254,21 @@
         <span id="txColorText">#FF0000</span>
       </div>
 
+      <div class="progress-bar" id="liveProgressBar">
+        <div class="progress-fill" id="liveProgressFill"></div>
+      </div>
+
       <div class="config">
         <div>
           <label>送信周波数</label>
-
           <input type="range" id="txFreqRange" min="18000" max="21000" step="1" value="18000">
-
           <input type="number" id="txFreqNum" min="18000" max="21000" step="1" value="18000" style="margin-top: 8px;">
-
           <div class="value" id="txFreqText">18000 Hz</div>
         </div>
 
         <div>
           <label>ゲイン</label>
-
           <input type="number" id="txGain" value="0.05" min="0" max="0.5" step="0.005">
-
           <div class="hint" style="margin-top: 8px;">
             18.00〜18.35kHz = 黒〜白<br>
             18.35〜21kHz = 色相
@@ -242,6 +278,10 @@
 
       <div class="row">
         <button id="txStart">超音波送信開始</button>
+        <button id="liveColorStart" class="live-btn">⚡ レインボー演出</button>
+        <button id="liveGrayStart" class="live-gray-btn">📺 モノトーン演出</button>
+        <button id="liveAmbientStart" class="live-ambient-btn">🌊 オーシャン演出</button>
+        <button id="liveBreatheStart" class="live-breathe-btn">🔮 サンセット演出</button>
         <button id="txStop" disabled>停止</button>
         <span id="txStatus" class="status">停止中</span>
       </div>
@@ -269,32 +309,22 @@
       <div class="config">
         <div>
           <label>送信側周波数（比較用）</label>
-
           <input type="number" id="rxExpectedFreq" min="18000" max="21000" step="1" placeholder="例: 19500">
         </div>
 
         <div>
           <label>受信周波数</label>
-
-          <div class="value" id="rxDetectedFreq">
-            ---- Hz
-          </div>
+          <div class="value" id="rxDetectedFreq">---- Hz</div>
         </div>
 
         <div>
           <label>周波数差</label>
-
-          <div class="value" id="rxDiff">
-            ---- Hz
-          </div>
+          <div class="value" id="rxDiff">---- Hz</div>
         </div>
 
         <div>
           <label>変換された色</label>
-
-          <div class="value" id="rxDetectedColor">
-            ----
-          </div>
+          <div class="value" id="rxDetectedColor">----</div>
         </div>
       </div>
 
@@ -318,23 +348,12 @@
     (() => {
       "use strict";
 
-      /* =========================================================
-         CONFIG
-      ========================================================= */
-
       const MIN_FREQ = 18000;
       const MAX_FREQ = 21000;
-
       const GRAY_END_FREQ = 18350;
+      const GRAY_MAX_LIMIT = 18340;
       const FFT_SIZE = 4096;
-
-      /* 緩和：感度と追従性を重視した設定 */
       const RX_THRESHOLD_DB = -110;
-      const RX_CONFIRM_FRAMES = 1; // 連続フレーム縛りを撤廃して即座に追従
-
-      /* =========================================================
-         STATE
-      ========================================================= */
 
       let tx = {
         ctx: null,
@@ -342,7 +361,8 @@
         gain: null,
         running: false,
         frequency: 18000,
-        color: "#FF0000"
+        color: "#FF0000",
+        liveAnim: null
       };
 
       let rx = {
@@ -360,10 +380,6 @@
 
       const $ = id => document.getElementById(id);
 
-      /* =========================================================
-         MODE
-      ========================================================= */
-
       $("txMode").onclick = () => {
         $("txMode").classList.add("active");
         $("rxMode").classList.remove("active");
@@ -378,17 +394,9 @@
         $("rxPanel").style.display = "";
       };
 
-      /* =========================================================
-         COLOR -> FREQUENCY
-      ========================================================= */
-
       function hexToRgb(hex) {
         const n = parseInt(hex.slice(1), 16);
-        return {
-          r: (n >> 16) & 255,
-          g: (n >> 8) & 255,
-          b: n & 255
-        };
+        return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
       }
 
       function rgbToHex(r, g, b) {
@@ -400,99 +408,58 @@
       }
 
       function rgbToHsl(r, g, b) {
-        r /= 255;
-        g /= 255;
-        b /= 255;
-
-        const max = Math.max(r, g, b);
-        const min = Math.min(r, g, b);
-
-        let h = 0;
-        let s = 0;
-        const l = (max + min) / 2;
-
+        r /= 255; g /= 255; b /= 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let h = 0, s = 0, l = (max + min) / 2;
         if (max !== min) {
           const d = max - min;
           s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-
           switch (max) {
-            case r:
-              h = (g - b) / d + (g < b ? 6 : 0);
-              break;
-            case g:
-              h = (b - r) / d + 2;
-              break;
-            case b:
-              h = (r - g) / d + 4;
-              break;
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
           }
           h /= 6;
         }
-
         return { h: h * 360, s, l };
       }
 
       function colorToFrequency(hex) {
         const { r, g, b } = hexToRgb(hex);
-        const max = Math.max(r, g, b);
-        const min = Math.min(r, g, b);
-
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
         if (max - min <= 8) {
           const gray = (r + g + b) / 3;
           return MIN_FREQ + (gray / 255) * (GRAY_END_FREQ - MIN_FREQ);
         }
-
         const hsl = rgbToHsl(r, g, b);
         return GRAY_END_FREQ + (hsl.h / 360) * (MAX_FREQ - GRAY_END_FREQ);
       }
 
-      /* =========================================================
-         FREQUENCY -> COLOR
-      ========================================================= */
-
       function frequencyToColor(freq) {
         const f = Math.max(MIN_FREQ, Math.min(MAX_FREQ, freq));
-
         if (f <= GRAY_END_FREQ) {
           const t = (f - MIN_FREQ) / (GRAY_END_FREQ - MIN_FREQ);
           const v = Math.round(t * 255);
           return rgbToHex(v, v, v);
         }
-
         const t = (f - GRAY_END_FREQ) / (MAX_FREQ - GRAY_END_FREQ);
         return hslToHex(t * 360, 100, 50);
       }
 
       function hslToHex(h, s, l) {
-        s /= 100;
-        l /= 100;
-
+        s /= 100; l /= 100;
         const c = (1 - Math.abs(2 * l - 1)) * s;
         const x = c * (1 - Math.abs((h / 60) % 2 - 1));
         const m = l - c / 2;
-
         let r = 0, g = 0, b = 0;
-
-        if (h < 60) {
-          r = c; g = x;
-        } else if (h < 120) {
-          r = x; g = c;
-        } else if (h < 180) {
-          g = c; b = x;
-        } else if (h < 240) {
-          g = x; b = c;
-        } else if (h < 300) {
-          r = x; b = c;
-        } else {
-          r = c; b = x;
-        }
-
+        if (h < 60) { r = c; g = x; }
+        else if (h < 120) { r = x; g = c; }
+        else if (h < 180) { g = c; b = x; }
+        else if (h < 240) { g = x; b = c; }
+        else if (h < 300) { r = x; b = c; }
+        else { r = c; b = x; }
         return rgbToHex((r + m) * 255, (g + m) * 255, (b + m) * 255);
       }
-
-      /* =========================================================
-         TX
-      ========================================================= */
 
       function updateTxColor(hex) {
         tx.color = hex.toUpperCase();
@@ -505,21 +472,15 @@
         $("txColorBox").style.background = tx.color;
 
         if (tx.running) {
-          tx.osc.frequency.setTargetAtTime(
-            tx.frequency,
-            tx.ctx.currentTime,
-            0.01
-          );
+          tx.osc.frequency.setTargetAtTime(tx.frequency, tx.ctx.currentTime, 0.05);
           $("txStatus").textContent = `送信中: ${tx.frequency.toFixed(1)} Hz`;
         }
-
         updateTxDebug();
       }
 
       function updateTxFrequency(value) {
         let f = parseFloat(value);
         if (!Number.isFinite(f)) f = MIN_FREQ;
-
         f = Math.max(MIN_FREQ, Math.min(MAX_FREQ, f));
         tx.frequency = f;
         tx.color = frequencyToColor(f);
@@ -532,86 +493,137 @@
         $("txColorBox").style.background = tx.color;
 
         if (tx.running) {
-          tx.osc.frequency.setTargetAtTime(
-            f,
-            tx.ctx.currentTime,
-            0.01
-          );
+          tx.osc.frequency.setTargetAtTime(f, tx.ctx.currentTime, 0.05);
           $("txStatus").textContent = `送信中: ${f.toFixed(1)} Hz`;
         }
-
         updateTxDebug();
       }
 
       function updateTxDebug() {
         $("txDebug").textContent =
-          `[TRANSMITTER DEBUG]
-
-Color       : ${tx.color}
-Frequency   : ${tx.frequency.toFixed(3)} Hz
-Running     : ${tx.running}
-SampleRate  : ${tx.ctx ? tx.ctx.sampleRate : "----"} Hz
-Gain        : ${$("txGain").value}
-
-Range       : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
+          `[TRANSMITTER DEBUG]\nColor : ${tx.color}\nFrequency : ${tx.frequency.toFixed(3)} Hz\nRunning : ${tx.running}\nSampleRate : ${tx.ctx ? tx.ctx.sampleRate : "----"} Hz\nGain : ${$("txGain").value}`;
       }
 
       $("txColor").oninput = e => updateTxColor(e.target.value);
       $("txFreqRange").oninput = e => updateTxFrequency(e.target.value);
       $("txFreqNum").oninput = e => updateTxFrequency(e.target.value);
 
-      /* =========================================================
-         TX START
-      ========================================================= */
-
-      $("txStart").onclick = async () => {
-        if (tx.running) return;
-
-        try {
+      async function initAudioContext() {
+        if (!tx.ctx) {
           tx.ctx = new (window.AudioContext || window.webkitAudioContext)();
-
-          if (tx.ctx.state === "suspended") {
-            await tx.ctx.resume();
-          }
-
+        }
+        if (tx.ctx.state === "suspended") {
+          await tx.ctx.resume();
+        }
+        if (!tx.running) {
           let gainVal = parseFloat($("txGain").value);
           if (!Number.isFinite(gainVal)) gainVal = .05;
           gainVal = Math.max(0, Math.min(.5, gainVal));
 
           tx.osc = tx.ctx.createOscillator();
           tx.gain = tx.ctx.createGain();
-
           tx.osc.type = "sine";
           tx.osc.frequency.setValueAtTime(tx.frequency, tx.ctx.currentTime);
           tx.gain.gain.setValueAtTime(gainVal, tx.ctx.currentTime);
-
           tx.osc.connect(tx.gain).connect(tx.ctx.destination);
           tx.osc.start();
-
           tx.running = true;
 
           $("txStart").disabled = true;
+          $("liveColorStart").disabled = true;
+          $("liveGrayStart").disabled = true;
+          $("liveAmbientStart").disabled = true;
+          $("liveBreatheStart").disabled = true;
           $("txStop").disabled = false;
-          $("txStatus").textContent = `送信中: ${tx.frequency.toFixed(1)} Hz`;
-          $("txStatus").className = "status";
+        }
+      }
 
+      $("txStart").onclick = async () => {
+        try {
+          await initAudioContext();
+          $("txStatus").textContent = `送信中: ${tx.frequency.toFixed(1)} Hz`;
           updateTxDebug();
         } catch (e) {
           $("txDebug").textContent = `[ERROR]\n${e.message}`;
         }
       };
 
-      /* =========================================================
-         TX STOP
-      ========================================================= */
-
-      $("txStop").onclick = async () => {
-        if (!tx.running) return;
-
+      // 共通のライブ演出ランナー（滑らかな遷移：周期を長くし、スピードを落とした実装）
+      async function startLivePreset(durationMs, generatorFn) {
+        if (tx.running) return;
         try {
-          tx.osc.stop();
-          await tx.ctx.close();
-        } catch { }
+          await initAudioContext();
+          $("liveProgressBar").style.display = "block";
+
+          let startTime = performance.now();
+
+          const liveLoop = (now) => {
+            let elapsed = now - startTime;
+            let progress = Math.min(100, (elapsed / durationMs) * 100);
+            $("liveProgressFill").style.width = `${progress}%`;
+
+            if (elapsed >= durationMs) {
+              stopTxEverything();
+              return;
+            }
+
+            let t = elapsed / 1000;
+            let freq = generatorFn(t, elapsed);
+
+            updateTxFrequency(freq);
+            $("txStatus").textContent = `演出中 (${((durationMs - elapsed) / 1000).toFixed(1)}s)`;
+            tx.liveAnim = requestAnimationFrame(liveLoop);
+          };
+
+          tx.liveAnim = requestAnimationFrame(liveLoop);
+        } catch (e) {
+          $("txDebug").textContent = `[ERROR]\n${e.message}`;
+          stopTxEverything();
+        }
+      }
+
+      // プレセット1: レインボー演出 (ゆっくりとした色相環の循環 - 45秒)
+      $("liveColorStart").onclick = () => {
+        startLivePreset(45000, (t) => {
+          let hue = (t * 8) % 360; // 速度を大幅に落として滑らかに
+          let hex = hslToHex(hue, 100, 50);
+          return colorToFrequency(hex);
+        });
+      };
+
+      // プレセット2: モノトーン演出 (黒から白への緩やかなグラデーション往復 - 45秒)
+      $("liveGrayStart").onclick = () => {
+        startLivePreset(45000, (t) => {
+          let wave = Math.sin(t * 0.3) * 0.5 + 0.5; // 超スローな往復
+          return MIN_FREQ + wave * (GRAY_MAX_LIMIT - MIN_FREQ);
+        });
+      };
+
+      // プレセット3: オーシャン演出 (青〜水色〜緑の範囲を優しく漂う - 45秒)
+      $("liveAmbientStart").onclick = () => {
+        startLivePreset(45000, (t) => {
+          // 色相 160（シアン・緑系）から 240（青系）の間をゆっくり行き来
+          let hue = 200 + Math.sin(t * 0.4) * 40;
+          let hex = hslToHex(hue, 100, 50);
+          return colorToFrequency(hex);
+        });
+      };
+
+      // プレセット4: サンセット演出 (赤〜オレンジ〜紫のマゼンタ域を周回 - 45秒)
+      $("liveBreatheStart").onclick = () => {
+        startLivePreset(45000, (t) => {
+          let hue = (Math.sin(t * 0.25) * 0.5 + 0.5) * 60 + 300; // 300〜360度（紫〜赤）
+          let hex = hslToHex(hue % 360, 100, 50);
+          return colorToFrequency(hex);
+        });
+      };
+
+      async function stopTxEverything() {
+        if (tx.liveAnim) cancelAnimationFrame(tx.liveAnim);
+        try {
+          if (tx.osc) tx.osc.stop();
+          if (tx.ctx) await tx.ctx.close();
+        } catch {}
 
         tx.running = false;
         tx.osc = null;
@@ -619,37 +631,30 @@ Range       : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
         tx.ctx = null;
 
         $("txStart").disabled = false;
+        $("liveColorStart").disabled = false;
+        $("liveGrayStart").disabled = false;
+        $("liveAmbientStart").disabled = false;
+        $("liveBreatheStart").disabled = false;
         $("txStop").disabled = true;
         $("txStatus").textContent = "停止中";
+        $("liveProgressBar").style.display = "none";
+        $("liveProgressFill").style.width = "0%";
 
         updateTxDebug();
-      };
+      }
 
-      /* =========================================================
-         RX EXPECTED FREQUENCY
-      ========================================================= */
+      $("txStop").onclick = stopTxEverything;
 
       $("rxExpectedFreq").oninput = () => {
         const v = parseFloat($("rxExpectedFreq").value);
         rx.expectedFreq = Number.isFinite(v) ? v : null;
       };
 
-      /* =========================================================
-         FIND ULTRASONIC PEAK
-      ========================================================= */
-
       function findUltrasonicPeak() {
         const sr = rx.ctx.sampleRate;
         const nyquist = sr / 2;
-
-        const minBin = Math.max(
-          0,
-          Math.floor(MIN_FREQ / nyquist * rx.bins.length)
-        );
-        const maxBin = Math.min(
-          rx.bins.length - 1,
-          Math.ceil(MAX_FREQ / nyquist * rx.bins.length)
-        );
+        const minBin = Math.max(0, Math.floor(MIN_FREQ / nyquist * rx.bins.length));
+        const maxBin = Math.min(rx.bins.length - 1, Math.ceil(MAX_FREQ / nyquist * rx.bins.length));
 
         let maxDb = -Infinity;
         let maxBinIndex = minBin;
@@ -661,46 +666,26 @@ Range       : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
             maxBinIndex = i;
           }
         }
-
         const peakHz = maxBinIndex * nyquist / rx.bins.length;
-
         return { peakHz, maxDb, minBin, maxBin };
       }
 
-      /* =========================================================
-         RX START
-      ========================================================= */
-
       $("rxStart").onclick = async () => {
         if (rx.running) return;
-
         try {
           rx.stream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              echoCancellation: false,
-              noiseSuppression: false,
-              autoGainControl: false,
-              channelCount: 1
-            },
+            audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
             video: false
           });
-
           rx.ctx = new (window.AudioContext || window.webkitAudioContext)();
-
-          if (rx.ctx.state === "suspended") {
-            await rx.ctx.resume();
-          }
+          if (rx.ctx.state === "suspended") await rx.ctx.resume();
 
           rx.source = rx.ctx.createMediaStreamSource(rx.stream);
           rx.analyser = rx.ctx.createAnalyser();
-
           rx.analyser.fftSize = FFT_SIZE;
-          rx.analyser.smoothingTimeConstant = 0.05; // 追従性を上げるためスムージングを小さく
-
+          rx.analyser.smoothingTimeConstant = 0.08; // 追従を少し滑らかにするため僅かに調整
           rx.source.connect(rx.analyser);
-
           rx.bins = new Float32Array(rx.analyser.frequencyBinCount);
-
           rx.running = true;
 
           $("rxStart").disabled = true;
@@ -713,25 +698,19 @@ Range       : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
           const loop = () => {
             if (!rx.running) return;
 
-            if (
-              canvas.width !== canvas.clientWidth ||
-              canvas.height !== canvas.clientHeight
-            ) {
+            if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
               canvas.width = canvas.clientWidth;
               canvas.height = canvas.clientHeight;
             }
 
             rx.analyser.getFloatFrequencyData(rx.bins);
-
             const sr = rx.ctx.sampleRate;
             const nyquist = sr / 2;
             const d = findUltrasonicPeak();
-
             const confirmed = d.maxDb >= RX_THRESHOLD_DB;
 
             if (confirmed) {
               const color = frequencyToColor(d.peakHz);
-
               rx.lastColor = color;
               rx.lastFrequency = d.peakHz;
 
@@ -742,17 +721,13 @@ Range       : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
               $("rxStatus").textContent = `SIGNAL ACTIVE`;
             } else {
               $("rxColorBox").style.background = rx.lastColor;
-              $("rxColorText").textContent =
-                rx.lastFrequency !== null ? rx.lastColor : "NO SIGNAL";
-              $("rxDetectedColor").textContent =
-                rx.lastFrequency !== null ? rx.lastColor : "----";
-              $("rxDetectedFreq").textContent =
-                rx.lastFrequency !== null ? `${rx.lastFrequency.toFixed(1)} Hz` : "---- Hz";
+              $("rxColorText").textContent = rx.lastFrequency !== null ? rx.lastColor : "NO SIGNAL";
+              $("rxDetectedColor").textContent = rx.lastFrequency !== null ? rx.lastColor : "----";
+              $("rxDetectedFreq").textContent = rx.lastFrequency !== null ? `${rx.lastFrequency.toFixed(1)} Hz` : "---- Hz";
               $("rxStatus").textContent = "待機中";
             }
 
-            $("peakDisplay").textContent =
-              `${d.peakHz.toFixed(1)} Hz (${d.maxDb.toFixed(1)} dB)`;
+            $("peakDisplay").textContent = `${d.peakHz.toFixed(1)} Hz (${d.maxDb.toFixed(1)} dB)`;
 
             if (rx.expectedFreq !== null && confirmed) {
               const diff = d.peakHz - rx.expectedFreq;
@@ -761,106 +736,30 @@ Range       : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
               $("rxDiff").textContent = "---- Hz";
             }
 
-            $("rxLog").textContent =
-              `[RECEIVER DEBUG]
-
-Signal       : ${confirmed ? "ACTIVE" : "NONE"}
-
-Candidate    : ${d.peakHz.toFixed(3)} Hz
-Peak dB      : ${d.maxDb.toFixed(2)} dB
-
-Threshold    : ${RX_THRESHOLD_DB} dB
-
-TX Frequency : ${rx.expectedFreq !== null
-                ? rx.expectedFreq.toFixed(3)
-                : "----"
-              } Hz
-
-RX Frequency : ${d.peakHz.toFixed(3)} Hz
-
-Difference   : ${rx.expectedFreq !== null
-                ? (d.peakHz - rx.expectedFreq).toFixed(3)
-                : "----"
-              } Hz
-
-RX Color     : ${confirmed
-                ? frequencyToColor(d.peakHz)
-                : rx.lastColor
-              }
-
-SampleRate   : ${sr} Hz
-Nyquist      : ${nyquist} Hz
-FFT Size     : ${FFT_SIZE}
-
-Target       : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
-
-            const w = canvas.width;
-            const h = canvas.height;
-
+            const w = canvas.width, h = canvas.height;
             g.clearRect(0, 0, w, h);
             g.fillStyle = "#090c11";
             g.fillRect(0, 0, w, h);
 
             g.beginPath();
-
             for (let i = 0; i < rx.bins.length; i++) {
               const x = i / rx.bins.length * w;
               const db = rx.bins[i];
               const y = h - Math.max(0, Math.min(1, (db + 100) / 80)) * h;
-
               if (i === 0) g.moveTo(x, y);
               else g.lineTo(x, y);
             }
-
             g.strokeStyle = "#7fc8ff";
             g.lineWidth = 1.5;
             g.stroke();
 
             const x1 = MIN_FREQ / nyquist * w;
             const x2 = MAX_FREQ / nyquist * w;
-
             g.fillStyle = "rgba(119,227,162,.10)";
             g.fillRect(x1, 0, x2 - x1, h);
 
-            g.font = "11px ui-monospace,monospace";
-            g.fillStyle = "#8b949e";
-
-            for (let hz = 5000; hz < nyquist; hz += 5000) {
-              const x = hz / nyquist * w;
-
-              g.strokeStyle = "rgba(255,255,255,.1)";
-              g.beginPath();
-              g.moveTo(x, 0);
-              g.lineTo(x, h);
-              g.stroke();
-
-              g.fillText(`${hz / 1000}kHz`, x + 4, 15);
-            }
-
-            [
-              18000,
-              18350,
-              19000,
-              20000,
-              21000
-            ].forEach(hz => {
-              if (hz > nyquist) return;
-
-              const x = hz / nyquist * w;
-
-              g.strokeStyle = "rgba(119,227,162,.45)";
-              g.beginPath();
-              g.moveTo(x, 0);
-              g.lineTo(x, h);
-              g.stroke();
-
-              g.fillStyle = "#77e3a2";
-              g.fillText(`${hz / 1000}kHz`, x + 4, h - 8);
-            });
-
             if (confirmed) {
               const peakX = d.peakHz / nyquist * w;
-
               g.strokeStyle = "#ff7f8f";
               g.lineWidth = 2;
               g.beginPath();
@@ -871,7 +770,6 @@ Target       : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
 
             rx.raf = requestAnimationFrame(loop);
           };
-
           rx.raf = requestAnimationFrame(loop);
         } catch (e) {
           $("rxLog").textContent = `[ERROR]\n${e.message}`;
@@ -879,27 +777,16 @@ Target       : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
         }
       };
 
-      /* =========================================================
-         RX STOP
-      ========================================================= */
-
       $("rxStop").onclick = async () => {
         rx.running = false;
-
         if (rx.raf) cancelAnimationFrame(rx.raf);
-
         try {
           rx.source?.disconnect();
           rx.stream?.getTracks().forEach(t => t.stop());
           await rx.ctx?.close();
-        } catch { }
+        } catch {}
 
-        rx.ctx = null;
-        rx.stream = null;
-        rx.source = null;
-        rx.analyser = null;
-        rx.bins = null;
-
+        rx.ctx = null; rx.stream = null; rx.source = null; rx.analyser = null; rx.bins = null;
         $("rxStart").disabled = false;
         $("rxStop").disabled = true;
         $("rxStatus").textContent = "停止中";
@@ -909,33 +796,10 @@ Target       : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
         $("rxDetectedColor").textContent = "----";
         $("rxColorText").textContent = "NO SIGNAL";
         $("rxColorBox").style.background = "#151923";
-        $("rxLog").textContent = "Receiver stopped.";
       };
 
-      /* =========================================================
-         INIT
-      ========================================================= */
-
       updateTxColor($("txColor").value);
-
-      window.addEventListener("beforeunload", () => {
-        try {
-          if (tx.running) {
-            tx.osc.stop();
-            tx.ctx.close();
-          }
-        } catch { }
-
-        try {
-          if (rx.running) {
-            rx.stream?.getTracks().forEach(t => t.stop());
-            rx.ctx?.close();
-          }
-        } catch { }
-      });
     })();
   </script>
-
 </body>
-
 </html>
