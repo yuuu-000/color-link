@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sound Color Experiment (Debug)</title>
+
+<style>
+*{box-sizing:border-box}
+
+html,body{
+  margin:0;
+  width:100%;
+  min-height:100%;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:#111;
+  color:#fff;
+}
+
+body{
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+
+#app{
+  width:min(720px,94vw);
+  padding:24px 0;
+}
+
+h1{
+  margin:0 0 8px;
+  font-size:28px;
+}
+
+p{
+  color:#aaa;
+}
+
+.panel{
+  background:#1c1c1c;
+  border:1px solid #333;
+  border-radius:16px;
+  padding:20px;
+  margin-top:16px;
+}
+
+button{
+  appearance:none;
+  border:0;
+  border-radius:10px;
+  padding:12px 18px;
+  font-size:16px;
+  cursor:pointer;
+  background:#fff;
+  color:#000;
+  margin-right: 8px;
+  margin-top: 8px;
+}
+
+button:disabled{
+  opacity:.4;
+  cursor:not-allowed;
+}
+
+input[type=color]{
+  width:100px;
+  height:60px;
+  border:0;
+  padding:0;
+  background:none;
+  cursor:pointer;
+}
+
+.mode-buttons{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.mode-buttons button.active{
+  outline:3px solid #fff;
+}
+
+.row{
+  display:flex;
+  align-items:center;
+  gap:16px;
+  flex-wrap:wrap;
+}
+
+#colorPreview{
+  width:120px;
+  height:120px;
+  border-radius:20px;
+  border:1px solid #555;
+}
+
+#receivedColor{
+  width:100%;
+  height:200px;
+  border-radius:20px;
+  border:1px solid #555;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:32px;
+  font-weight:700;
+  text-shadow:0 2px 8px #000;
+  margin-top:16px;
+}
+
+.status{
+  margin-top:14px;
+  padding:12px;
+  background:#111;
+  border-radius:10px;
+  font-family:monospace;
+  line-height:1.7;
+  white-space:pre-wrap;
+  font-size: 13px;
+}
+
+canvas{
+  display:block;
+  width:100%;
+  height:180px;
+  margin-top:16px;
+  background:#000;
+  border-radius:10px;
+}
+
+.hidden{
+  display:none;
+}
+
+.small{
+  font-size:13px;
+  color:#888;
+}
+
+.warning{
+  color:#ffcc66;
+}
+</style>
+</head>
+
+<body>
+
+<div id="app">
+
+  <h1>Sound Color Experiment</h1>
+  <p>
+    デバッグ情報を強化したフルコードやで。まずは可聴域（1000〜3000Hz）でテスト推奨や！
+  </p>
+
+  <!-- モード選択 -->
+  <div class="panel">
+    <h2>① モード選択</h2>
+    <div class="mode-buttons">
+      <button id="txMode">発信側</button>
+      <button id="rxMode">受信側</button>
+    </div>
+  </div>
+
+  <!-- 発信側 -->
+  <div id="transmitter" class="panel hidden">
+    <h2>② 発信側</h2>
+    <div class="row">
+      <input type="color" id="colorPicker" value="#ff0000">
+      <div id="colorPreview"></div>
+    </div>
+    <p>色相を周波数に変換して発信するで。</p>
+    <div class="status" id="txStatus">停止中</div>
+    <button id="startTx">発信開始</button>
+    <button id="stopTx" disabled>発信停止</button>
+  </div>
+
+  <!-- 受信側 -->
+  <div id="receiver" class="panel hidden">
+    <h2>② 受信側</h2>
+    <p>マイクをONにして、音を入れてみてな。</p>
+    <button id="startRx">マイク開始</button>
+    <button id="stopRx" disabled>マイク停止</button>
+    
+    <div id="receivedColor">待機中</div>
+    <div class="status" id="rxStatus">マイク停止中</div>
+    <canvas id="spectrum" width="800" height="180"></canvas>
+  </div>
+
+  <div class="panel">
+    <h2>実験メモ & 設定</h2>
+    <p class="small">
+      発信周波数：<span id="rangeInfo"></span>
+    </p>
+    <p class="small warning">
+      ※超音波域（18kHz〜）は端末によってスピーカー・マイクがカットするため、まずは可聴域（1000〜3000Hz）での動作確認をおすすめします。
+    </p>
+    <button id="toggleRange" style="background:#333; color:#fff; font-size:14px; padding:8px 12px;">周波数帯の切替 (可聴域 ⇔ 超音波)</button>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+
+// デバッグ用フラグ：trueにすると可聴域でテスト、falseで超音波域
+let useAudibleRange = true;
+
+let MIN_FREQ = useAudibleRange ? 1000 : 18000;
+let MAX_FREQ = useAudibleRange ? 3000 : 20000;
+
+function updateRangeInfo() {
+  document.getElementById("rangeInfo").textContent = `${MIN_FREQ} Hz ～ ${MAX_FREQ} Hz (${useAudibleRange ? '可聴域テスト中' : '超音波域'})`;
+}
+
+/* DOM */
+const txMode = document.getElementById("txMode");
+const rxMode = document.getElementById("rxMode");
+const transmitter = document.getElementById("transmitter");
+const receiver = document.getElementById("receiver");
+const colorPicker = document.getElementById("colorPicker");
+const colorPreview = document.getElementById("colorPreview");
+const startTx = document.getElementById("startTx");
+const stopTx = document.getElementById("stopTx");
+const startRx = document.getElementById("startRx");
+const stopRx = document.getElementById("stopRx");
+const txStatus = document.getElementById("txStatus");
+const rxStatus = document.getElementById("rxStatus");
+const receivedColor = document.getElementById("receivedColor");
+const spectrumCanvas = document.getElementById("spectrum");
+const spectrumCtx = spectrumCanvas.getContext("2d");
+const toggleRange = document.getElementById("toggleRange");
+
+updateRangeInfo();
+
+toggleRange.addEventListener("click", () => {
+  useAudibleRange = !useAudibleRange;
+  MIN_FREQ = useAudibleRange ? 1000 : 18000;
+  MAX_FREQ = useAudibleRange ? 3000 : 20000;
+  updateRangeInfo();
+  alert("周波数帯を切り替えました: " + MIN_FREQ + "Hz ～ " + MAX_FREQ + "Hz");
+});
+
+/* 変数 */
+let txAudioContext = null;
+let oscillator = null;
+let txGain = null;
+
+let rxAudioContext = null;
+let microphoneStream = null;
+let analyser = null;
+let microphoneSource = null;
+let rxRunning = false;
+
+/* 色変換ユーティリティ */
+function hexToRgb(hex){
+  hex = hex.replace("#","");
+  return {
+    r: parseInt(hex.slice(0,2),16),
+    g: parseInt(hex.slice(2,4),16),
+    b: parseInt(hex.slice(4,6),16)
+  };
+}
+
+function rgbToHsl(r,g,b){
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b);
+  let h = 0, s = 0, l = (max + min) / 2;
+  if(max !== min){
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch(max){
+      case r: h = (g-b)/d + (g < b ? 6 : 0); break;
+      case g: h = (b-r)/d + 2; break;
+      case b: h = (r-g)/d + 4; break;
+    }
+    h /= 6;
+  }
+  return { h:h*360, s, l };
+}
+
+function hslToRgb(h,s,l){
+  h /= 360;
+  let r,g,b;
+  if(s === 0){
+    r = g = b = l;
+  }else{
+    const hue2rgb = (p,q,t) => {
+      if(t < 0) t++; if(t > 1) t--;
+      if(t < 1/6) return p+(q-p)*6*t;
+      if(t < 1/2) return q;
+      if(t < 2/3) return p+(q-p)*(2/3-t)*6;
+      return p;
+    };
+    const q = l < .5 ? l*(1+s) : l+s-l*s;
+    const p = 2*l-q;
+    r = hue2rgb(p,q,h+1/3);
+    g = hue2rgb(p,q,h);
+    b = hue2rgb(p,q,h-1/3);
+  }
+  return { r:Math.round(r*255), g:Math.round(g*255), b:Math.round(b*255) };
+}
+
+function rgbToHex(r,g,b){
+  return "#" + [r,g,b].map(v => v.toString(16).padStart(2,"0")).join("");
+}
+
+function colorToFrequency(hex){
+  const {r,g,b} = hexToRgb(hex);
+  const {h} = rgbToHsl(r,g,b);
+  return MIN_FREQ + (h / 360) * (MAX_FREQ - MIN_FREQ);
+}
+
+function frequencyToColor(freq){
+  let ratio = (freq - MIN_FREQ) / (MAX_FREQ - MIN_FREQ);
+  ratio = Math.max(0, Math.min(1, ratio));
+  const h = ratio * 360;
+  const rgb = hslToRgb(h, 1, .5);
+  return rgbToHex(rgb.r, rgb.g, rgb.b);
+}
+
+function updateColorPreview(){
+  colorPreview.style.background = colorPicker.value;
+}
+colorPicker.addEventListener("input", updateColorPreview);
+updateColorPreview();
+
+/* モード切替 */
+txMode.addEventListener("click",()=>{
+  transmitter.classList.remove("hidden");
+  receiver.classList.add("hidden");
+  txMode.classList.add("active");
+  rxMode.classList.remove("active");
+});
+
+rxMode.addEventListener("click",()=>{
+  transmitter.classList.add("hidden");
+  receiver.classList.remove("hidden");
+  txMode.classList.remove("active");
+  rxMode.classList.add("active");
+});
+
+/* 発信 */
+startTx.addEventListener("click", async()=>{
+  try{
+    txAudioContext = new AudioContext();
+    await txAudioContext.resume();
+
+    oscillator = txAudioContext.createOscillator();
+    txGain = txAudioContext.createGain();
+
+    txGain.gain.value = 0.1; // 若干音量アップ
+    const frequency = colorToFrequency(colorPicker.value);
+
+    oscillator.type = "sine";
+    oscillator.frequency.value = frequency;
+
+    oscillator.connect(txGain).connect(txAudioContext.destination);
+    oscillator.start();
+
+    txStatus.textContent = 
+      `[発信中]\n` +
+      `State: ${txAudioContext.state}\n` +
+      `SampleRate: ${txAudioContext.sampleRate}Hz\n` +
+      `Color: ${colorPicker.value}\n` +
+      `Freq: ${frequency.toFixed(2)} Hz`;
+
+    startTx.disabled = true;
+    stopTx.disabled = false;
+  }catch(error){
+    console.error(error);
+    txStatus.textContent = "発信エラー: " + error.message;
+  }
+});
+
+colorPicker.addEventListener("input",()=>{
+  if(!oscillator || !txAudioContext) return;
+  const frequency = colorToFrequency(colorPicker.value);
+  oscillator.frequency.setTargetAtTime(frequency, txAudioContext.currentTime, 0.01);
+  txStatus.textContent = 
+    `[発信中]\n` +
+    `State: ${txAudioContext.state}\n` +
+    `Color: ${colorPicker.value}\n` +
+    `Freq: ${frequency.toFixed(2)} Hz`;
+});
+
+stopTx.addEventListener("click",()=>{
+  try{
+    if(oscillator){ oscillator.stop(); oscillator.disconnect(); oscillator = null; }
+    if(txAudioContext){ txAudioContext.close(); txAudioContext = null; }
+  }catch(e){}
+  txStatus.textContent = "停止中";
+  startTx.disabled = false;
+  stopTx.disabled = true;
+});
+
+/* 受信 */
+startRx.addEventListener("click", async()=>{
+  try{
+    microphoneStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      }
+    });
+
+    rxAudioContext = new AudioContext();
+    await rxAudioContext.resume();
+
+    microphoneSource = rxAudioContext.createMediaStreamSource(microphoneStream);
+    analyser = rxAudioContext.createAnalyser();
+
+    analyser.fftSize = 32768;
+    analyser.smoothingTimeConstant = 0.3; // 反応を少し速くする
+
+    microphoneSource.connect(analyser);
+
+    rxRunning = true;
+    startRx.disabled = true;
+    stopRx.disabled = false;
+
+    rxStatus.textContent = `[マイク監視中]\nSampleRate: ${rxAudioContext.sampleRate}Hz\nFFTSize: ${analyser.fftSize}`;
+    detectFrequency();
+
+  }catch(error){
+    console.error(error);
+    rxStatus.textContent = "マイク開始エラー\n" + error.message;
+  }
+});
+
+function detectFrequency(){
+  if(!rxRunning) return;
+
+  const buffer = new Float32Array(analyser.frequencyBinCount);
+  analyser.getFloatFrequencyData(buffer);
+
+  const sampleRate = rxAudioContext.sampleRate;
+  const fftSize = analyser.fftSize;
+
+  // 監視レンジを少し広げて余裕を持たせる
+  const debugStartFreq = Math.max(0, MIN_FREQ - 200);
+  const debugEndFreq = Math.min(sampleRate / 2, MAX_FREQ + 200);
+
+  const minBin = Math.floor(debugStartFreq * fftSize / sampleRate);
+  const maxBin = Math.ceil(debugEndFreq * fftSize / sampleRate);
+
+  let peakBin = -1;
+  let peakValue = -Infinity;
+
+  for(let i = minBin; i <= maxBin; i++){
+    const value = buffer[i];
+    if(value > peakValue){
+      peakValue = value;
+      peakBin = i;
+    }
+  }
+
+  if(peakBin >= 0){
+    const frequency = peakBin * sampleRate / fftSize;
+
+    // デバッグ用に閾値を少し甘く(-90dB)して確認しやすくする
+    if(peakValue > -90){
+      const color = frequencyToColor(frequency);
+      receivedColor.style.background = color;
+      receivedColor.textContent = color;
+
+      rxStatus.textContent =
+        `[受信成功]\n` +
+        `検出周波数: ${frequency.toFixed(2)} Hz\n` +
+        `信号強度: ${peakValue.toFixed(1)} dB\n` +
+        `推定カラー: ${color}\n` +
+        `目標レンジ: ${MIN_FREQ}〜${MAX_FREQ}Hz`;
+    }else{
+      rxStatus.textContent =
+        `[信号待ち...]\n` +
+        `現在の最大ピーク: ${peakValue.toFixed(1)} dB (閾値: -90dB)\n` +
+        `近傍ピーク周波数: ${frequency.toFixed(2)} Hz`;
+    }
+  }
+
+  drawSpectrum(buffer, sampleRate, fftSize);
+  requestAnimationFrame(detectFrequency);
+}
+
+function drawSpectrum(buffer, sampleRate, fftSize){
+  const w = spectrumCanvas.width;
+  const h = spectrumCanvas.height;
+  spectrumCtx.clearRect(0, 0, w, h);
+
+  const startFreq = Math.max(0, MIN_FREQ - 500);
+  const endFreq = Math.min(sampleRate / 2, MAX_FREQ + 500);
+
+  const startBin = Math.floor(startFreq * fftSize / sampleRate);
+  const endBin = Math.min(buffer.length - 1, Math.ceil(endFreq * fftSize / sampleRate));
+
+  spectrumCtx.strokeStyle = "#00ffcc";
+  spectrumCtx.lineWidth = 1.5;
+  spectrumCtx.beginPath();
+
+  for(let i = startBin; i <= endBin; i++){
+    const freq = i * sampleRate / fftSize;
+    const x = (freq - startFreq) / (endFreq - startFreq) * w;
+    let db = buffer[i];
+    db = Math.max(-100, db);
+    const y = h - ((db + 100) / 100) * h;
+
+    if(i === startBin) spectrumCtx.moveTo(x, y);
+    else spectrumCtx.lineTo(x, y);
+  }
+  spectrumCtx.stroke();
+
+  // 基準ラインの描画
+  spectrumCtx.strokeStyle = "#555";
+  spectrumCtx.fillStyle = "#888";
+  spectrumCtx.font = "10px monospace";
+
+  [MIN_FREQ, (MIN_FREQ+MAX_FREQ)/2, MAX_FREQ].forEach(freq=>{
+    const x = (freq - startFreq) / (endFreq - startFreq) * w;
+    spectrumCtx.beginPath();
+    spectrumCtx.moveTo(x, 0);
+    spectrumCtx.lineTo(x, h);
+    spectrumCtx.stroke();
+    spectrumCtx.fillText(Math.round(freq) + "Hz", x + 4, 15);
+  });
+}
+
+stopRx.addEventListener("click",()=>{
+  rxRunning = false;
+  if(microphoneStream){
+    microphoneStream.getTracks().forEach(track=>track.stop());
+    microphoneStream = null;
+  }
+  if(rxAudioContext){
+    rxAudioContext.close();
+    rxAudioContext = null;
+  }
+  analyser = null;
+  microphoneSource = null;
+  startRx.disabled = false;
+  stopRx.disabled = true;
+  rxStatus.textContent = "マイク停止中";
+});
+
+txMode.click();
+</script>
+
+</body>
+</html>
