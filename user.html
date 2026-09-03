@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Color Receiver</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0b0d12;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    /* フルカラー背景モード */
+    .fullscreen-bg {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 30px;
+      transition: background 0.1s ease;
+      z-index: 10;
+    }
+
+    .top-bar {
+      width: 100%;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .icon-btn {
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .icon-btn:hover {
+      background: rgba(0, 0, 0, 0.6);
+    }
+
+    .center-status {
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+      padding: 12px 24px;
+      border-radius: 30px;
+      font: 600 15px ui-monospace, monospace;
+      letter-spacing: 0.05em;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    /* 初期セットアップ / ガイド画面 */
+    .setup-screen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      background: #0b0d12;
+      z-index: 20;
+    }
+
+    .panel {
+      width: min(440px, 100%);
+      background: #151923;
+      border: 1px solid #252b38;
+      border-radius: 24px;
+      padding: 32px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: 24px;
+      letter-spacing: -0.01em;
+    }
+
+    .guide-text {
+      color: #8b949e;
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+      text-align: left;
+    }
+
+    .guide-text strong {
+      color: #fff;
+    }
+
+    button.primary-btn {
+      width: 100%;
+      border: 0;
+      border-radius: 14px;
+      padding: 16px;
+      background: #fff;
+      color: #111;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 700;
+      transition: transform 0.1s;
+    }
+
+    button.primary-btn:active {
+      transform: scale(0.98);
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- 初回セットアップ・操作説明画面 -->
+  <div id="setupScreen" class="setup-screen">
+    <div class="panel">
+      <h1>カラーレシーバー</h1>
+      <div class="guide-text">
+        周囲の音（超音波）をリアルタイムに感知し、画面全体をそのカラーに染め上げます。<br><br>
+        <strong>ご利用方法:</strong><br>
+        1. 下部のボタンを押してマイクを許可します。<br>
+        2. 画面が自動で全画面になり、受信が始まります。<br>
+        3. 画面右上のアイコンからいつでもフルスクリーンを切り替えられます。
+      </div>
+      <button id="rxStart" class="primary-btn">受信を開始する</button>
+    </div>
+  </div>
+
+  <!-- 受信中のフルカラー背景画面 -->
+  <div id="fullscreenBg" class="fullscreen-bg" style="background: #1f2533;">
+    <div class="top-bar">
+      <button id="fullscreenBtn" class="icon-btn" title="フルスクリーン切替">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+      </button>
+    </div>
+
+    <div class="center-status" id="centerStatus">
+      待機中...
+    </div>
+
+    <div style="height: 44px;"></div> <!-- バランス用スペーサー -->
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const MIN_FREQ = 18000;
+      const MAX_FREQ = 21000;
+      const GRAY_END_FREQ = 18350;
+      const FFT_SIZE = 4096;
+      const RX_THRESHOLD_DB = -110;
+
+      let rx = {
+        ctx: null,
+        stream: null,
+        source: null,
+        analyser: null,
+        bins: null,
+        raf: null,
+        running: false,
+        lastColor: "#1f2533",
+        lastFrequency: null,
+        wakeLock: null
+      };
+
+      const $ = id => document.getElementById(id);
+
+      function rgbToHex(r, g, b) {
+        return "#" + [r, g, b].map(v =>
+          Math.round(Math.max(0, Math.min(255, v)))
+            .toString(16)
+            .padStart(2, "0")
+        ).join("").toUpperCase();
+      }
+
+      function hslToHex(h, s, l) {
+        s /= 100; l /= 100;
+        const c = (1 - Math.abs(2 * l - 1)) * s;
+        const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+        const m = l - c / 2;
+        let r = 0, g = 0, b = 0;
+        if (h < 60) { r = c; g = x; }
+        else if (h < 120) { r = x; g = c; }
+        else if (h < 180) { g = c; b = x; }
+        else if (h < 240) { g = x; b = c; }
+        else if (h < 300) { r = x; b = c; }
+        else { r = c; b = x; }
+        return rgbToHex((r + m) * 255, (g + m) * 255, (b + m) * 255);
+      }
+
+      function frequencyToColor(freq) {
+        const f = Math.max(MIN_FREQ, Math.min(MAX_FREQ, freq));
+        if (f <= GRAY_END_FREQ) {
+          const t = (f - MIN_FREQ) / (GRAY_END_FREQ - MIN_FREQ);
+          const v = Math.round(t * 255);
+          return rgbToHex(v, v, v);
+        }
+        const t = (f - GRAY_END_FREQ) / (MAX_FREQ - GRAY_END_FREQ);
+        return hslToHex(t * 360, 100, 50);
+      }
+
+      function findUltrasonicPeak() {
+        const sr = rx.ctx.sampleRate;
+        const nyquist = sr / 2;
+        const minBin = Math.max(0, Math.floor(MIN_FREQ / nyquist * rx.bins.length));
+        const maxBin = Math.min(rx.bins.length - 1, Math.ceil(MAX_FREQ / nyquist * rx.bins.length));
+
+        let maxDb = -Infinity;
+        let maxBinIndex = minBin;
+
+        for (let i = minBin; i <= maxBin; i++) {
+          const db = rx.bins[i];
+          if (db > maxDb) {
+            maxDb = db;
+            maxBinIndex = i;
+          }
+        }
+        const peakHz = maxBinIndex * nyquist / rx.bins.length;
+        return { peakHz, maxDb };
+      }
+
+      async function requestWakeLock() {
+        if ('wakeLock' in navigator) {
+          try {
+            rx.wakeLock = await navigator.wakeLock.request('screen');
+          } catch (err) {}
+        }
+      }
+
+      // フルスクリーン化の実行
+      async function enterFullscreen() {
+        if (!document.fullscreenElement) {
+          try {
+            await document.documentElement.requestFullscreen();
+          } catch (e) {}
+        }
+      }
+
+      $("fullscreenBtn").onclick = () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          }
+        }
+      };
+
+      $("rxStart").onclick = async () => {
+        if (rx.running) return;
+        try {
+          rx.stream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
+            video: false
+          });
+          rx.ctx = new (window.AudioContext || window.webkitAudioContext)();
+          if (rx.ctx.state === "suspended") await rx.ctx.resume();
+
+          rx.source = rx.ctx.createMediaStreamSource(rx.stream);
+          rx.analyser = rx.ctx.createAnalyser();
+          rx.analyser.fftSize = FFT_SIZE;
+          rx.analyser.smoothingTimeConstant = 0.03;
+          rx.source.connect(rx.analyser);
+          rx.bins = new Float32Array(rx.analyser.frequencyBinCount);
+          rx.running = true;
+
+          await requestWakeLock();
+          await enterFullscreen();
+
+          // セットアップ画面を隠し、フルカラー画面へ移行
+          $("setupScreen").style.display = "none";
+
+          const loop = () => {
+            if (!rx.running) return;
+
+            rx.analyser.getFloatFrequencyData(rx.bins);
+            const d = findUltrasonicPeak();
+            const confirmed = d.maxDb >= RX_THRESHOLD_DB;
+
+            if (confirmed) {
+              const color = frequencyToColor(d.peakHz);
+              rx.lastColor = color;
+              rx.lastFrequency = d.peakHz;
+
+              $("fullscreenBg").style.background = color;
+              $("centerStatus").textContent = color;
+            } else {
+              $("fullscreenBg").style.background = rx.lastColor;
+              $("centerStatus").textContent = rx.lastFrequency !== null ? rx.lastColor : "信号待機中...";
+            }
+
+            rx.raf = requestAnimationFrame(loop);
+          };
+          rx.raf = requestAnimationFrame(loop);
+        } catch (e) {
+          alert("マイクの許可が必要です。");
+        }
+      };
+    })();
+  </script>
+</body>
+</html>
