@@ -1,287 +1,1465 @@
 <!doctype html>
 <html lang="ja">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Real-time Frequency Generator & Analyzer</title>
-<style>
-*{box-sizing:border-box}
-html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0b0d12;color:#fff}
-body{display:flex;justify-content:center}
-.wrap{width:min(860px,100%);padding:20px}
-h1{margin:0 0 8px;font-size:24px}
-.sub{color:#aeb6c6;margin:0 0 18px;line-height:1.5}
-.mode{display:flex;gap:8px;margin-bottom:16px}
-button{border:0;border-radius:10px;padding:11px 15px;background:#252b38;color:#fff;cursor:pointer;font-size:14px;font-weight:600}
-button.active{background:#fff;color:#111}
-button:disabled{opacity:.45;cursor:not-allowed}
-.panel{background:#151923;border:1px solid #2a3040;border-radius:16px;padding:18px;margin-bottom:14px}
-label{display:block;color:#aeb6c6;font-size:13px;margin-bottom:7px}
-input[type=number], input[type=text]{width:100%;background:#0d1017;border:1px solid #2a3040;color:#fff;padding:10px;border-radius:8px;font-size:14px;font-family:ui-monospace,monospace}
-input[type=range]{width:100%;accent-color:#77e3a2;cursor:pointer;margin:8px 0}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
-.status{font:600 13px ui-monospace,monospace;padding:7px 9px;border-radius:8px;background:#0d1017;color:#c9d1e0}
-.big-peak{font-size:32px;font-weight:800;font-family:ui-monospace,monospace;color:#77e3a2;margin:10px 0}
-canvas{width:100%;height:180px;background:#090c11;border-radius:10px;border:1px solid #252b36;margin-top:10px;display:block}
-.config-group{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:12px}
-.debug-box{background:#080a0f;border:1px solid #1e2533;border-radius:8px;padding:10px;font:12px ui-monospace,monospace;color:#79c0ff;max-height:100px;overflow-y:auto;margin-top:10px;white-space:pre-wrap}
-.flex-between{display:flex;justify-content:space-between;align-items:center}
-</style>
-</head>
-<body>
-<div class="wrap">
-  <h1>Real-time Frequency Generator & Analyzer</h1>
-  <p class="sub">スライダーによる滑らかなリアルタイム周波数変更と、常時安定動作する全音域スペクトラム・ピークアナライザー。</p>
 
-  <div class="mode">
-    <button id="txMode" class="active">リアルタイム送信</button>
-    <button id="rxMode">全音域・受信解析</button>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ultrasonic Color Generator & Analyzer</title>
+
+  <style>
+    * {
+      box-sizing: border-box
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0b0d12;
+      color: #fff
+    }
+
+    body {
+      display: flex;
+      justify-content: center
+    }
+
+    .wrap {
+      width: min(860px, 100%);
+      padding: 20px
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 24px
+    }
+
+    .sub {
+      color: #aeb6c6;
+      margin: 0 0 18px;
+      line-height: 1.5
+    }
+
+    .mode {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 15px;
+      background: #252b38;
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600
+    }
+
+    button.active {
+      background: #fff;
+      color: #111
+    }
+
+    button:disabled {
+      opacity: .45;
+      cursor: not-allowed
+    }
+
+    .panel {
+      background: #151923;
+      border: 1px solid #2a3040;
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 14px
+    }
+
+    label {
+      display: block;
+      color: #aeb6c6;
+      font-size: 13px;
+      margin-bottom: 7px
+    }
+
+    input[type=number],
+    input[type=text] {
+      width: 100%;
+      background: #0d1017;
+      border: 1px solid #2a3040;
+      color: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: ui-monospace, monospace
+    }
+
+    input[type=range] {
+      width: 100%;
+      accent-color: #77e3a2;
+      cursor: pointer;
+      margin: 8px 0
+    }
+
+    input[type=color] {
+      width: 100%;
+      height: 80px;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      cursor: pointer
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 12px
+    }
+
+    .status {
+      font: 600 13px ui-monospace, monospace;
+      padding: 7px 9px;
+      border-radius: 8px;
+      background: #0d1017;
+      color: #c9d1e0
+    }
+
+    .big-peak {
+      font-size: 32px;
+      font-weight: 800;
+      font-family: ui-monospace, monospace;
+      color: #77e3a2;
+      margin: 10px 0
+    }
+
+    .color-box {
+      height: 150px;
+      border-radius: 14px;
+      border: 1px solid #313746;
+      margin: 10px 0 16px;
+      display: flex;
+      align-items: flex-end;
+      padding: 12px;
+      transition: background-color .08s linear
+    }
+
+    .color-box span {
+      background: rgba(0, 0, 0, .5);
+      padding: 6px 9px;
+      border-radius: 7px;
+      font: 700 14px ui-monospace, monospace
+    }
+
+    .config-group {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-bottom: 12px
+    }
+
+    .debug-box {
+      background: #080a0f;
+      border: 1px solid #1e2533;
+      border-radius: 8px;
+      padding: 10px;
+      font: 12px ui-monospace, monospace;
+      color: #79c0ff;
+      max-height: 170px;
+      overflow-y: auto;
+      margin-top: 10px;
+      white-space: pre-wrap;
+      line-height: 1.6
+    }
+
+    .flex-between {
+      display: flex;
+      justify-content: space-between;
+      align-items: center
+    }
+
+    .grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px
+    }
+
+    .value {
+      font: 700 15px ui-monospace, monospace;
+      color: #77e3a2
+    }
+
+    canvas {
+      width: 100%;
+      height: 180px;
+      background: #090c11;
+      border-radius: 10px;
+      border: 1px solid #252b36;
+      margin-top: 10px;
+      display: block
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <h1>Ultrasonic Color Generator & Analyzer</h1>
+    <p class="sub">
+      18〜21kHzを色に割り当て、スピーカーから送信した超音波をマイクで受信して色へ戻す実験。
+    </p>
+
+    <div class="mode">
+      <button id="txMode" class="active">カラー送信</button>
+      <button id="rxMode">カラー受信解析</button>
+    </div>
+
+    <!-- ========================= -->
+    <!-- TX -->
+    <!-- ========================= -->
+
+    <section id="txPanel" class="panel">
+
+      <label>送信するカラー</label>
+      <input id="txColor" type="color" value="#ff0000">
+
+      <div class="color-box" id="txColorBox">
+        <span id="txColorText">#FF0000</span>
+      </div>
+
+      <div class="config-group">
+
+        <div>
+          <div class="flex-between">
+            <label>送信周波数</label>
+            <span id="txFreqText" class="value">18000 Hz</span>
+          </div>
+
+          <input
+            type="range"
+            id="txFreqRange"
+            min="18000"
+            max="21000"
+            step="1"
+            value="18000"
+          >
+
+          <input
+            type="number"
+            id="txFreqNum"
+            min="18000"
+            max="21000"
+            step="1"
+            value="18000"
+          >
+        </div>
+
+        <div>
+          <label>ゲイン</label>
+
+          <input
+            type="number"
+            id="txGain"
+            value="0.05"
+            min="0"
+            max="0.5"
+            step="0.005"
+          >
+
+          <div style="margin-top:10px;color:#8b949e;font-size:12px">
+            18〜21kHz = 360°の色相
+          </div>
+        </div>
+
+      </div>
+
+      <div class="row">
+        <button id="txStart">超音波送信開始</button>
+        <button id="txStop" disabled>停止</button>
+        <span id="txStatus" class="status">停止中</span>
+      </div>
+
+      <div id="txDebug" class="debug-box">
+Ready.
+      </div>
+
+    </section>
+
+
+    <!-- ========================= -->
+    <!-- RX -->
+    <!-- ========================= -->
+
+    <section id="rxPanel" class="panel" style="display:none">
+
+      <label>受信カラー</label>
+
+      <div class="color-box" id="rxColorBox">
+        <span id="rxColorText">WAITING</span>
+      </div>
+
+      <label>受信ピーク</label>
+
+      <div class="big-peak" id="peakDisplay">
+        ---- Hz
+      </div>
+
+      <div class="grid2">
+
+        <div>
+          <label>送信側周波数</label>
+          <div id="rxTxFreq" class="value">---- Hz</div>
+        </div>
+
+        <div>
+          <label>受信側周波数</label>
+          <div id="rxDetectedFreq" class="value">---- Hz</div>
+        </div>
+
+      </div>
+
+      <div style="margin-top:12px">
+
+        <div class="grid2">
+
+          <div>
+            <label>周波数差</label>
+            <div id="rxDiff" class="value">---- Hz</div>
+          </div>
+
+          <div>
+            <label>変換された色</label>
+            <div id="rxDetectedColor" class="value">----</div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="row" style="margin-top:16px">
+        <button id="rxStart">マイク受信開始</button>
+        <button id="rxStop" disabled>停止</button>
+        <span id="rxStatus" class="status">停止中</span>
+      </div>
+
+      <canvas id="spectrum" width="1000" height="180"></canvas>
+
+      <div id="rxDebug" class="debug-box">
+Microphone inactive.
+      </div>
+
+    </section>
+
   </div>
 
-  <!-- TX PANEL -->
-  <section id="txPanel" class="panel">
-    <div class="config-group">
-      <div>
-        <div class="flex-between">
-          <label>送信周波数 (Hz)</label>
-          <span id="freqValText" style="font:13px ui-monospace; color:#77e3a2;">18000 Hz</span>
-        </div>
-        <input type="range" id="txFreqRange" value="18000" min="100" max="22000" step="1">
-        <input type="number" id="txFreqNum" value="18000" min="100" max="24000" style="margin-top:8px;">
-      </div>
-      <div>
-        <label>ゲイン (音量 0.0 - 0.5)</label>
-        <input type="text" id="txGainVal" value="0.05" style="margin-top:28px;">
-      </div>
-    </div>
 
-    <div class="row">
-      <button id="txStart">トーン送信開始</button>
-      <button id="txStop" disabled>停止</button>
-      <span id="txStatus" class="status">停止中</span>
-    </div>
-    <div id="txLog" class="debug-box">Ready.</div>
-  </section>
+  <script>
+    (() => {
 
-  <!-- RX PANEL -->
-  <section id="rxPanel" class="panel" style="display:none">
-    <label>検出された最強ピーク周波数 (Max Peak)</label>
-    <div class="big-peak" id="peakDisplay">---- Hz (---- dB)</div>
+      "use strict";
 
-    <div class="row">
-      <button id="rxStart">マイク全音域受信開始</button>
-      <button id="rxStop" disabled>停止</button>
-      <span id="rxStatus" class="status">停止中</span>
-    </div>
+      const MIN_FREQ = 18000;
+      const MAX_FREQ = 21000;
 
-    <canvas id="spectrum" width="1000" height="180"></canvas>
-    <div id="rxLog" class="debug-box">Microphone inactive.</div>
-  </section>
-</div>
+      const FFT_SIZE = 4096;
 
-<script>
-(() => {
-  "use strict";
-
-  const FFT_SIZE = 4096;
-
-  let tx = { ctx: null, osc: null, gain: null, running: false };
-  let rx = { ctx: null, stream: null, source: null, analyser: null, bins: null, raf: null, running: false };
-
-  const $ = id => document.getElementById(id);
-
-  // Mode switching with canvas resize/refresh fix
-  $("txMode").onclick = () => {
-    $("txMode").classList.add("active");
-    $("rxMode").classList.remove("active");
-    $("txPanel").style.display = "";
-    $("rxPanel").style.display = "none";
-  };
-  
-  $("rxMode").onclick = () => {
-    $("rxMode").classList.add("active");
-    $("txMode").classList.remove("active");
-    $("rxPanel").style.display = "";
-    $("txPanel").style.display = "none";
-    // 再表示時にcanvasの描画コンテキストがボケる/止まるのを防ぐため強制トリガー
-  };
-
-  // --- TX Real-time Controls ---
-  const freqRange = $("txFreqRange");
-  const freqNum = $("txFreqNum");
-  const freqValText = $("freqValText");
-
-  function updateFrequency(val, smooth = false) {
-    const f = Math.max(100, Math.min(24000, parseFloat(val) || 1000));
-    freqRange.value = f;
-    freqNum.value = f;
-    freqValText.textContent = `${f} Hz`;
-
-    if (tx.running && tx.osc && tx.ctx) {
-      if (smooth) {
-        // プチプチ音（クリックノイズ）を防ぐ滑らかな遷移
-        tx.osc.frequency.setTargetAtTime(f, tx.ctx.currentTime, 0.02);
-      } else {
-        tx.osc.frequency.setValueAtTime(f, tx.ctx.currentTime);
-      }
-      $("txStatus").textContent = `送信中: ${f}Hz`;
-    }
-  }
-
-  freqRange.oninput = e => updateFrequency(e.target.value, true); // スライダーはスムーズ変更
-  freqNum.oninput = e => updateFrequency(e.target.value, false);
-
-  $("txStart").onclick = async () => {
-    if (tx.running) return;
-    try {
-      tx.ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const freq = parseFloat(freqNum.value) || 18000;
-      const gainVal = parseFloat($("txGainVal").value) || 0.05;
-
-      tx.osc = tx.ctx.createOscillator();
-      tx.gain = tx.ctx.createGain();
-
-      tx.osc.type = "sine";
-      tx.osc.frequency.setValueAtTime(freq, tx.ctx.currentTime);
-      tx.gain.gain.setValueAtTime(gainVal, tx.ctx.currentTime);
-
-      tx.osc.connect(tx.gain).connect(tx.ctx.destination);
-      tx.osc.start();
-      tx.running = true;
-
-      $("txStart").disabled = true;
-      $("txStop").disabled = false;
-      $("txStatus").textContent = `送信中: ${freq}Hz (${tx.ctx.sampleRate}Hz)`;
-      $("txStatus").className = "status good";
-      $("txLog").textContent = `[Info] Tone active at ${freq} Hz.`;
-    } catch(e) {
-      $("txLog").textContent = `[Error] ${e.message}`;
-    }
-  };
-
-  $("txStop").onclick = async () => {
-    if (!tx.running) return;
-    try { tx.osc.stop(); await tx.ctx.close(); } catch {}
-    tx.running = false;
-    $("txStart").disabled = false;
-    $("txStop").disabled = true;
-    $("txStatus").textContent = "停止中";
-    $("txStatus").className = "status";
-    $("txLog").textContent = "Transmitter stopped.";
-  };
-
-  // --- RX ---
-  $("rxStart").onclick = async () => {
-    if (rx.running) return;
-    try {
-      rx.stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
-        video: false
-      });
-
-      rx.ctx = new (window.AudioContext || window.webkitAudioContext)();
-      rx.source = rx.ctx.createMediaStreamSource(rx.stream);
-      rx.analyser = rx.ctx.createAnalyser();
-      rx.analyser.fftSize = FFT_SIZE;
-      rx.analyser.smoothingTimeConstant = 0.15;
-      rx.source.connect(rx.analyser);
-      rx.bins = new Float32Array(rx.analyser.frequencyBinCount);
-      rx.running = true;
-
-      $("rxStart").disabled = true;
-      $("rxStop").disabled = false;
-      $("rxStatus").textContent = `受信中 (${rx.ctx.sampleRate}Hz)`;
-      $("rxStatus").className = "status good";
-
-      const canvas = $("spectrum");
-      const g = canvas.getContext("2d");
-      const sr = rx.ctx.sampleRate;
-      const nyquist = sr / 2;
-
-      const loop = () => {
-        if (!rx.running) return;
-        
-        // 毎回幅抜けやサイズ不整合を防ぐためcanvasの内部解像度を実サイズに同期
-        if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
-          canvas.width = canvas.clientWidth;
-          canvas.height = canvas.clientHeight;
-        }
-
-        rx.analyser.getFloatFrequencyData(rx.bins);
-
-        let maxDb = -200;
-        let maxBin = 0;
-        for (let i = 0; i < rx.bins.length; i++) {
-          const db = rx.bins[i];
-          if (db > maxDb) { maxDb = db; maxBin = i; }
-        }
-
-        const peakHz = maxBin * nyquist / rx.bins.length;
-        $("peakDisplay").textContent = `${peakHz.toFixed(1)} Hz  (${maxDb.toFixed(1)} dB)`;
-
-        const w = canvas.width, h = canvas.height;
-        g.clearRect(0, 0, w, h);
-        g.fillStyle = "#090c11";
-        g.fillRect(0, 0, w, h);
-
-        // スペクトラム波形を描画
-        g.beginPath();
-        let started = false;
-        for (let i = 0; i < rx.bins.length; i++) {
-          const x = (i / rx.bins.length) * w;
-          const db = rx.bins[i];
-          const y = h - Math.max(0, Math.min(1, (db + 100) / 80)) * h;
-          if (!started) { g.moveTo(x, y); started = true; } else { g.lineTo(x, y); }
-        }
-        g.strokeStyle = "#7fc8ff";
-        g.lineWidth = 1.5;
-        g.stroke();
-
-        // 5kHzごとのグリッド線
-        g.fillStyle = "#8b949e";
-        g.font = "11px ui-monospace, monospace";
-        for (let hz = 5000; hz < nyquist; hz += 5000) {
-          const x = (hz / nyquist) * w;
-          g.strokeStyle = "rgba(255,255,255,0.1)";
-          g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
-          g.fillText(`${hz/1000}kHz`, x + 4, 15);
-        }
-
-        // ピーク位置の縦線
-        const peakX = (peakHz / nyquist) * w;
-        g.strokeStyle = "#ff7f8f";
-        g.lineWidth = 2;
-        g.beginPath(); g.moveTo(peakX, 0); g.lineTo(peakX, h); g.stroke();
-
-        rx.raf = requestAnimationFrame(loop);
+      let tx = {
+        ctx: null,
+        osc: null,
+        gain: null,
+        running: false,
+        frequency: MIN_FREQ,
+        color: "#ff0000"
       };
-      rx.raf = requestAnimationFrame(loop);
 
-    } catch(e) {
-      $("rxLog").textContent = `[Error] ${e.message}`;
-      $("rxStatus").textContent = "マイクエラー";
-      $("rxStatus").className = "status bad";
-    }
-  };
+      let rx = {
+        ctx: null,
+        stream: null,
+        source: null,
+        analyser: null,
+        bins: null,
+        raf: null,
+        running: false,
+        txFrequency: MIN_FREQ
+      };
 
-  $("rxStop").onclick = async () => {
-    rx.running = false;
-    if (rx.raf) cancelAnimationFrame(rx.raf);
-    try { rx.source?.disconnect(); rx.stream?.getTracks().forEach(t => t.stop()); await rx.ctx?.close(); } catch {}
-    rx.running = false;
-    $("rxStart").disabled = false;
-    $("rxStop").disabled = true;
-    $("rxStatus").textContent = "停止中";
-    $("rxStatus").className = "status";
-    $("peakDisplay").textContent = "---- Hz (---- dB)";
-    $("rxLog").textContent = "Receiver stopped.";
-  };
 
-  window.addEventListener("beforeunload", () => {
-    if (tx.running) { tx.osc.stop(); tx.ctx.close(); }
-    if (rx.running) { rx.stream?.getTracks().forEach(t => t.stop()); rx.ctx?.close(); }
-  });
-})();
-</script>
+      const $ = id => document.getElementById(id);
+
+
+      // =========================================
+      // Frequency -> Color
+      // =========================================
+
+      function frequencyToColor(freq) {
+
+        const t =
+          Math.max(0, Math.min(1,
+            (freq - MIN_FREQ) /
+            (MAX_FREQ - MIN_FREQ)
+          ));
+
+        const hue = t * 360;
+
+        return hslToHex(hue, 100, 50);
+      }
+
+
+      // =========================================
+      // Color -> Frequency
+      // =========================================
+
+      function colorToFrequency(hex) {
+
+        const rgb = hexToRgb(hex);
+
+        const hsl = rgbToHsl(
+          rgb.r,
+          rgb.g,
+          rgb.b
+        );
+
+        let hue = hsl.h;
+
+        return MIN_FREQ +
+          (hue / 360) *
+          (MAX_FREQ - MIN_FREQ);
+      }
+
+
+      function hexToRgb(hex) {
+
+        const n = parseInt(
+          hex.substring(1),
+          16
+        );
+
+        return {
+          r: (n >> 16) & 255,
+          g: (n >> 8) & 255,
+          b: n & 255
+        };
+      }
+
+
+      function rgbToHsl(r, g, b) {
+
+        r /= 255;
+        g /= 255;
+        b /= 255;
+
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+
+        let h = 0;
+        let s = 0;
+
+        const l = (max + min) / 2;
+
+        if (max !== min) {
+
+          const d = max - min;
+
+          s = l > .5
+            ? d / (2 - max - min)
+            : d / (max + min);
+
+          switch (max) {
+
+            case r:
+              h =
+                (g - b) / d +
+                (g < b ? 6 : 0);
+              break;
+
+            case g:
+              h =
+                (b - r) / d + 2;
+              break;
+
+            case b:
+              h =
+                (r - g) / d + 4;
+              break;
+
+          }
+
+          h /= 6;
+        }
+
+        return {
+          h: h * 360,
+          s: s,
+          l: l
+        };
+      }
+
+
+      function hslToHex(h, s, l) {
+
+        s /= 100;
+        l /= 100;
+
+        const c =
+          (1 - Math.abs(2 * l - 1)) * s;
+
+        const x =
+          c * (1 - Math.abs((h / 60) % 2 - 1));
+
+        const m = l - c / 2;
+
+        let r = 0;
+        let g = 0;
+        let b = 0;
+
+        if (h < 60) {
+          r = c;
+          g = x;
+        } else if (h < 120) {
+          r = x;
+          g = c;
+        } else if (h < 180) {
+          g = c;
+          b = x;
+        } else if (h < 240) {
+          g = x;
+          b = c;
+        } else if (h < 300) {
+          r = x;
+          b = c;
+        } else {
+          r = c;
+          b = x;
+        }
+
+        r = Math.round((r + m) * 255);
+        g = Math.round((g + m) * 255);
+        b = Math.round((b + m) * 255);
+
+        return "#" +
+          r.toString(16).padStart(2, "0") +
+          g.toString(16).padStart(2, "0") +
+          b.toString(16).padStart(2, "0");
+      }
+
+
+      // =========================================
+      // MODE
+      // =========================================
+
+      $("txMode").onclick = () => {
+
+        $("txMode").classList.add("active");
+        $("rxMode").classList.remove("active");
+
+        $("txPanel").style.display = "";
+        $("rxPanel").style.display = "none";
+
+      };
+
+
+      $("rxMode").onclick = () => {
+
+        $("rxMode").classList.add("active");
+        $("txMode").classList.remove("active");
+
+        $("rxPanel").style.display = "";
+        $("txPanel").style.display = "none";
+
+      };
+
+
+      // =========================================
+      // TX Color
+      // =========================================
+
+      function updateColor(hex) {
+
+        tx.color = hex.toUpperCase();
+
+        const freq =
+          colorToFrequency(hex);
+
+        tx.frequency = freq;
+
+        $("txFreqRange").value = freq;
+        $("txFreqNum").value = freq.toFixed(1);
+
+        $("txFreqText").textContent =
+          `${freq.toFixed(1)} Hz`;
+
+        $("txColorText").textContent =
+          tx.color;
+
+        $("txColorBox").style.background =
+          tx.color;
+
+        if (tx.running) {
+
+          tx.osc.frequency.setTargetAtTime(
+            freq,
+            tx.ctx.currentTime,
+            0.015
+          );
+
+          $("txStatus").textContent =
+            `送信中: ${freq.toFixed(1)} Hz`;
+
+        }
+
+        updateTxDebug();
+      }
+
+
+      $("txColor").oninput =
+        e => updateColor(e.target.value);
+
+
+      // =========================================
+      // TX Frequency
+      // =========================================
+
+      function updateFrequency(value) {
+
+        let f =
+          parseFloat(value);
+
+        if (!Number.isFinite(f))
+          f = MIN_FREQ;
+
+        f =
+          Math.max(
+            MIN_FREQ,
+            Math.min(
+              MAX_FREQ,
+              f
+            )
+          );
+
+        tx.frequency = f;
+
+        const color =
+          frequencyToColor(f);
+
+        tx.color = color;
+
+        $("txFreqRange").value = f;
+        $("txFreqNum").value = f.toFixed(1);
+        $("txFreqText").textContent =
+          `${f.toFixed(1)} Hz`;
+
+        $("txColor").value = color;
+        $("txColorText").textContent =
+          color;
+
+        $("txColorBox").style.background =
+          color;
+
+        if (tx.running) {
+
+          tx.osc.frequency.setTargetAtTime(
+            f,
+            tx.ctx.currentTime,
+            0.015
+          );
+
+          $("txStatus").textContent =
+            `送信中: ${f.toFixed(1)} Hz`;
+
+        }
+
+        updateTxDebug();
+      }
+
+
+      $("txFreqRange").oninput =
+        e => updateFrequency(e.target.value);
+
+
+      $("txFreqNum").oninput =
+        e => updateFrequency(e.target.value);
+
+
+      // =========================================
+      // TX DEBUG
+      // =========================================
+
+      function updateTxDebug() {
+
+        const f = tx.frequency;
+
+        $("txDebug").textContent =
+`[TRANSMITTER DEBUG]
+Color       : ${tx.color}
+Frequency   : ${f.toFixed(3)} Hz
+Range       : ${MIN_FREQ} - ${MAX_FREQ} Hz
+Hue         : ${((f - MIN_FREQ) / (MAX_FREQ - MIN_FREQ) * 360).toFixed(2)}°
+Running     : ${tx.running}
+SampleRate  : ${tx.ctx ? tx.ctx.sampleRate : "----"}`;
+      }
+
+
+      // =========================================
+      // TX START
+      // =========================================
+
+      $("txStart").onclick =
+        async () => {
+
+          if (tx.running)
+            return;
+
+          try {
+
+            tx.ctx =
+              new (
+                window.AudioContext ||
+                window.webkitAudioContext
+              )();
+
+            const freq =
+              tx.frequency;
+
+            let gainVal =
+              parseFloat(
+                $("txGain").value
+              );
+
+            if (!Number.isFinite(gainVal))
+              gainVal = 0.05;
+
+            gainVal =
+              Math.max(
+                0,
+                Math.min(
+                  0.5,
+                  gainVal
+                )
+              );
+
+            tx.osc =
+              tx.ctx.createOscillator();
+
+            tx.gain =
+              tx.ctx.createGain();
+
+            tx.osc.type = "sine";
+
+            tx.osc.frequency.setValueAtTime(
+              freq,
+              tx.ctx.currentTime
+            );
+
+            tx.gain.gain.setValueAtTime(
+              gainVal,
+              tx.ctx.currentTime
+            );
+
+            tx.osc
+              .connect(tx.gain)
+              .connect(tx.ctx.destination);
+
+            tx.osc.start();
+
+            tx.running = true;
+
+            $("txStart").disabled = true;
+            $("txStop").disabled = false;
+
+            $("txStatus").textContent =
+              `送信中: ${freq.toFixed(1)} Hz (${tx.ctx.sampleRate}Hz)`;
+
+            $("txStatus").className =
+              "status good";
+
+            updateTxDebug();
+
+          } catch (e) {
+
+            $("txDebug").textContent =
+              `[Error] ${e.message}`;
+
+          }
+
+        };
+
+
+      // =========================================
+      // TX STOP
+      // =========================================
+
+      $("txStop").onclick =
+        async () => {
+
+          if (!tx.running)
+            return;
+
+          try {
+
+            tx.osc.stop();
+
+            await tx.ctx.close();
+
+          } catch {}
+
+          tx.running = false;
+
+          tx.osc = null;
+          tx.gain = null;
+          tx.ctx = null;
+
+          $("txStart").disabled = false;
+          $("txStop").disabled = true;
+
+          $("txStatus").textContent =
+            "停止中";
+
+          $("txStatus").className =
+            "status";
+
+          updateTxDebug();
+
+        };
+
+
+      // =========================================
+      // RX START
+      // =========================================
+
+      $("rxStart").onclick =
+        async () => {
+
+          if (rx.running)
+            return;
+
+          try {
+
+            rx.stream =
+              await navigator.mediaDevices.getUserMedia({
+
+                audio: {
+                  echoCancellation: false,
+                  noiseSuppression: false,
+                  autoGainControl: false,
+                  channelCount: 1
+                },
+
+                video: false
+
+              });
+
+
+            rx.ctx =
+              new (
+                window.AudioContext ||
+                window.webkitAudioContext
+              )();
+
+
+            rx.source =
+              rx.ctx.createMediaStreamSource(
+                rx.stream
+              );
+
+
+            rx.analyser =
+              rx.ctx.createAnalyser();
+
+            rx.analyser.fftSize =
+              FFT_SIZE;
+
+            rx.analyser.smoothingTimeConstant =
+              0.15;
+
+
+            rx.source.connect(
+              rx.analyser
+            );
+
+
+            rx.bins =
+              new Float32Array(
+                rx.analyser.frequencyBinCount
+              );
+
+
+            rx.running = true;
+
+
+            $("rxStart").disabled = true;
+            $("rxStop").disabled = false;
+
+
+            $("rxStatus").textContent =
+              `受信中 (${rx.ctx.sampleRate}Hz)`;
+
+            $("rxStatus").className =
+              "status good";
+
+
+            const canvas =
+              $("spectrum");
+
+            const g =
+              canvas.getContext("2d");
+
+
+            const loop = () => {
+
+              if (!rx.running)
+                return;
+
+
+              if (
+                canvas.width !== canvas.clientWidth ||
+                canvas.height !== canvas.clientHeight
+              ) {
+
+                canvas.width =
+                  canvas.clientWidth;
+
+                canvas.height =
+                  canvas.clientHeight;
+
+              }
+
+
+              rx.analyser.getFloatFrequencyData(
+                rx.bins
+              );
+
+
+              const sr =
+                rx.ctx.sampleRate;
+
+              const nyquist =
+                sr / 2;
+
+
+              // -------------------------------------
+              // 18-21kHzだけを対象にピーク検出
+              // -------------------------------------
+
+              const minBin =
+                Math.max(
+                  0,
+                  Math.floor(
+                    MIN_FREQ /
+                    nyquist *
+                    rx.bins.length
+                  )
+                );
+
+
+              const maxBin =
+                Math.min(
+                  rx.bins.length - 1,
+                  Math.ceil(
+                    MAX_FREQ /
+                    nyquist *
+                    rx.bins.length
+                  )
+                );
+
+
+              let maxDb = -200;
+              let maxBinIndex = minBin;
+
+
+              for (
+                let i = minBin;
+                i <= maxBin;
+                i++
+              ) {
+
+                const db =
+                  rx.bins[i];
+
+                if (db > maxDb) {
+
+                  maxDb = db;
+                  maxBinIndex = i;
+
+                }
+
+              }
+
+
+              const peakHz =
+                maxBinIndex *
+                nyquist /
+                rx.bins.length;
+
+
+              // -------------------------------------
+              // 色へ変換
+              // -------------------------------------
+
+              const detectedColor =
+                frequencyToColor(
+                  peakHz
+                );
+
+
+              // -------------------------------------
+              // DEBUG
+              // -------------------------------------
+
+              const diff =
+                peakHz -
+                rx.txFrequency;
+
+
+              $("peakDisplay").textContent =
+                `${peakHz.toFixed(1)} Hz (${maxDb.toFixed(1)} dB)`;
+
+
+              $("rxDetectedFreq").textContent =
+                `${peakHz.toFixed(1)} Hz`;
+
+
+              $("rxTxFreq").textContent =
+                `${rx.txFrequency.toFixed(1)} Hz`;
+
+
+              $("rxDiff").textContent =
+                `${diff >= 0 ? "+" : ""}${diff.toFixed(1)} Hz`;
+
+
+              $("rxDetectedColor").textContent =
+                detectedColor;
+
+
+              $("rxColorText").textContent =
+                detectedColor;
+
+
+              $("rxColorBox").style.background =
+                detectedColor;
+
+
+              $("rxDebug").textContent =
+`[RECEIVER DEBUG]
+Detected      : ${peakHz.toFixed(3)} Hz
+Peak dB       : ${maxDb.toFixed(2)} dB
+Transmitter   : ${rx.txFrequency.toFixed(3)} Hz
+Difference    : ${diff.toFixed(3)} Hz
+Color         : ${detectedColor}
+SampleRate    : ${sr} Hz
+Nyquist       : ${nyquist} Hz
+FFT Size      : ${FFT_SIZE}
+Target Range  : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
+
+
+              // -------------------------------------
+              // SPECTRUM
+              // -------------------------------------
+
+              const w =
+                canvas.width;
+
+              const h =
+                canvas.height;
+
+
+              g.clearRect(
+                0,
+                0,
+                w,
+                h
+              );
+
+
+              g.fillStyle =
+                "#090c11";
+
+              g.fillRect(
+                0,
+                0,
+                w,
+                h
+              );
+
+
+              // 全音域スペクトラム
+
+              g.beginPath();
+
+              let started =
+                false;
+
+
+              for (
+                let i = 0;
+                i < rx.bins.length;
+                i++
+              ) {
+
+                const x =
+                  (i / rx.bins.length) *
+                  w;
+
+                const db =
+                  rx.bins[i];
+
+                const y =
+                  h -
+                  Math.max(
+                    0,
+                    Math.min(
+                      1,
+                      (db + 100) / 80
+                    )
+                  ) *
+                  h;
+
+
+                if (!started) {
+
+                  g.moveTo(
+                    x,
+                    y
+                  );
+
+                  started = true;
+
+                } else {
+
+                  g.lineTo(
+                    x,
+                    y
+                  );
+
+                }
+
+              }
+
+
+              g.strokeStyle =
+                "#7fc8ff";
+
+              g.lineWidth =
+                1.5;
+
+              g.stroke();
+
+
+              // -------------------------------------
+              // 18-21kHz範囲
+              // -------------------------------------
+
+              const x1 =
+                MIN_FREQ /
+                nyquist *
+                w;
+
+              const x2 =
+                MAX_FREQ /
+                nyquist *
+                w;
+
+
+              g.fillStyle =
+                "rgba(119,227,162,0.10)";
+
+              g.fillRect(
+                x1,
+                0,
+                x2 - x1,
+                h
+              );
+
+
+              // -------------------------------------
+              // 5kHz grid
+              // -------------------------------------
+
+              g.fillStyle =
+                "#8b949e";
+
+              g.font =
+                "11px ui-monospace, monospace";
+
+
+              for (
+                let hz = 5000;
+                hz < nyquist;
+                hz += 5000
+              ) {
+
+                const x =
+                  hz /
+                  nyquist *
+                  w;
+
+                g.strokeStyle =
+                  "rgba(255,255,255,0.1)";
+
+                g.beginPath();
+
+                g.moveTo(x, 0);
+
+                g.lineTo(x, h);
+
+                g.stroke();
+
+                g.fillText(
+                  `${hz / 1000}kHz`,
+                  x + 4,
+                  15
+                );
+
+              }
+
+
+              // -------------------------------------
+              // 18 / 19 / 20 / 21 kHz labels
+              // -------------------------------------
+
+              [18000, 19000, 20000, 21000]
+                .forEach(hz => {
+
+                  const x =
+                    hz /
+                    nyquist *
+                    w;
+
+                  g.strokeStyle =
+                    "rgba(119,227,162,0.5)";
+
+                  g.beginPath();
+
+                  g.moveTo(
+                    x,
+                    0
+                  );
+
+                  g.lineTo(
+                    x,
+                    h
+                  );
+
+                  g.stroke();
+
+                  g.fillStyle =
+                    "#77e3a2";
+
+                  g.fillText(
+                    `${hz / 1000}kHz`,
+                    x + 4,
+                    h - 8
+                  );
+
+                });
+
+
+              // -------------------------------------
+              // PEAK
+              // -------------------------------------
+
+              const peakX =
+                peakHz /
+                nyquist *
+                w;
+
+
+              g.strokeStyle =
+                "#ff7f8f";
+
+              g.lineWidth = 2;
+
+
+              g.beginPath();
+
+              g.moveTo(
+                peakX,
+                0
+              );
+
+              g.lineTo(
+                peakX,
+                h
+              );
+
+              g.stroke();
+
+
+              rx.raf =
+                requestAnimationFrame(
+                  loop
+                );
+
+            };
+
+
+            rx.raf =
+              requestAnimationFrame(
+                loop
+              );
+
+
+          } catch (e) {
+
+            $("rxLog").textContent =
+              `[Error] ${e.message}`;
+
+            $("rxStatus").textContent =
+              "マイクエラー";
+
+            $("rxStatus").className =
+              "status bad";
+
+          }
+
+        };
+
+
+      // =========================================
+      // RX STOP
+      // =========================================
+
+      $("rxStop").onclick =
+        async () => {
+
+          rx.running = false;
+
+          if (rx.raf)
+            cancelAnimationFrame(rx.raf);
+
+
+          try {
+
+            rx.source?.disconnect();
+
+            rx.stream
+              ?.getTracks()
+              .forEach(
+                t => t.stop()
+              );
+
+            await rx.ctx?.close();
+
+          } catch {}
+
+
+          rx.ctx = null;
+          rx.stream = null;
+          rx.source = null;
+          rx.analyser = null;
+          rx.bins = null;
+
+
+          $("rxStart").disabled = false;
+          $("rxStop").disabled = true;
+
+          $("rxStatus").textContent =
+            "停止中";
+
+          $("rxStatus").className =
+            "status";
+
+
+          $("peakDisplay").textContent =
+            "---- Hz";
+
+
+          $("rxDetectedFreq").textContent =
+            "---- Hz";
+
+          $("rxTxFreq").textContent =
+            "---- Hz";
+
+          $("rxDiff").textContent =
+            "---- Hz";
+
+          $("rxDetectedColor").textContent =
+            "----";
+
+          $("rxColorText").textContent =
+            "WAITING";
+
+          $("rxColorBox").style.background =
+            "#151923";
+
+          $("rxDebug").textContent =
+            "Receiver stopped.";
+
+        };
+
+
+      // =========================================
+      // 同じページ内でTX周波数をRX debugへ反映
+      // =========================================
+
+      setInterval(() => {
+
+        rx.txFrequency =
+          tx.frequency;
+
+        if (
+          $("rxMode").classList.contains("active")
+        ) {
+
+          $("rxTxFreq").textContent =
+            `${tx.frequency.toFixed(1)} Hz`;
+
+        }
+
+      }, 100);
+
+
+      // =========================================
+      // 初期化
+      // =========================================
+
+      updateColor(
+        $("txColor").value
+      );
+
+
+      // =========================================
+      // Cleanup
+      // =========================================
+
+      window.addEventListener(
+        "beforeunload",
+        () => {
+
+          try {
+
+            if (tx.running) {
+
+              tx.osc.stop();
+              tx.ctx.close();
+
+            }
+
+          } catch {}
+
+
+          try {
+
+            if (rx.running) {
+
+              rx.stream
+                ?.getTracks()
+                .forEach(
+                  t => t.stop()
+                );
+
+              rx.ctx?.close();
+
+            }
+
+          } catch {}
+
+        }
+      );
+
+    })();
+  </script>
+
 </body>
 </html>
