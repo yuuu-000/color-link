@@ -382,7 +382,6 @@
 
       // フルスクリーン背景タップで設定モーダルを開く
       $("fullscreenBg").addEventListener("pointerup", (e) => {
-        // 右上のフルスクリーン切替ボタンを直接タップしたときはモーダルを開かない
         if (e.target.closest("#fullscreenBtn")) return;
         $("settingsModal").classList.add("active");
       });
@@ -394,7 +393,7 @@
         }
       });
 
-      // マイクオフボタン
+      // マイクオフボタン（マイク停止 ＋ フルスクリーン解除）
       $("micStopBtn").addEventListener("pointerup", async () => {
         rx.running = false;
         if (rx.raf) cancelAnimationFrame(rx.raf);
@@ -410,6 +409,11 @@
         }
 
         await releaseWakeLock();
+
+        // フルスクリーン中であれば解除する
+        if (getFullscreenElement()) {
+          await exitFullscreen();
+        }
 
         // モーダルを閉じてセットアップ画面に戻す
         $("settingsModal").classList.remove("active");
