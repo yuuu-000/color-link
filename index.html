@@ -259,7 +259,7 @@
     <h1>Ultrasonic Color Demo</h1>
     <p class="sub">
       18〜21kHzの超音波をカラー情報として使用。<br>
-      送信側：18,500Hzまで白、18,600Hz以上で赤〜各色（中間はブランク）。受信側：18,550Hz境界。
+      送信側：18,500Hzまで白、18,600Hz以上で赤〜各色（20.9kHz以上は予約周波数）。
     </p>
 
     <div class="mode">
@@ -312,8 +312,8 @@
           <input type="number" id="txGain" value="0.05" min="0" max="0.5" step="0.005">
           <div class="hint" style="margin-top: 8px;">
             18.00〜18.50kHz = 黒〜白<br>
-            18.50超〜18.59.9kHz = ブランク（未使用）<br>
-            18.60〜21.00kHz = 赤〜各色
+            18.60〜20.90kHz = カラー領域<br>
+            20.90〜21.00kHz = 予約周波数（予約）
           </div>
         </div>
       </div>
@@ -337,7 +337,7 @@
 
     <section id="rxPanel" class="panel" style="display: none;">
 
-      <label>受信カラー</label>
+      <label>受信カラー / ステータス</label>
 
       <div class="color-box" id="rxColorBox" style="background: #151923;">
         <span id="rxColorText">NO SIGNAL</span>
@@ -366,7 +366,7 @@
         </div>
 
         <div>
-          <label>変換された色</label>
+          <label>変換された結果</label>
           <div class="value" id="rxDetectedColor">----</div>
         </div>
       </div>
@@ -396,10 +396,11 @@
 
       // 送信側の定義
       const TX_GRAY_END = 18500;       // 18.50kHzまで黒〜白
-      const TX_COLOR_START = 18600;    // 18.60kHzから赤〜各色（18.50〜18.60はブランク）
+      const TX_COLOR_START = 18600;    // 18.60kHzから赤〜各色
+      const TX_SPECIAL_START = 20900;  // 20.90kHz〜21.00kHzは予約周波数帯
 
       // 受信側の判定定義
-      const RX_WHITE_BOUNDARY = 18550; // 18.55kHz以下は白、超えたら赤・カラー領域へ
+      const RX_WHITE_BOUNDARY = 18550;
 
       const FFT_SIZE = 4096;
       const RX_THRESHOLD_DB = -110;
@@ -489,26 +490,38 @@
           return MIN_FREQ + (gray / 255) * (TX_GRAY_END - MIN_FREQ);
         }
         const hsl = rgbToHsl(r, g, b);
-        return TX_COLOR_START + (hsl.h / 360) * (MAX_FREQ - TX_COLOR_START);
+        // カラー領域は 18.6kHz〜20.9kHz にマップ
+        return TX_COLOR_START + (hsl.h / 360) * (TX_SPECIAL_START - TX_COLOR_START);
       }
 
-      function frequencyToColor(freq) {
+      function frequencyToResult(freq) {
         const f = Math.max(MIN_FREQ, Math.min(MAX_FREQ, freq));
 
-        // 1. 受信側境界（18,550Hz以下は白系）
+        // 予約周波数帯（20.9kHz 〜 21.0kHz）
+        if (f >= TX_SPECIAL_START) {
+          return {
+            type: "special",
+            label: "RESERVED (予約周波数)",
+            color: "#333b4f"
+          };
+        }
+
+        // 白黒グレー領域
         if (f <= RX_WHITE_BOUNDARY) {
           if (f <= TX_GRAY_END) {
             const t = (f - MIN_FREQ) / (TX_GRAY_END - MIN_FREQ);
             const v = Math.round(t * 255);
-            return rgbToHex(v, v, v);
+            const hex = rgbToHex(v, v, v);
+            return { type: "color", label: hex, color: hex };
           }
-          return "#FFFFFF"; // 18,500超〜18,550までは白をキープするバッファ
+          return { type: "color", label: "#FFFFFF", color: "#FFFFFF" };
         }
 
-        // 2. カラー領域（18,550Hz超〜）
-        const t = (f - TX_COLOR_START) / (MAX_FREQ - TX_COLOR_START);
+        // カラー領域
+        const t = (f - TX_COLOR_START) / (TX_SPECIAL_START - TX_COLOR_START);
         const clampedT = Math.max(0, Math.min(1, t));
-        return hslToHex(clampedT * 360, 100, 50);
+        const hex = hslToHex(clampedT * 360, 100, 50);
+        return { type: "color", label: hex, color: hex };
       }
 
       function hslToHex(h, s, l) {
@@ -549,22 +562,27 @@
         f = Math.max(MIN_FREQ, Math.min(MAX_FREQ, f));
         tx.frequency = f;
 
-        if (f <= TX_GRAY_END) {
+        if (f >= TX_SPECIAL_START) {
+          tx.color = "RESERVED";
+        } else if (f <= TX_GRAY_END) {
           const v = Math.round(((f - MIN_FREQ) / (TX_GRAY_END - MIN_FREQ)) * 255);
           tx.color = rgbToHex(v, v, v);
         } else if (f < TX_COLOR_START) {
-          tx.color = "#FFFFFF"; // ブランク帯は白扱いとして表示
+          tx.color = "#FFFFFF";
         } else {
-          const t = (f - TX_COLOR_START) / (MAX_FREQ - TX_COLOR_START);
+          const t = (f - TX_COLOR_START) / (TX_SPECIAL_START - TX_COLOR_START);
           tx.color = hslToHex(t * 360, 100, 50);
         }
 
         $("txFreqRange").value = f;
         $("txFreqNum").value = f.toFixed(1);
         $("txFreqText").textContent = `${f.toFixed(1)} Hz`;
-        $("txColor").value = tx.color === "#FFFFFF" ? "#FFFFFF" : tx.color;
-        $("txColorText").textContent = tx.color;
-        $("txColorBox").style.background = tx.color;
+        if (f < TX_SPECIAL_START && tx.color !== "#FFFFFF") {
+          $("txColor").value = tx.color;
+        }
+
+        $("txColorText").textContent = f >= TX_SPECIAL_START ? "RESERVED (予約周波数: 何色でもない)" : tx.color;
+        $("txColorBox").style.background = f >= TX_SPECIAL_START ? "#1f2533" : tx.color;
 
         if (tx.running) {
           tx.osc.frequency.setTargetAtTime(f, tx.ctx.currentTime, 0.01);
@@ -575,7 +593,7 @@
 
       function updateTxDebug() {
         $("txDebug").textContent =
-          `[TRANSMITTER DEBUG]\nColor : ${tx.color}\nFrequency : ${tx.frequency.toFixed(3)} Hz\nRunning : ${tx.running}\nSampleRate : ${tx.ctx ? tx.ctx.sampleRate : "----"} Hz\nGain : ${$("txGain").value}`;
+          `[TRANSMITTER DEBUG]\nColor/State : ${tx.color}\nFrequency : ${tx.frequency.toFixed(3)} Hz\nRunning : ${tx.running}\nSampleRate : ${tx.ctx ? tx.ctx.sampleRate : "----"} Hz\nGain : ${$("txGain").value}`;
       }
 
       $("txColor").oninput = e => updateTxColor(e.target.value);
@@ -662,7 +680,7 @@
           let hslHex = hslToHex(hue, 100, 50);
           const { r, g, b } = hexToRgb(hslHex);
           const hsl = rgbToHsl(r, g, b);
-          return TX_COLOR_START + (hsl.h / 360) * (MAX_FREQ - TX_COLOR_START);
+          return TX_COLOR_START + (hsl.h / 360) * (TX_SPECIAL_START - TX_COLOR_START);
         });
       };
 
@@ -677,7 +695,7 @@
           let hslHex = hslToHex(hue, 100, 50);
           const { r, g, b } = hexToRgb(hslHex);
           const hsl = rgbToHsl(r, g, b);
-          return TX_COLOR_START + (hsl.h / 360) * (MAX_FREQ - TX_COLOR_START);
+          return TX_COLOR_START + (hsl.h / 360) * (TX_SPECIAL_START - TX_COLOR_START);
         });
       };
 
@@ -689,7 +707,7 @@
             let hslHex = hslToHex(hue, 100, 50);
             const { r, g, b } = hexToRgb(hslHex);
             const hsl = rgbToHsl(r, g, b);
-            return TX_COLOR_START + (hsl.h / 360) * (MAX_FREQ - TX_COLOR_START);
+            return TX_COLOR_START + (hsl.h / 360) * (TX_SPECIAL_START - TX_COLOR_START);
           } else {
             return MIN_FREQ;
           }
@@ -700,8 +718,8 @@
         startLivePreset(35000, (t) => {
           let beat = Math.sin(t * Math.PI * 1.5);
           if (beat > 0.3) {
-            let freq = MAX_FREQ - (t * 40) % 1500;
-            return Math.max(TX_COLOR_START, Math.min(MAX_FREQ, freq));
+            let freq = TX_SPECIAL_START - (t * 40) % 1500;
+            return Math.max(TX_COLOR_START, Math.min(TX_SPECIAL_START, freq));
           } else {
             return MIN_FREQ;
           }
@@ -810,13 +828,13 @@
             const confirmed = d.maxDb >= RX_THRESHOLD_DB;
 
             if (confirmed) {
-              const color = frequencyToColor(d.peakHz);
-              rx.lastColor = color;
+              const res = frequencyToResult(d.peakHz);
+              rx.lastColor = res.color;
               rx.lastFrequency = d.peakHz;
 
-              $("rxColorBox").style.background = color;
-              $("rxColorText").textContent = color;
-              $("rxDetectedColor").textContent = color;
+              $("rxColorBox").style.background = res.color;
+              $("rxColorText").textContent = res.label;
+              $("rxDetectedColor").textContent = res.label;
               $("rxDetectedFreq").textContent = `${d.peakHz.toFixed(1)} Hz`;
               $("rxStatus").textContent = `SIGNAL ACTIVE`;
             } else {
