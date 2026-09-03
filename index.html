@@ -72,14 +72,19 @@
       color: #fff;
     }
 
-    button.live-ambient-btn {
-      background: linear-gradient(135deg, #3366ff, #33ccff);
+    button.live-strobe-btn {
+      background: linear-gradient(135deg, #ff0055, #9900ff);
       color: #fff;
     }
 
-    button.live-breathe-btn {
-      background: linear-gradient(135deg, #9933ff, #ff33cc);
+    button.live-pulse-btn {
+      background: linear-gradient(135deg, #00ffcc, #0066ff);
       color: #fff;
+    }
+
+    button.live-rave-btn {
+      background: linear-gradient(135deg, #ffff00, #ff0000);
+      color: #111;
     }
 
     button:disabled {
@@ -100,6 +105,26 @@
       color: #aeb6c6;
       font-size: 13px;
       margin-bottom: 7px;
+    }
+
+    .palette {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(36px, 1fr));
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .color-chip {
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid #303746;
+      cursor: pointer;
+      transition: transform 0.1s ease, border-color 0.1s ease;
+    }
+
+    .color-chip:hover {
+      transform: scale(1.08);
+      border-color: #fff;
     }
 
     input[type=number] {
@@ -246,8 +271,24 @@
 
     <section id="txPanel" class="panel">
 
-      <label>送信カラー</label>
+      <label>送信カラー（クイックパレット）</label>
+      <div class="palette" id="colorPalette">
+        <div class="color-chip" style="background: #000000;" data-color="#000000" title="黒"></div>
+        <div class="color-chip" style="background: #444444;" data-color="#444444" title="ダークグレー"></div>
+        <div class="color-chip" style="background: #888888;" data-color="#888888" title="グレー"></div>
+        <div class="color-chip" style="background: #CCCCCC;" data-color="#CCCCCC" title="ライトグレー"></div>
+        <div class="color-chip" style="background: #FFFFFF;" data-color="#FFFFFF" title="白"></div>
+        <div class="color-chip" style="background: #FF0000;" data-color="#FF0000" title="赤"></div>
+        <div class="color-chip" style="background: #FF7F00;" data-color="#FF7F00" title="オレンジ"></div>
+        <div class="color-chip" style="background: #FFFF00;" data-color="#FFFF00" title="黄"></div>
+        <div class="color-chip" style="background: #00FF00;" data-color="#00FF00" title="緑"></div>
+        <div class="color-chip" style="background: #00FFFF;" data-color="#00FFFF" title="シアン"></div>
+        <div class="color-chip" style="background: #0000FF;" data-color="#0000FF" title="青"></div>
+        <div class="color-chip" style="background: #8B00FF;" data-color="#8B00FF" title="紫"></div>
+        <div class="color-chip" style="background: #FF00FF;" data-color="#FF00FF" title="マゼンタ"></div>
+      </div>
 
+      <label>カスタムカラー選択</label>
       <input id="txColor" type="color" value="#FF0000">
 
       <div class="color-box" id="txColorBox">
@@ -270,18 +311,19 @@
           <label>ゲイン</label>
           <input type="number" id="txGain" value="0.05" min="0" max="0.5" step="0.005">
           <div class="hint" style="margin-top: 8px;">
-            18.00〜18.35kHz = 黒〜白<br>
-            18.35〜21kHz = 色相
+            18.00〜18.70kHz = 黒〜白（範囲拡大）<br>
+            18.70〜21kHz = 色相
           </div>
         </div>
       </div>
 
       <div class="row">
         <button id="txStart">超音波送信開始</button>
-        <button id="liveColorStart" class="live-btn">⚡ レインボー演出</button>
-        <button id="liveGrayStart" class="live-gray-btn">📺 モノトーン演出</button>
-        <button id="liveAmbientStart" class="live-ambient-btn">🌊 オーシャン演出</button>
-        <button id="liveBreatheStart" class="live-breathe-btn">🔮 サンセット演出</button>
+        <button id="liveColorStart" class="live-btn">⚡ スムーズレインボー</button>
+        <button id="liveStrobeStart" class="live-strobe-btn">🔥 黒混じり爆裂チカチカ</button>
+        <button id="livePulseStart" class="live-pulse-btn">✨ 黒フラッシュパルス</button>
+        <button id="liveRaveStart" class="live-rave-btn">🚨 黒混じり激アツレイブ</button>
+        <button id="liveGrayStart" class="live-gray-btn">📺 白黒リズミカル点滅</button>
         <button id="txStop" disabled>停止</button>
         <span id="txStatus" class="status">停止中</span>
       </div>
@@ -350,8 +392,8 @@
 
       const MIN_FREQ = 18000;
       const MAX_FREQ = 21000;
-      const GRAY_END_FREQ = 18350;
-      const GRAY_MAX_LIMIT = 18340;
+      const GRAY_END_FREQ = 18700;       // 白黒エリアの終端を 18.35kHz から 18.70kHz に拡大
+      const GRAY_MAX_LIMIT = 18680;      // ライブ用上限も連動して拡大
       const FFT_SIZE = 4096;
       const RX_THRESHOLD_DB = -110;
 
@@ -394,6 +436,14 @@
         $("rxPanel").style.display = "";
       };
 
+      document.querySelectorAll(".color-chip").forEach(chip => {
+        chip.onclick = () => {
+          const hex = chip.getAttribute("data-color");
+          $("txColor").value = hex;
+          updateTxColor(hex);
+        };
+      });
+
       function hexToRgb(hex) {
         const n = parseInt(hex.slice(1), 16);
         return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
@@ -427,7 +477,7 @@
       function colorToFrequency(hex) {
         const { r, g, b } = hexToRgb(hex);
         const max = Math.max(r, g, b), min = Math.min(r, g, b);
-        if (max - min <= 8) {
+        if (max - min <= 12) { // 判定の許容範囲も少し広げる
           const gray = (r + g + b) / 3;
           return MIN_FREQ + (gray / 255) * (GRAY_END_FREQ - MIN_FREQ);
         }
@@ -472,7 +522,7 @@
         $("txColorBox").style.background = tx.color;
 
         if (tx.running) {
-          tx.osc.frequency.setTargetAtTime(tx.frequency, tx.ctx.currentTime, 0.05);
+          tx.osc.frequency.setTargetAtTime(tx.frequency, tx.ctx.currentTime, 0.02);
           $("txStatus").textContent = `送信中: ${tx.frequency.toFixed(1)} Hz`;
         }
         updateTxDebug();
@@ -493,7 +543,7 @@
         $("txColorBox").style.background = tx.color;
 
         if (tx.running) {
-          tx.osc.frequency.setTargetAtTime(f, tx.ctx.currentTime, 0.05);
+          tx.osc.frequency.setTargetAtTime(f, tx.ctx.currentTime, 0.01);
           $("txStatus").textContent = `送信中: ${f.toFixed(1)} Hz`;
         }
         updateTxDebug();
@@ -531,9 +581,10 @@
 
           $("txStart").disabled = true;
           $("liveColorStart").disabled = true;
+          $("liveStrobeStart").disabled = true;
+          $("livePulseStart").disabled = true;
+          $("liveRaveStart").disabled = true;
           $("liveGrayStart").disabled = true;
-          $("liveAmbientStart").disabled = true;
-          $("liveBreatheStart").disabled = true;
           $("txStop").disabled = false;
         }
       }
@@ -548,7 +599,6 @@
         }
       };
 
-      // 共通のライブ演出ランナー（滑らかな遷移：周期を長くし、スピードを落とした実装）
       async function startLivePreset(durationMs, generatorFn) {
         if (tx.running) return;
         try {
@@ -571,7 +621,7 @@
             let freq = generatorFn(t, elapsed);
 
             updateTxFrequency(freq);
-            $("txStatus").textContent = `演出中 (${((durationMs - elapsed) / 1000).toFixed(1)}s)`;
+            $("txStatus").textContent = `⚡ ライブ演出中 (${((durationMs - elapsed) / 1000).toFixed(1)}s)`;
             tx.liveAnim = requestAnimationFrame(liveLoop);
           };
 
@@ -582,39 +632,55 @@
         }
       }
 
-      // プレセット1: レインボー演出 (ゆっくりとした色相環の循環 - 45秒)
       $("liveColorStart").onclick = () => {
         startLivePreset(45000, (t) => {
-          let hue = (t * 8) % 360; // 速度を大幅に落として滑らかに
-          let hex = hslToHex(hue, 100, 50);
-          return colorToFrequency(hex);
+          let hue = (t * 15) % 360;
+          return colorToFrequency(hslToHex(hue, 100, 50));
         });
       };
 
-      // プレセット2: モノトーン演出 (黒から白への緩やかなグラデーション往復 - 45秒)
+      $("liveStrobeStart").onclick = () => {
+        startLivePreset(35000, (t) => {
+          let step = Math.floor(t * 2.5);
+          if (step % 2 === 0) {
+            return MIN_FREQ;
+          }
+          let hues = [0, 120, 240, 60, 300, 180];
+          let hue = hues[Math.floor(t * 1.5) % hues.length];
+          return colorToFrequency(hslToHex(hue, 100, 50));
+        });
+      };
+
+      $("livePulseStart").onclick = () => {
+        startLivePreset(35000, (t) => {
+          let alt = Math.sin(t * Math.PI * 1.2) > 0;
+          if (alt) {
+            let hue = (t * 40) % 360;
+            return colorToFrequency(hslToHex(hue, 100, 50));
+          } else {
+            return MIN_FREQ;
+          }
+        });
+      };
+
+      $("liveRaveStart").onclick = () => {
+        startLivePreset(35000, (t) => {
+          let beat = Math.sin(t * Math.PI * 1.5);
+          if (beat > 0.3) {
+            let freq = MAX_FREQ - (t * 40) % 1500;
+            return Math.max(MIN_FREQ, Math.min(MAX_FREQ, freq));
+          } else {
+            return MIN_FREQ;
+          }
+        });
+      };
+
       $("liveGrayStart").onclick = () => {
-        startLivePreset(45000, (t) => {
-          let wave = Math.sin(t * 0.3) * 0.5 + 0.5; // 超スローな往復
-          return MIN_FREQ + wave * (GRAY_MAX_LIMIT - MIN_FREQ);
-        });
-      };
-
-      // プレセット3: オーシャン演出 (青〜水色〜緑の範囲を優しく漂う - 45秒)
-      $("liveAmbientStart").onclick = () => {
-        startLivePreset(45000, (t) => {
-          // 色相 160（シアン・緑系）から 240（青系）の間をゆっくり行き来
-          let hue = 200 + Math.sin(t * 0.4) * 40;
-          let hex = hslToHex(hue, 100, 50);
-          return colorToFrequency(hex);
-        });
-      };
-
-      // プレセット4: サンセット演出 (赤〜オレンジ〜紫のマゼンタ域を周回 - 45秒)
-      $("liveBreatheStart").onclick = () => {
-        startLivePreset(45000, (t) => {
-          let hue = (Math.sin(t * 0.25) * 0.5 + 0.5) * 60 + 300; // 300〜360度（紫〜赤）
-          let hex = hslToHex(hue % 360, 100, 50);
-          return colorToFrequency(hex);
+        startLivePreset(30000, (t) => {
+          let wave = (Math.sin(t * Math.PI * 2) + 1) / 2;
+          let strobe = Math.floor(t * 3) % 2;
+          let targetV = MIN_FREQ + wave * (GRAY_MAX_LIMIT - MIN_FREQ);
+          return strobe ? targetV : MIN_FREQ;
         });
       };
 
@@ -632,9 +698,10 @@
 
         $("txStart").disabled = false;
         $("liveColorStart").disabled = false;
+        $("liveStrobeStart").disabled = false;
+        $("livePulseStart").disabled = false;
+        $("liveRaveStart").disabled = false;
         $("liveGrayStart").disabled = false;
-        $("liveAmbientStart").disabled = false;
-        $("liveBreatheStart").disabled = false;
         $("txStop").disabled = true;
         $("txStatus").textContent = "停止中";
         $("liveProgressBar").style.display = "none";
@@ -683,7 +750,7 @@
           rx.source = rx.ctx.createMediaStreamSource(rx.stream);
           rx.analyser = rx.ctx.createAnalyser();
           rx.analyser.fftSize = FFT_SIZE;
-          rx.analyser.smoothingTimeConstant = 0.08; // 追従を少し滑らかにするため僅かに調整
+          rx.analyser.smoothingTimeConstant = 0.05;
           rx.source.connect(rx.analyser);
           rx.bins = new Float32Array(rx.analyser.frequencyBinCount);
           rx.running = true;
