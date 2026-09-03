@@ -10,16 +10,18 @@
       box-sizing: border-box;
     }
 
+    /* html、bodyに背景色を持たせることでiOSのステータスバーまでカラーが浸透します */
     html,
     body {
       margin: 0;
       width: 100%;
       height: 100%;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #0b0d12;
+      background: #1f2533;
       color: #fff;
       overflow: hidden;
       overscroll-behavior: none;
+      transition: background 0.1s ease;
     }
 
     /* フルカラー背景モード */
@@ -33,7 +35,6 @@
       justify-content: space-between;
       align-items: center;
       padding: max(30px, env(safe-area-inset-top)) max(30px, env(safe-area-inset-right)) max(30px, env(safe-area-inset-bottom)) max(30px, env(safe-area-inset-left));
-      transition: background 0.1s ease;
       z-index: 10;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
@@ -209,7 +210,7 @@
   </div>
 
   <!-- 受信中のフルカラー背景画面 -->
-  <div id="fullscreenBg" class="fullscreen-bg" style="background: #1f2533;">
+  <div id="fullscreenBg" class="fullscreen-bg">
     <div class="top-bar">
       <button id="fullscreenBtn" class="icon-btn" title="フルスクリーン切替">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
@@ -375,25 +376,29 @@
         }
       }
 
+      // 背景色をhtml/bodyと背景要素の両方に即座に反映
+      function applyBackgroundColor(color) {
+        document.documentElement.style.background = color;
+        document.body.style.background = color;
+        $("fullscreenBg").style.background = color;
+      }
+
       $("fullscreenBtn").addEventListener("pointerup", (e) => {
         e.stopPropagation();
         toggleFullscreen();
       });
 
-      // フルスクリーン背景タップで設定モーダルを開く
       $("fullscreenBg").addEventListener("pointerup", (e) => {
         if (e.target.closest("#fullscreenBtn")) return;
         $("settingsModal").classList.add("active");
       });
 
-      // 設定モーダルの背景部分タップでモーダルを閉じる
       $("settingsModal").addEventListener("pointerup", (e) => {
         if (e.target === $("settingsModal")) {
           $("settingsModal").classList.remove("active");
         }
       });
 
-      // マイクオフボタン（マイク停止 ＋ フルスクリーン解除）
       $("micStopBtn").addEventListener("pointerup", async () => {
         rx.running = false;
         if (rx.raf) cancelAnimationFrame(rx.raf);
@@ -410,18 +415,16 @@
 
         await releaseWakeLock();
 
-        // フルスクリーン中であれば解除する
         if (getFullscreenElement()) {
           await exitFullscreen();
         }
 
-        // モーダルを閉じてセットアップ画面に戻す
         $("settingsModal").classList.remove("active");
         $("setupScreen").style.display = "flex";
         $("centerStatus").textContent = "待機中...";
         rx.lastColor = "#1f2533";
         rx.lastFrequency = null;
-        $("fullscreenBg").style.background = rx.lastColor;
+        applyBackgroundColor(rx.lastColor);
       });
 
       $("rxStart").addEventListener("pointerup", async () => {
@@ -459,10 +462,10 @@
               rx.lastColor = color;
               rx.lastFrequency = d.peakHz;
 
-              $("fullscreenBg").style.background = color;
+              applyBackgroundColor(color);
               $("centerStatus").textContent = color;
             } else {
-              $("fullscreenBg").style.background = rx.lastColor;
+              applyBackgroundColor(rx.lastColor);
               $("centerStatus").textContent = rx.lastFrequency !== null ? rx.lastColor : "信号待機中...";
             }
 
