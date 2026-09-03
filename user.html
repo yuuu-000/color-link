@@ -3,14 +3,13 @@
 
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>Color Receiver</title>
   <style>
     * {
       box-sizing: border-box;
     }
 
-    /* html、bodyに背景色を持たせることでiOSのステータスバーまでカラーが浸透します */
     html,
     body {
       margin: 0;
@@ -24,7 +23,6 @@
       transition: background 0.1s ease;
     }
 
-    /* フルカラー背景モード */
     .fullscreen-bg {
       position: fixed;
       inset: 0;
@@ -81,9 +79,9 @@
       pointer-events: none;
     }
 
-    /* 初期セットアップ / モーダル画面共通 */
     .setup-screen,
-    .settings-modal {
+    .settings-modal,
+    .message-modal {
       position: fixed;
       inset: 0;
       width: 100%;
@@ -99,13 +97,15 @@
       overscroll-behavior: none;
     }
 
-    .settings-modal {
+    .settings-modal,
+    .message-modal {
       display: none;
       z-index: 30;
       cursor: pointer;
     }
 
-    .settings-modal.active {
+    .settings-modal.active,
+    .message-modal.active {
       display: flex;
     }
 
@@ -209,6 +209,17 @@
     </div>
   </div>
 
+  <!-- 20900Hz以上で表示されるメッセージモーダル -->
+  <div id="messageModal" class="message-modal">
+    <div class="panel">
+      <h1>通知</h1>
+      <div class="guide-text" style="text-align: center; margin-bottom: 24px;">
+        Hello こんにちは。
+      </div>
+      <button id="closeMsgBtn" class="primary-btn">閉じる</button>
+    </div>
+  </div>
+
   <!-- 受信中のフルカラー背景画面 -->
   <div id="fullscreenBg" class="fullscreen-bg">
     <div class="top-bar">
@@ -233,6 +244,7 @@
       const TX_GRAY_END = 18500;
       const TX_COLOR_START = 18600;
       const RX_WHITE_BOUNDARY = 18550;
+      const SPECIAL_FREQ_THRESHOLD = 20900; // 20900以上でモーダル表示
       const FFT_SIZE = 4096;
       const RX_THRESHOLD_DB = -110;
 
@@ -246,7 +258,9 @@
         running: false,
         lastColor: "#1f2533",
         lastFrequency: null,
-        wakeLock: null
+        wakeLock: null,
+        isStable: false,         // マイクオン後の安定フラグ（無の状態を作るため）
+        modalShown: false        // モーダル連続表示防止フラグ
       };
 
       const $ = id => document.getElementById(id);
@@ -276,7 +290,7 @@
 
       function frequencyToColor(freq) {
         const f = Math.max(MIN_FREQ, Math.min(MAX_FREQ, freq));
-        
+
         if (f <= RX_WHITE_BOUNDARY) {
           if (f <= TX_GRAY_END) {
             const t = (f - MIN_FREQ) / (TX_GRAY_END - MIN_FREQ);
@@ -376,7 +390,6 @@
         }
       }
 
-      // 背景色をhtml/bodyと背景要素の両方に即座に反映
       function applyBackgroundColor(color) {
         document.documentElement.style.background = color;
         document.body.style.background = color;
@@ -390,12 +403,31 @@
 
       $("fullscreenBg").addEventListener("pointerup", (e) => {
         if (e.target.closest("#fullscreenBtn")) return;
+        // モーダルが開いている時は設定を開かない
+        if ($("messageModal").classList.contains("active")) return;
         $("settingsModal").classList.add("active");
       });
 
       $("settingsModal").addEventListener("pointerup", (e) => {
         if (e.target === $("settingsModal")) {
           $("settingsModal").classList.remove("active");
+        }
+      });
+
+      $("closeMsgBtn").addEventListener("pointerup", () => {
+        $("messageModal").classList.remove("active");
+        // モーダルを閉じた後、再検知できるように少し遅延させてフラグをリセット
+        setTimeout(() => {
+          rx.modalShown = false;
+        }, 1500);
+      });
+
+      $("messageModal").addEventListener("pointerup", (e) => {
+        if (e.target === $("messageModal")) {
+          $("messageModal").classList.remove("active");
+          setTimeout(() => {
+            rx.modalShown = false;
+          }, 1500);
         }
       });
 
@@ -420,10 +452,13 @@
         }
 
         $("settingsModal").classList.remove("active");
+        $("messageModal").classList.remove("active");
         $("setupScreen").style.display = "flex";
         $("centerStatus").textContent = "待機中...";
         rx.lastColor = "#1f2533";
         rx.lastFrequency = null;
+        rx.isStable = false;
+        rx.modalShown = false;
         applyBackgroundColor(rx.lastColor);
       });
 
@@ -444,11 +479,20 @@
           rx.source.connect(rx.analyser);
           rx.bins = new Float32Array(rx.analyser.frequencyBinCount);
           rx.running = true;
+          rx.isStable = false;
+          rx.modalShown = false;
 
           await requestWakeLock();
           await enterFullscreen();
 
           $("setupScreen").style.display = "none";
+
+          // マイク切り替え時の初期ノイズや暴れを防ぐため、1秒間は「無の状態」を保つ
+          setTimeout(() => {
+            if (rx.running) {
+              rx.isStable = true;
+            }
+          }, 1000);
 
           const loop = () => {
             if (!rx.running) return;
@@ -457,7 +501,24 @@
             const d = findUltrasonicPeak();
             const confirmed = d.maxDb >= RX_THRESHOLD_DB;
 
+            // 安定期間（1秒）が経過するまでは入力を反映させず「無の状態」を維持
+            if (!rx.isStable) {
+              applyBackgroundColor("#1f2533");
+              $("centerStatus").textContent = "準備中...";
+              rx.raf = requestAnimationFrame(loop);
+              return;
+            }
+
             if (confirmed) {
+              // 20900Hz以上の場合の処理
+              if (d.peakHz >= SPECIAL_FREQ_THRESHOLD) {
+                if (!rx.modalShown) {
+                  rx.modalShown = true;
+                  $("settingsModal").classList.remove("active"); // 設定が開いていれば閉じる
+                  $("messageModal").classList.add("active");
+                }
+              }
+
               const color = frequencyToColor(d.peakHz);
               rx.lastColor = color;
               rx.lastFrequency = d.peakHz;
