@@ -8,7 +8,7 @@
     content="width=device-width, initial-scale=1, viewport-fit=cover"
   >
 
-  <title>Fullscreen Demo</title>
+  <title>Fullscreen Color Demo</title>
 
   <style>
     * {
@@ -21,7 +21,7 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #fd5;
+      background: #ffdd55;
       overscroll-behavior: none;
     }
 
@@ -32,7 +32,7 @@
       width: 100%;
       height: 100dvh;
 
-      background: #fd5;
+      background: #ffdd55;
       overflow: hidden;
 
       padding:
@@ -56,6 +56,28 @@
       font-size: 14px;
       pointer-events: none;
     }
+
+    /*
+     * 色選択UI
+     */
+    #colorPicker {
+      position: fixed;
+      z-index: 100;
+
+      top: 16px;
+      right: 16px;
+
+      width: 48px;
+      height: 48px;
+
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+
+      background: transparent;
+
+      cursor: pointer;
+    }
   </style>
 </head>
 
@@ -65,10 +87,21 @@
     <div id="message">画面をタップしてください</div>
   </main>
 
+  <input
+    id="colorPicker"
+    type="color"
+    value="#ffdd55"
+    aria-label="背景色を選択"
+  >
+
   <script>
     (() => {
       const screen = document.getElementById("screen");
+      const colorPicker = document.getElementById("colorPicker");
 
+      /*
+       * 現在のFullscreen要素を取得
+       */
       function getFullscreenElement() {
         return (
           document.fullscreenElement ??
@@ -77,6 +110,21 @@
         );
       }
 
+      /*
+       * 背景色を変更
+       *
+       * screenだけでなくbodyも変更する。
+       * SafariでブラウザUIの影響などにより
+       * 周辺が見える場合でも同じ色にする。
+       */
+      function setColor(color) {
+        screen.style.backgroundColor = color;
+        document.body.style.backgroundColor = color;
+      }
+
+      /*
+       * 本物のFullscreen
+       */
       async function enterFullscreen() {
         try {
           if (screen.requestFullscreen) {
@@ -84,6 +132,9 @@
             return true;
           }
 
+          /*
+           * WebKit系
+           */
           if (screen.webkitRequestFullscreen) {
             screen.webkitRequestFullscreen();
             return true;
@@ -92,11 +143,20 @@
           console.debug("Fullscreen failed:", error);
         }
 
-        // iOS Safariなど
-        // #screenが既に疑似Fullscreenレイアウトなので何もしない
+        /*
+         * iOS Safariなど。
+         *
+         * #screenは最初から
+         * position: fixed + 100dvh
+         * なので、疑似Fullscreenとして
+         * そのまま画面いっぱいに表示する。
+         */
         return false;
       }
 
+      /*
+       * Fullscreen解除
+       */
       async function exitFullscreen() {
         try {
           if (document.exitFullscreen) {
@@ -115,6 +175,9 @@
         return false;
       }
 
+      /*
+       * Fullscreen切り替え
+       */
       async function toggleFullscreen() {
         if (getFullscreenElement()) {
           await exitFullscreen();
@@ -123,7 +186,26 @@
         }
       }
 
+      /*
+       * 画面クリックでFullscreen
+       */
       screen.addEventListener("click", toggleFullscreen);
+
+      /*
+       * 色変更
+       *
+       * inputイベントなので、
+       * カラーピッカーを操作している途中でも
+       * リアルタイムに反映される。
+       */
+      colorPicker.addEventListener("input", (event) => {
+        setColor(event.target.value);
+      });
+
+      /*
+       * 初期色を適用
+       */
+      setColor(colorPicker.value);
 
     })();
   </script>
