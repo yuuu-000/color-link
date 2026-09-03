@@ -90,8 +90,7 @@
       justify-content: center;
       align-items: center;
       padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
-      background: rgba(11, 13, 18, 0.85);
-      backdrop-filter: blur(6px);
+      background: #000;
       z-index: 20;
       overflow-y: auto;
       overscroll-behavior: none;
@@ -109,25 +108,34 @@
       display: flex;
     }
 
+    /* 一律でボーダーなし、黒背景(#000)、テキスト(#ddd) */
+    .message-modal,
+    .settings-modal,
+    .setup-screen {
+      background: #000;
+      color: #ddd;
+    }
+
     .panel {
       width: min(440px, 100%);
-      background: #151923;
-      border: 1px solid #252b38;
+      background: #000;
+      border: none;
       border-radius: 24px;
       padding: 32px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
       text-align: center;
       cursor: default;
+      color: #ddd;
     }
 
     h1 {
       margin: 0 0 12px;
       font-size: 24px;
       letter-spacing: -0.01em;
+      color: #ddd;
     }
 
     .guide-text {
-      color: #8b949e;
+      color: #aaa;
       font-size: 14px;
       line-height: 1.6;
       margin-bottom: 24px;
@@ -135,32 +143,16 @@
     }
 
     .guide-text strong {
-      color: #fff;
+      color: #ddd;
     }
 
     button.primary-btn {
       width: 100%;
-      border: 0;
+      border: none;
       border-radius: 14px;
       padding: 16px;
-      background: #fff;
-      color: #111;
-      cursor: pointer;
-      font-size: 16px;
-      font-weight: 700;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-      touch-action: manipulation;
-      transition: transform 0.1s;
-    }
-
-    button.danger-btn {
-      width: 100%;
-      border: 1px solid rgba(255, 75, 75, 0.3);
-      border-radius: 14px;
-      padding: 16px;
-      background: rgba(255, 75, 75, 0.1);
-      color: #ff6b6b;
+      background: #222;
+      color: #ddd;
       cursor: pointer;
       font-size: 16px;
       font-weight: 700;
@@ -170,8 +162,29 @@
       transition: background 0.2s, transform 0.1s;
     }
 
+    button.primary-btn:hover {
+      background: #333;
+    }
+
+    button.danger-btn {
+      width: 100%;
+      border: none;
+      border-radius: 14px;
+      padding: 16px;
+      background: #311;
+      color: #ff8080;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 700;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      touch-action: manipulation;
+      transition: background 0.2s, transform 0.1s;
+      margin-top: 12px;
+    }
+
     button.danger-btn:hover {
-      background: rgba(255, 75, 75, 0.2);
+      background: #411;
     }
 
     button.primary-btn:active,
@@ -183,7 +196,6 @@
 
 <body>
 
-  <!-- 初回セットアップ・操作説明画面 -->
   <div id="setupScreen" class="setup-screen">
     <div class="panel">
       <h1>カラーレシーバー</h1>
@@ -198,29 +210,28 @@
     </div>
   </div>
 
-  <!-- 設定モーダル画面 -->
   <div id="settingsModal" class="settings-modal">
     <div class="panel">
       <h1>設定</h1>
       <div class="guide-text" style="text-align: center; margin-bottom: 20px;">
         マイクの接続を解除し、初期画面に戻ります。
       </div>
-      <button id="micStopBtn" class="danger-btn">マイクをオフにする</button>
+      <button id="micStopBtn" class="danger-btn" style="margin-top: 0;">マイクをオフにする</button>
     </div>
   </div>
 
-  <!-- 20900Hz以上で表示されるメッセージモーダル -->
   <div id="messageModal" class="message-modal">
     <div class="panel">
-      <h1>通知</h1>
-      <div class="guide-text" style="text-align: center; margin-bottom: 24px;">
-        Hello こんにちは。
+      <h1 id="modalTitle">通知</h1>
+      <div id="modalText" class="guide-text" style="text-align: center; margin-bottom: 24px;">
+        -
       </div>
-      <button id="closeMsgBtn" class="primary-btn">閉じる</button>
+      <div id="modalButtons">
+        <button id="closeMsgBtn" class="primary-btn">閉じる</button>
+      </div>
     </div>
   </div>
 
-  <!-- 受信中のフルカラー背景画面 -->
   <div id="fullscreenBg" class="fullscreen-bg">
     <div class="top-bar">
       <button id="fullscreenBtn" class="icon-btn" title="フルスクリーン切替">
@@ -244,7 +255,7 @@
       const TX_GRAY_END = 18500;
       const TX_COLOR_START = 18600;
       const RX_WHITE_BOUNDARY = 18550;
-      const SPECIAL_FREQ_THRESHOLD = 20900; // 20900以上でモーダル表示
+
       const FFT_SIZE = 4096;
       const RX_THRESHOLD_DB = -110;
 
@@ -259,8 +270,8 @@
         lastColor: "#1f2533",
         lastFrequency: null,
         wakeLock: null,
-        isStable: false,         // マイクオン後の安定フラグ（無の状態を作るため）
-        modalShown: false        // モーダル連続表示防止フラグ
+        isStable: false,
+        activeModalType: null
       };
 
       const $ = id => document.getElementById(id);
@@ -290,7 +301,6 @@
 
       function frequencyToColor(freq) {
         const f = Math.max(MIN_FREQ, Math.min(MAX_FREQ, freq));
-
         if (f <= RX_WHITE_BOUNDARY) {
           if (f <= TX_GRAY_END) {
             const t = (f - MIN_FREQ) / (TX_GRAY_END - MIN_FREQ);
@@ -299,7 +309,6 @@
           }
           return "#FFFFFF";
         }
-
         const t = (f - TX_COLOR_START) / (MAX_FREQ - TX_COLOR_START);
         const clampedT = Math.max(0, Math.min(1, t));
         return hslToHex(clampedT * 360, 100, 50);
@@ -343,11 +352,7 @@
       }
 
       function getFullscreenElement() {
-        return (
-          document.fullscreenElement ??
-          document.webkitFullscreenElement ??
-          null
-        );
+        return document.fullscreenElement ?? document.webkitFullscreenElement ?? null;
       }
 
       async function enterFullscreen() {
@@ -360,9 +365,7 @@
             document.documentElement.webkitRequestFullscreen();
             return true;
           }
-        } catch (error) {
-          console.debug("Fullscreen failed:", error);
-        }
+        } catch (error) {}
         return false;
       }
 
@@ -376,9 +379,7 @@
             document.webkitExitFullscreen();
             return true;
           }
-        } catch (error) {
-          console.debug("Exit fullscreen failed:", error);
-        }
+        } catch (error) {}
         return false;
       }
 
@@ -403,7 +404,6 @@
 
       $("fullscreenBg").addEventListener("pointerup", (e) => {
         if (e.target.closest("#fullscreenBtn")) return;
-        // モーダルが開いている時は設定を開かない
         if ($("messageModal").classList.contains("active")) return;
         $("settingsModal").classList.add("active");
       });
@@ -414,24 +414,19 @@
         }
       });
 
-      $("closeMsgBtn").addEventListener("pointerup", () => {
+      function closeModal() {
         $("messageModal").classList.remove("active");
-        // モーダルを閉じた後、再検知できるように少し遅延させてフラグをリセット
-        setTimeout(() => {
-          rx.modalShown = false;
-        }, 1500);
-      });
+        rx.activeModalType = null;
+      }
 
+      $("closeMsgBtn")?.addEventListener("pointerup", closeModal);
       $("messageModal").addEventListener("pointerup", (e) => {
         if (e.target === $("messageModal")) {
-          $("messageModal").classList.remove("active");
-          setTimeout(() => {
-            rx.modalShown = false;
-          }, 1500);
+          closeModal();
         }
       });
 
-      $("micStopBtn").addEventListener("pointerup", async () => {
+      async function stopMic() {
         rx.running = false;
         if (rx.raf) cancelAnimationFrame(rx.raf);
 
@@ -452,15 +447,16 @@
         }
 
         $("settingsModal").classList.remove("active");
-        $("messageModal").classList.remove("active");
+        closeModal();
         $("setupScreen").style.display = "flex";
         $("centerStatus").textContent = "待機中...";
         rx.lastColor = "#1f2533";
         rx.lastFrequency = null;
         rx.isStable = false;
-        rx.modalShown = false;
         applyBackgroundColor(rx.lastColor);
-      });
+      }
+
+      $("micStopBtn").addEventListener("pointerup", stopMic);
 
       $("rxStart").addEventListener("pointerup", async () => {
         if (rx.running) return;
@@ -480,14 +476,13 @@
           rx.bins = new Float32Array(rx.analyser.frequencyBinCount);
           rx.running = true;
           rx.isStable = false;
-          rx.modalShown = false;
+          rx.activeModalType = null;
 
           await requestWakeLock();
           await enterFullscreen();
 
           $("setupScreen").style.display = "none";
 
-          // マイク切り替え時の初期ノイズや暴れを防ぐため、1秒間は「無の状態」を保つ
           setTimeout(() => {
             if (rx.running) {
               rx.isStable = true;
@@ -501,7 +496,6 @@
             const d = findUltrasonicPeak();
             const confirmed = d.maxDb >= RX_THRESHOLD_DB;
 
-            // 安定期間（1秒）が経過するまでは入力を反映させず「無の状態」を維持
             if (!rx.isStable) {
               applyBackgroundColor("#1f2533");
               $("centerStatus").textContent = "準備中...";
@@ -510,12 +504,51 @@
             }
 
             if (confirmed) {
-              // 20900Hz以上の場合の処理
-              if (d.peakHz >= SPECIAL_FREQ_THRESHOLD) {
-                if (!rx.modalShown) {
-                  rx.modalShown = true;
-                  $("settingsModal").classList.remove("active"); // 設定が開いていれば閉じる
-                  $("messageModal").classList.add("active");
+              let targetModalType = null;
+              if (d.peakHz >= 20966) {
+                targetModalType = 3;
+              } else if (d.peakHz >= 20933) {
+                targetModalType = 2;
+              } else if (d.peakHz >= 20900) {
+                targetModalType = 1;
+              }
+
+              if (targetModalType === null) {
+                if (rx.activeModalType !== null) {
+                  closeModal();
+                }
+              } else {
+                if (rx.activeModalType !== targetModalType) {
+                  $("settingsModal").classList.remove("active");
+                  rx.activeModalType = targetModalType;
+
+                  const modalEl = $("messageModal");
+                  const titleEl = $("modalTitle");
+                  const textEl = $("modalText");
+                  const buttonsEl = $("modalButtons");
+
+                  modalEl.classList.add("active");
+
+                  if (targetModalType === 1) {
+                    titleEl.textContent = "通知";
+                    textEl.innerHTML = "これは予約メッセージです。<br><strong>今後ここにメッセージ</strong>";
+                    buttonsEl.innerHTML = `
+                      <button id="closeMsgBtn" class="primary-btn">閉じる</button>
+                      <button id="modalMicStop" class="danger-btn">マイクをオフにする</button>
+                    `;
+                    $("closeMsgBtn").addEventListener("pointerup", closeModal);
+                    $("modalMicStop").addEventListener("pointerup", stopMic);
+                  } else if (targetModalType === 2) {
+                    titleEl.textContent = "情報 B";
+                    textEl.innerHTML = "指定帯域 2 (20933Hz〜)";
+                    buttonsEl.innerHTML = `<button id="closeMsgBtn" class="primary-btn">閉じる</button>`;
+                    $("closeMsgBtn").addEventListener("pointerup", closeModal);
+                  } else if (targetModalType === 3) {
+                    titleEl.textContent = "情報 C";
+                    textEl.innerHTML = "指定帯域 3 (20966Hz〜)";
+                    buttonsEl.innerHTML = `<button id="closeMsgBtn" class="primary-btn">閉じる</button>`;
+                    $("closeMsgBtn").addEventListener("pointerup", closeModal);
+                  }
                 }
               }
 
@@ -526,6 +559,9 @@
               applyBackgroundColor(color);
               $("centerStatus").textContent = color;
             } else {
+              if (rx.activeModalType !== null) {
+                closeModal();
+              }
               applyBackgroundColor(rx.lastColor);
               $("centerStatus").textContent = rx.lastFrequency !== null ? rx.lastColor : "信号待機中...";
             }
