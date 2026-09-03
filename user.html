@@ -156,7 +156,7 @@
       待機中...
     </div>
 
-    <div style="height: 44px;"></div> <!-- バランス用スペーサー -->
+    <div style="height: 44px;"></div>
   </div>
 
   <script>
@@ -165,7 +165,9 @@
 
       const MIN_FREQ = 18000;
       const MAX_FREQ = 21000;
-      const GRAY_END_FREQ = 18350;
+      const TX_GRAY_END = 18500;       // 18.50kHzまで黒〜白
+      const TX_COLOR_START = 18600;    // 18.60kHzからカラー領域
+      const RX_WHITE_BOUNDARY = 18550; // 18.55kHz以下は白、超えたらカラー領域へ
       const FFT_SIZE = 4096;
       const RX_THRESHOLD_DB = -110;
 
@@ -209,13 +211,21 @@
 
       function frequencyToColor(freq) {
         const f = Math.max(MIN_FREQ, Math.min(MAX_FREQ, freq));
-        if (f <= GRAY_END_FREQ) {
-          const t = (f - MIN_FREQ) / (GRAY_END_FREQ - MIN_FREQ);
-          const v = Math.round(t * 255);
-          return rgbToHex(v, v, v);
+        
+        // 18,550Hz以下は白系（18,500Hzまでグラデーション、超えたら白の保護バッファ）
+        if (f <= RX_WHITE_BOUNDARY) {
+          if (f <= TX_GRAY_END) {
+            const t = (f - MIN_FREQ) / (TX_GRAY_END - MIN_FREQ);
+            const v = Math.round(t * 255);
+            return rgbToHex(v, v, v);
+          }
+          return "#FFFFFF";
         }
-        const t = (f - GRAY_END_FREQ) / (MAX_FREQ - GRAY_END_FREQ);
-        return hslToHex(t * 360, 100, 50);
+
+        // 18,550Hz超はカラー領域（18,600Hzをスタートとする）
+        const t = (f - TX_COLOR_START) / (MAX_FREQ - TX_COLOR_START);
+        const clampedT = Math.max(0, Math.min(1, t));
+        return hslToHex(clampedT * 360, 100, 50);
       }
 
       function findUltrasonicPeak() {
@@ -246,7 +256,6 @@
         }
       }
 
-      // フルスクリーン化の実行
       async function enterFullscreen() {
         if (!document.fullscreenElement) {
           try {
@@ -286,7 +295,6 @@
           await requestWakeLock();
           await enterFullscreen();
 
-          // セットアップ画面を隠し、フルカラー画面へ移行
           $("setupScreen").style.display = "none";
 
           const loop = () => {
