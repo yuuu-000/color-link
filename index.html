@@ -1,6 +1,5 @@
 <!doctype html>
 <html lang="ja">
-
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,43 +8,35 @@
     * {
       box-sizing: border-box;
     }
-
-    html,
-    body {
+    html, body {
       margin: 0;
       min-height: 100%;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #0b0d12;
       color: #fff;
     }
-
     body {
       display: flex;
       justify-content: center;
     }
-
     .wrap {
       width: min(860px, 100%);
       padding: 20px;
     }
-
     h1 {
       margin: 0 0 8px;
       font-size: 24px;
     }
-
     .sub {
       color: #aeb6c6;
       margin: 0 0 18px;
       line-height: 1.5;
     }
-
     .mode {
       display: flex;
       gap: 8px;
       margin-bottom: 16px;
     }
-
     button {
       border: 0;
       border-radius: 10px;
@@ -56,17 +47,14 @@
       font-size: 14px;
       font-weight: 600;
     }
-
     button.active {
       background: #fff;
       color: #111;
     }
-
     button:disabled {
       opacity: .45;
       cursor: not-allowed;
     }
-
     .panel {
       background: #151923;
       border: 1px solid #2a3040;
@@ -74,16 +62,13 @@
       padding: 18px;
       margin-bottom: 14px;
     }
-
     label {
       display: block;
       color: #aeb6c6;
       font-size: 13px;
       margin-bottom: 7px;
     }
-
-    input[type=number],
-    input[type=text] {
+    input[type=number], input[type=text] {
       width: 100%;
       background: #0d1017;
       border: 1px solid #2a3040;
@@ -93,14 +78,12 @@
       font-size: 14px;
       font-family: ui-monospace, monospace;
     }
-
     input[type=range] {
       width: 100%;
       accent-color: #77e3a2;
       cursor: pointer;
       margin: 8px 0;
     }
-
     input[type=color] {
       width: 100%;
       height: 80px;
@@ -109,7 +92,6 @@
       background: transparent;
       cursor: pointer;
     }
-
     .row {
       display: flex;
       gap: 8px;
@@ -117,7 +99,6 @@
       align-items: center;
       margin-bottom: 12px;
     }
-
     .status {
       font: 600 13px ui-monospace, monospace;
       padding: 7px 9px;
@@ -125,7 +106,9 @@
       background: #0d1017;
       color: #c9d1e0;
     }
-
+    .status.good {
+      color: #77e3a2;
+    }
     .big-peak {
       font-size: 32px;
       font-weight: 800;
@@ -133,7 +116,6 @@
       color: #77e3a2;
       margin: 10px 0;
     }
-
     .color-box {
       height: 150px;
       border-radius: 14px;
@@ -144,21 +126,18 @@
       padding: 12px;
       transition: background-color .08s linear;
     }
-
     .color-box span {
       background: rgba(0, 0, 0, .5);
       padding: 6px 9px;
       border-radius: 7px;
       font: 700 14px ui-monospace, monospace;
     }
-
     .config-group {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 12px;
       margin-bottom: 12px;
     }
-
     .debug-box {
       background: #080a0f;
       border: 1px solid #1e2533;
@@ -172,30 +151,25 @@
       white-space: pre-wrap;
       line-height: 1.6;
     }
-
     .flex-between {
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
-
     .grid2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
     }
-
     .value {
       font: 700 15px ui-monospace, monospace;
       color: #77e3a2;
     }
-
     .hint {
       color: #8b949e;
       font-size: 12px;
       line-height: 1.5;
     }
-
     canvas {
       width: 100%;
       height: 180px;
@@ -298,10 +272,10 @@
       const GRAY_END_FREQ = 18350;
       const FFT_SIZE = 4096;
 
-      // 無音時の誤検出抑制
-      const RX_MIN_DB = -62;
-      const RX_MIN_SNR_DB = 7;
-      const RX_CONFIRM_FRAMES = 3;
+      // 誤検出抑制パラメータ（即時反映されやすくなるようフレーム数を緩和）
+      const RX_MIN_DB = -75;
+      const RX_MIN_SNR_DB = 3;
+      const RX_CONFIRM_FRAMES = 1;
 
       let tx = { ctx: null, osc: null, gain: null, running: false, frequency: MIN_FREQ, color: "#ff0000" };
       let rx = {
@@ -364,7 +338,6 @@
         const { r, g, b } = hexToRgb(hex);
         const max = Math.max(r, g, b), min = Math.min(r, g, b);
 
-        // 黒・白・灰色
         if (max - min <= 8) {
           const gray = Math.round((r + g + b) / 3);
           return MIN_FREQ + (gray / 255) * (GRAY_END_FREQ - MIN_FREQ);
@@ -537,7 +510,6 @@
           }
         }
 
-        // ピークの周囲を除いた局所ノイズフロア
         let sum = 0, count = 0;
 
         for (let i = minBin; i <= maxBin; i++) {
@@ -559,8 +531,6 @@
         return { peakHz, maxDb, noiseFloor, snr, rawActive, minBin, maxBin };
       }
 
-      // 環境ノイズによる一瞬のピークではなく、
-      // 同じ候補が連続して観測された時だけ本物とみなす。
       function confirmSignal(d) {
         if (!d.rawActive) {
           rx.confirmCount = 0;
@@ -638,29 +608,27 @@
             const d = getUltrasonicPeak();
             const confirmed = confirmSignal(d);
 
-            let displayHz = null;
-            let detectedColor = null;
+            let detectedColor = "----";
 
             if (confirmed) {
-              displayHz = d.peakHz;
-              detectedColor = frequencyToColor(displayHz);
+              detectedColor = frequencyToColor(d.peakHz);
               rx.lastColor = detectedColor;
 
               $("rxColorText").textContent = detectedColor;
               $("rxColorBox").style.background = detectedColor;
               $("rxDetectedColor").textContent = detectedColor;
+              $("peakDisplay").textContent = `${d.peakHz.toFixed(1)} Hz (${d.maxDb.toFixed(1)} dB)`;
+              $("rxDetectedFreq").textContent = `${d.peakHz.toFixed(1)} Hz`;
+              $("rxStatus").textContent = `信号検出 / SNR ${d.snr.toFixed(1)} dB`;
+              $("rxStatus").className = "status good";
             } else {
-              $("rxColorText").textContent = "WAITING";
+              $("rxColorText").textContent = "NO SIGNAL";
               $("rxDetectedColor").textContent = "SIGNAL NONE";
+              $("peakDisplay").textContent = `NO SIGNAL (${d.maxDb.toFixed(1)} dB)`;
+              $("rxDetectedFreq").textContent = "---- Hz";
+              $("rxStatus").textContent = `待機中 / SNR ${d.snr.toFixed(1)} dB`;
+              $("rxStatus").className = "status";
             }
-
-            $("peakDisplay").textContent =
-              confirmed
-                ? `${d.peakHz.toFixed(1)} Hz (${d.maxDb.toFixed(1)} dB)`
-                : `NO SIGNAL (${d.maxDb.toFixed(1)} dB)`;
-
-            $("rxDetectedFreq").textContent =
-              confirmed ? `${d.peakHz.toFixed(1)} Hz` : "---- Hz";
 
             const expected = rx.expectedFreq;
             if (confirmed && Number.isFinite(expected)) {
@@ -669,13 +637,6 @@
             } else {
               $("rxDiff").textContent = "---- Hz";
             }
-
-            $("rxStatus").textContent =
-              confirmed
-                ? `信号検出 / SNR ${d.snr.toFixed(1)} dB`
-                : `待機中 / SNR ${d.snr.toFixed(1)} dB`;
-
-            $("rxStatus").className = confirmed ? "status good" : "status";
 
             $("rxLog").textContent =
               `[RECEIVER DEBUG]\n` +
@@ -847,5 +808,4 @@
     })();
   </script>
 </body>
-
 </html>
