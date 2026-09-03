@@ -259,7 +259,7 @@
     <h1>Ultrasonic Color Demo</h1>
     <p class="sub">
       18〜21kHzの超音波をカラー情報として使用。<br>
-      送信側の色を周波数へ変換し、受信側ではマイクから周波数を検出して色へ戻します。
+      送信側：18,500Hzまで白、18,600Hz以上で赤〜各色（中間はブランク）。受信側：18,550Hz境界。
     </p>
 
     <div class="mode">
@@ -312,8 +312,8 @@
           <input type="number" id="txGain" value="0.05" min="0" max="0.5" step="0.005">
           <div class="hint" style="margin-top: 8px;">
             18.00〜18.50kHz = 黒〜白<br>
-            18.50〜18.80kHz = 白ガード（ズレ防止）<br>
-            18.80〜21kHz = 色相
+            18.50超〜18.59.9kHz = ブランク（未使用）<br>
+            18.60〜21.00kHz = 赤〜各色
           </div>
         </div>
       </div>
@@ -393,8 +393,14 @@
 
       const MIN_FREQ = 18000;
       const MAX_FREQ = 21000;
-      const GRAY_END_FREQ = 18500;       // 白の最大境界（18.50kHz）
-      const COLOR_START_FREQ = 18800;    // 色（赤）の開始境界（18.80kHz）※間の300Hzを白ガードバンドとする
+
+      // 送信側の定義
+      const TX_GRAY_END = 18500;       // 18.50kHzまで黒〜白
+      const TX_COLOR_START = 18600;    // 18.60kHzから赤〜各色（18.50〜18.60はブランク）
+
+      // 受信側の判定定義
+      const RX_WHITE_BOUNDARY = 18550; // 18.55kHz以下は白、超えたら赤・カラー領域へ
+
       const FFT_SIZE = 4096;
       const RX_THRESHOLD_DB = -110;
 
@@ -404,7 +410,7 @@
         gain: null,
         running: false,
         frequency: 18000,
-        color: "#FF0000",
+        color: "#FFFFFF",
         liveAnim: null
       };
 
@@ -480,27 +486,29 @@
         const max = Math.max(r, g, b), min = Math.min(r, g, b);
         if (max - min <= 12) {
           const gray = (r + g + b) / 3;
-          return MIN_FREQ + (gray / 255) * (GRAY_END_FREQ - MIN_FREQ);
+          return MIN_FREQ + (gray / 255) * (TX_GRAY_END - MIN_FREQ);
         }
         const hsl = rgbToHsl(r, g, b);
-        return COLOR_START_FREQ + (hsl.h / 360) * (MAX_FREQ - COLOR_START_FREQ);
+        return TX_COLOR_START + (hsl.h / 360) * (MAX_FREQ - TX_COLOR_START);
       }
 
       function frequencyToColor(freq) {
         const f = Math.max(MIN_FREQ, Math.min(MAX_FREQ, freq));
-        // 1. モノクロ領域（黒〜白）
-        if (f <= GRAY_END_FREQ) {
-          const t = (f - MIN_FREQ) / (GRAY_END_FREQ - MIN_FREQ);
-          const v = Math.round(t * 255);
-          return rgbToHex(v, v, v);
+
+        // 1. 受信側境界（18,550Hz以下は白系）
+        if (f <= RX_WHITE_BOUNDARY) {
+          if (f <= TX_GRAY_END) {
+            const t = (f - MIN_FREQ) / (TX_GRAY_END - MIN_FREQ);
+            const v = Math.round(t * 255);
+            return rgbToHex(v, v, v);
+          }
+          return "#FFFFFF"; // 18,500超〜18,550までは白をキープするバッファ
         }
-        // 2. 白ガードバンド（上方にズレても白を維持して赤に化けるのを防ぐ）
-        if (f < COLOR_START_FREQ) {
-          return "#FFFFFF";
-        }
-        // 3. カラー領域
-        const t = (f - COLOR_START_FREQ) / (MAX_FREQ - COLOR_START_FREQ);
-        return hslToHex(t * 360, 100, 50);
+
+        // 2. カラー領域（18,550Hz超〜）
+        const t = (f - TX_COLOR_START) / (MAX_FREQ - TX_COLOR_START);
+        const clampedT = Math.max(0, Math.min(1, t));
+        return hslToHex(clampedT * 360, 100, 50);
       }
 
       function hslToHex(h, s, l) {
@@ -540,12 +548,21 @@
         if (!Number.isFinite(f)) f = MIN_FREQ;
         f = Math.max(MIN_FREQ, Math.min(MAX_FREQ, f));
         tx.frequency = f;
-        tx.color = frequencyToColor(f);
+
+        if (f <= TX_GRAY_END) {
+          const v = Math.round(((f - MIN_FREQ) / (TX_GRAY_END - MIN_FREQ)) * 255);
+          tx.color = rgbToHex(v, v, v);
+        } else if (f < TX_COLOR_START) {
+          tx.color = "#FFFFFF"; // ブランク帯は白扱いとして表示
+        } else {
+          const t = (f - TX_COLOR_START) / (MAX_FREQ - TX_COLOR_START);
+          tx.color = hslToHex(t * 360, 100, 50);
+        }
 
         $("txFreqRange").value = f;
         $("txFreqNum").value = f.toFixed(1);
         $("txFreqText").textContent = `${f.toFixed(1)} Hz`;
-        $("txColor").value = tx.color;
+        $("txColor").value = tx.color === "#FFFFFF" ? "#FFFFFF" : tx.color;
         $("txColorText").textContent = tx.color;
         $("txColorBox").style.background = tx.color;
 
@@ -645,7 +662,7 @@
           let hslHex = hslToHex(hue, 100, 50);
           const { r, g, b } = hexToRgb(hslHex);
           const hsl = rgbToHsl(r, g, b);
-          return COLOR_START_FREQ + (hsl.h / 360) * (MAX_FREQ - COLOR_START_FREQ);
+          return TX_COLOR_START + (hsl.h / 360) * (MAX_FREQ - TX_COLOR_START);
         });
       };
 
@@ -660,7 +677,7 @@
           let hslHex = hslToHex(hue, 100, 50);
           const { r, g, b } = hexToRgb(hslHex);
           const hsl = rgbToHsl(r, g, b);
-          return COLOR_START_FREQ + (hsl.h / 360) * (MAX_FREQ - COLOR_START_FREQ);
+          return TX_COLOR_START + (hsl.h / 360) * (MAX_FREQ - TX_COLOR_START);
         });
       };
 
@@ -672,7 +689,7 @@
             let hslHex = hslToHex(hue, 100, 50);
             const { r, g, b } = hexToRgb(hslHex);
             const hsl = rgbToHsl(r, g, b);
-            return COLOR_START_FREQ + (hsl.h / 360) * (MAX_FREQ - COLOR_START_FREQ);
+            return TX_COLOR_START + (hsl.h / 360) * (MAX_FREQ - TX_COLOR_START);
           } else {
             return MIN_FREQ;
           }
@@ -684,7 +701,7 @@
           let beat = Math.sin(t * Math.PI * 1.5);
           if (beat > 0.3) {
             let freq = MAX_FREQ - (t * 40) % 1500;
-            return Math.max(COLOR_START_FREQ, Math.min(MAX_FREQ, freq));
+            return Math.max(TX_COLOR_START, Math.min(MAX_FREQ, freq));
           } else {
             return MIN_FREQ;
           }
@@ -695,7 +712,7 @@
         startLivePreset(30000, (t) => {
           let wave = (Math.sin(t * Math.PI * 2) + 1) / 2;
           let strobe = Math.floor(t * 3) % 2;
-          let targetV = MIN_FREQ + wave * (GRAY_END_FREQ - MIN_FREQ);
+          let targetV = MIN_FREQ + wave * (TX_GRAY_END - MIN_FREQ);
           return strobe ? targetV : MIN_FREQ;
         });
       };
