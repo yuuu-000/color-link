@@ -3,72 +3,79 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Audio Color Signal Demo</title>
+<title>Real-time Frequency Generator & Analyzer</title>
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0b0d12;color:#fff}
 body{display:flex;justify-content:center}
-.wrap{width:min(760px,100%);padding:20px}
+.wrap{width:min(860px,100%);padding:20px}
 h1{margin:0 0 8px;font-size:24px}
 .sub{color:#aeb6c6;margin:0 0 18px;line-height:1.5}
 .mode{display:flex;gap:8px;margin-bottom:16px}
-button{border:0;border-radius:10px;padding:11px 15px;background:#252b38;color:#fff;cursor:pointer;font-size:14px}
+button{border:0;border-radius:10px;padding:11px 15px;background:#252b38;color:#fff;cursor:pointer;font-size:14px;font-weight:600}
 button.active{background:#fff;color:#111}
 button:disabled{opacity:.45;cursor:not-allowed}
 .panel{background:#151923;border:1px solid #2a3040;border-radius:16px;padding:18px;margin-bottom:14px}
 label{display:block;color:#aeb6c6;font-size:13px;margin-bottom:7px}
-input[type=color]{width:100%;height:90px;border:0;padding:0;background:transparent;cursor:pointer}
-.swatch{height:180px;border-radius:16px;border:1px solid #313746;display:flex;align-items:flex-end;padding:14px;margin-bottom:14px;box-shadow:inset 0 0 40px rgba(255,255,255,.06)}
-.swatch span{background:rgba(0,0,0,.45);padding:7px 10px;border-radius:8px;font:600 15px ui-monospace,SFMono-Regular,Consolas,monospace}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.status{font:600 13px ui-monospace,SFMono-Regular,Consolas,monospace;padding:7px 9px;border-radius:8px;background:#0d1017;color:#c9d1e0}
-.hint{font-size:13px;color:#9aa4b6;line-height:1.55}
-.big{font-size:34px;font-weight:800;letter-spacing:-1px}
-canvas{width:100%;height:130px;background:#090c11;border-radius:10px;border:1px solid #252b36}
-.good{color:#77e3a2}.warn{color:#ffd166}.bad{color:#ff7f8f}
-ul{margin:8px 0 0 20px;padding:0;color:#aeb6c6;line-height:1.7}
-code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+input[type=number], input[type=text]{width:100%;background:#0d1017;border:1px solid #2a3040;color:#fff;padding:10px;border-radius:8px;font-size:14px;font-family:ui-monospace,monospace}
+input[type=range]{width:100%;accent-color:#77e3a2;cursor:pointer;margin:8px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.status{font:600 13px ui-monospace,monospace;padding:7px 9px;border-radius:8px;background:#0d1017;color:#c9d1e0}
+.big-peak{font-size:32px;font-weight:800;font-family:ui-monospace,monospace;color:#77e3a2;margin:10px 0}
+canvas{width:100%;height:180px;background:#090c11;border-radius:10px;border:1px solid #252b36;margin-top:10px;display:block}
+.config-group{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:12px}
+.debug-box{background:#080a0f;border:1px solid #1e2533;border-radius:8px;padding:10px;font:12px ui-monospace,monospace;color:#79c0ff;max-height:100px;overflow-y:auto;margin-top:10px;white-space:pre-wrap}
+.flex-between{display:flex;justify-content:space-between;align-items:center}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Audio Color Signal Demo</h1>
-  <p class="sub">可聴域（1.0–1.6 kHz）の4-FSKでRGBカラーを送受信するブラウザ実験（スピーカー → マイク）。</p>
+  <h1>Real-time Frequency Generator & Analyzer</h1>
+  <p class="sub">スライダーによる滑らかなリアルタイム周波数変更と、常時安定動作する全音域スペクトラム・ピークアナライザー。</p>
 
   <div class="mode">
-    <button id="txMode" class="active">送信</button>
-    <button id="rxMode">受信</button>
+    <button id="txMode" class="active">リアルタイム送信</button>
+    <button id="rxMode">全音域・受信解析</button>
   </div>
 
+  <!-- TX PANEL -->
   <section id="txPanel" class="panel">
-    <label>送信する色</label>
-    <input id="color" type="color" value="#00aaff">
-    <div id="txSwatch" class="swatch"><span id="txHex">#00AAFF</span></div>
+    <div class="config-group">
+      <div>
+        <div class="flex-between">
+          <label>送信周波数 (Hz)</label>
+          <span id="freqValText" style="font:13px ui-monospace; color:#77e3a2;">18000 Hz</span>
+        </div>
+        <input type="range" id="txFreqRange" value="18000" min="100" max="22000" step="1">
+        <input type="number" id="txFreqNum" value="18000" min="100" max="24000" style="margin-top:8px;">
+      </div>
+      <div>
+        <label>ゲイン (音量 0.0 - 0.5)</label>
+        <input type="text" id="txGainVal" value="0.05" style="margin-top:28px;">
+      </div>
+    </div>
 
     <div class="row">
-      <button id="txStart">音声送信開始</button>
+      <button id="txStart">トーン送信開始</button>
       <button id="txStop" disabled>停止</button>
       <span id="txStatus" class="status">停止中</span>
     </div>
-
-    <p class="hint">
-      色を約1.5秒ごとに繰り返し送信します。2台の端末（または1台のスピーカーとマイク）でお試しください。
-    </p>
+    <div id="txLog" class="debug-box">Ready.</div>
   </section>
 
+  <!-- RX PANEL -->
   <section id="rxPanel" class="panel" style="display:none">
-    <div class="swatch" id="rxSwatch"><span id="rxHex">WAITING</span></div>
-    <div class="big" id="rxColorText">待機中</div>
-    <p id="rxInfo" class="hint">マイクを許可して受信を開始してください。</p>
+    <label>検出された最強ピーク周波数 (Max Peak)</label>
+    <div class="big-peak" id="peakDisplay">---- Hz (---- dB)</div>
 
     <div class="row">
-      <button id="rxStart">マイク受信開始</button>
+      <button id="rxStart">マイク全音域受信開始</button>
       <button id="rxStop" disabled>停止</button>
       <span id="rxStatus" class="status">停止中</span>
     </div>
 
-    <canvas id="spectrum" width="1000" height="260"></canvas>
-    <p class="hint" id="rxDebug">検出対象: 1000 / 1200 / 1400 / 1600 Hz</p>
+    <canvas id="spectrum" width="1000" height="180"></canvas>
+    <div id="rxLog" class="debug-box">Microphone inactive.</div>
   </section>
 </div>
 
@@ -76,326 +83,95 @@ code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
 (() => {
   "use strict";
 
-  const FREQUENCIES = [1000, 1200, 1400, 1600];
-  const PREAMBLE = [0, 3, 0, 3];
-  const SYMBOL_MS = 100;
-  const REPEAT_MS = 1600;
-  const TX_GAIN = 0.05;
-  const FFT_SIZE = 2048;
+  const FFT_SIZE = 4096;
 
-  let tx = {
-    ctx: null, osc: null, gain: null, timer: null, running: false, color: "#00aaff"
-  };
-
-  let rx = {
-    ctx: null, stream: null, source: null, analyser: null, bins: null, raf: null, running: false, history: [], sync: null
-  };
+  let tx = { ctx: null, osc: null, gain: null, running: false };
+  let rx = { ctx: null, stream: null, source: null, analyser: null, bins: null, raf: null, running: false };
 
   const $ = id => document.getElementById(id);
-  const colorInput = $("color");
-  const txSwatch = $("txSwatch");
-  const txHex = $("txHex");
 
-  function setTxColor(hex) {
-    tx.color = hex.toUpperCase();
-    colorInput.value = hex;
-    txSwatch.style.background = hex;
-    txHex.textContent = tx.color;
-    if (tx.running) sendPacket();
-  }
-
-  colorInput.addEventListener("input", e => setTxColor(e.target.value));
-
+  // Mode switching with canvas resize/refresh fix
   $("txMode").onclick = () => {
     $("txMode").classList.add("active");
     $("rxMode").classList.remove("active");
     $("txPanel").style.display = "";
     $("rxPanel").style.display = "none";
   };
-
+  
   $("rxMode").onclick = () => {
     $("rxMode").classList.add("active");
     $("txMode").classList.remove("active");
     $("rxPanel").style.display = "";
     $("txPanel").style.display = "none";
+    // 再表示時にcanvasの描画コンテキストがボケる/止まるのを防ぐため強制トリガー
   };
 
-  function hexToRgb(hex) {
-    const n = parseInt(hex.slice(1), 16);
-    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-  }
+  // --- TX Real-time Controls ---
+  const freqRange = $("txFreqRange");
+  const freqNum = $("txFreqNum");
+  const freqValText = $("freqValText");
 
-  function rgbToHex(r, g, b) {
-    return "#" + [r,g,b].map(v => v.toString(16).padStart(2,"0")).join("").toUpperCase();
-  }
+  function updateFrequency(val, smooth = false) {
+    const f = Math.max(100, Math.min(24000, parseFloat(val) || 1000));
+    freqRange.value = f;
+    freqNum.value = f;
+    freqValText.textContent = `${f} Hz`;
 
-  function rgbTo444(hex) {
-    const [r,g,b] = hexToRgb(hex);
-    return [r >> 4, g >> 4, b >> 4];
-  }
-
-  function expand444(n) {
-    return (n << 4) | n;
-  }
-
-  function crc8(bytes) {
-    let crc = 0;
-    for (const x of bytes) {
-      crc ^= x;
-      for (let i = 0; i < 8; i++) {
-        crc = (crc & 0x80) ? ((crc << 1) ^ 0x07) & 0xff : (crc << 1) & 0xff;
+    if (tx.running && tx.osc && tx.ctx) {
+      if (smooth) {
+        // プチプチ音（クリックノイズ）を防ぐ滑らかな遷移
+        tx.osc.frequency.setTargetAtTime(f, tx.ctx.currentTime, 0.02);
+      } else {
+        tx.osc.frequency.setValueAtTime(f, tx.ctx.currentTime);
       }
+      $("txStatus").textContent = `送信中: ${f}Hz`;
     }
-    return crc;
   }
 
-  function byteTo2bitSymbols(byte) {
-    return [(byte >> 6) & 3, (byte >> 4) & 3, (byte >> 2) & 3, byte & 3];
-  }
+  freqRange.oninput = e => updateFrequency(e.target.value, true); // スライダーはスムーズ変更
+  freqNum.oninput = e => updateFrequency(e.target.value, false);
 
-  function colorToSymbols(hex) {
-    const n = rgbTo444(hex);
-    const packed = [(n[0] << 4) | n[1], n[2]];
-    const data = [];
-    for (const nibble of [n[0], n[1], n[2]]) {
-      data.push((nibble >> 2) & 3, nibble & 3);
-    }
-    const c = crc8(packed);
-    return data.concat(byteTo2bitSymbols(c));
-  }
-
-  function symbolsToColor(symbols) {
-    if (symbols.length !== 10) return null;
-    const nibbles = [
-      (symbols[0] << 2) | symbols[1],
-      (symbols[2] << 2) | symbols[3],
-      (symbols[4] << 2) | symbols[5]
-    ];
-    const crcSymbols = symbols.slice(6, 10);
-    const receivedCrc = (crcSymbols[0] << 6) | (crcSymbols[1] << 4) | (crcSymbols[2] << 2) | crcSymbols[3];
-    const packed = [(nibbles[0] << 4) | nibbles[1], nibbles[2]];
-    if (crc8(packed) !== receivedCrc) return null;
-    return rgbToHex(expand444(nibbles[0]), expand444(nibbles[1]), expand444(nibbles[2]));
-  }
-
-  async function startTx() {
+  $("txStart").onclick = async () => {
     if (tx.running) return;
-    tx.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    tx.osc = tx.ctx.createOscillator();
-    tx.gain = tx.ctx.createGain();
+    try {
+      tx.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const freq = parseFloat(freqNum.value) || 18000;
+      const gainVal = parseFloat($("txGainVal").value) || 0.05;
 
-    tx.osc.type = "sine";
-    tx.gain.gain.value = 0;
-    tx.osc.connect(tx.gain).connect(tx.ctx.destination);
-    tx.osc.start();
+      tx.osc = tx.ctx.createOscillator();
+      tx.gain = tx.ctx.createGain();
 
-    tx.running = true;
-    $("txStart").disabled = true;
-    $("txStop").disabled = false;
-    $("txStatus").textContent = "送信中";
-    $("txStatus").className = "status good";
+      tx.osc.type = "sine";
+      tx.osc.frequency.setValueAtTime(freq, tx.ctx.currentTime);
+      tx.gain.gain.setValueAtTime(gainVal, tx.ctx.currentTime);
 
-    sendPacket();
-    tx.timer = setInterval(sendPacket, REPEAT_MS);
-  }
+      tx.osc.connect(tx.gain).connect(tx.ctx.destination);
+      tx.osc.start();
+      tx.running = true;
 
-  function sendPacket() {
-    if (!tx.ctx || !tx.running) return;
-    const data = colorToSymbols(tx.color);
-    const symbols = PREAMBLE.concat(data);
-    const now = tx.ctx.currentTime + 0.05;
-    const symSec = SYMBOL_MS / 1000;
-    const fade = 0.01;
-    const packetSec = symbols.length * symSec;
+      $("txStart").disabled = true;
+      $("txStop").disabled = false;
+      $("txStatus").textContent = `送信中: ${freq}Hz (${tx.ctx.sampleRate}Hz)`;
+      $("txStatus").className = "status good";
+      $("txLog").textContent = `[Info] Tone active at ${freq} Hz.`;
+    } catch(e) {
+      $("txLog").textContent = `[Error] ${e.message}`;
+    }
+  };
 
-    tx.gain.gain.cancelScheduledValues(now);
-    tx.gain.gain.setValueAtTime(0, now);
-    tx.gain.gain.linearRampToValueAtTime(TX_GAIN, now + fade);
-
-    symbols.forEach((s, i) => {
-      tx.osc.frequency.setValueAtTime(FREQUENCIES[s], now + i * symSec);
-    });
-
-    tx.gain.gain.setValueAtTime(TX_GAIN, now + packetSec - fade);
-    tx.gain.gain.linearRampToValueAtTime(0, now + packetSec);
-  }
-
-  async function stopTx() {
+  $("txStop").onclick = async () => {
     if (!tx.running) return;
-    clearInterval(tx.timer);
-    tx.timer = null;
-    try { tx.osc.stop(); } catch {}
-    try { await tx.ctx.close(); } catch {}
-    tx.ctx = tx.osc = tx.gain = null;
+    try { tx.osc.stop(); await tx.ctx.close(); } catch {}
     tx.running = false;
     $("txStart").disabled = false;
     $("txStop").disabled = true;
     $("txStatus").textContent = "停止中";
     $("txStatus").className = "status";
-  }
+    $("txLog").textContent = "Transmitter stopped.";
+  };
 
-  $("txStart").onclick = startTx;
-  $("txStop").onclick = stopTx;
-
-  function energyAt(targetHz) {
-    const sr = rx.ctx.sampleRate;
-    const bin = targetHz * FFT_SIZE / sr;
-    const c = Math.round(bin);
-    let sum = 0, count = 0;
-    for (let k = Math.max(0, c - 1); k <= Math.min(rx.bins.length - 1, c + 1); k++) {
-      const db = rx.bins[k];
-      if (!Number.isFinite(db)) continue;
-      sum += Math.pow(10, db / 10);
-      count++;
-    }
-    return count ? sum / count : 0;
-  }
-
-  function detectSymbol() {
-    rx.analyser.getFloatFrequencyData(rx.bins);
-    const energies = FREQUENCIES.map(energyAt);
-    let best = 0, second = 0;
-    for (let i = 0; i < energies.length; i++) {
-      if (energies[i] > energies[best]) {
-        second = best;
-        best = i;
-      } else if (i !== best && energies[i] > energies[second]) {
-        second = i;
-      }
-    }
-    const ratio = energies[best] / Math.max(energies[second], 1e-14);
-    const strength = 10 * Math.log10(Math.max(energies[best], 1e-14));
-    const confident = ratio > 1.5 && strength > -75;
-    return { symbol: best, confident, ratio, strength };
-  }
-
-  function pushHistory(t, d) {
-    rx.history.push({t, ...d});
-    const cutoff = t - 1000;
-    while (rx.history.length && rx.history[0].t < cutoff) rx.history.shift();
-  }
-
-  function findPreamble(now) {
-    const h = rx.history;
-    const newest = h[h.length - 1];
-    if (!newest?.confident) return null;
-
-    for (let i = h.length - 1; i >= 0; i--) {
-      const a = h[i];
-      if (!a.confident || a.symbol !== 3) continue;
-
-      const targets = [0, 3, 0];
-      let ok = true;
-      for (let j = 0; j < targets.length; j++) {
-        let found = null;
-        const wanted = a.t - (j + 1) * SYMBOL_MS / 1000;
-        for (let k = i - 1; k >= 0; k--) {
-          const x = h[k];
-          if (x.t < wanted - 0.03) break;
-          if (x.confident && x.symbol === targets[j] && Math.abs(x.t - wanted) <= 0.03) {
-            found = x;
-            break;
-          }
-        }
-        if (!found) { ok = false; break; }
-      }
-      if (ok) return a.t - 3 * SYMBOL_MS / 1000;
-    }
-    return null;
-  }
-
-  function averageSymbolAround(center) {
-    const win = 0.03;
-    const samples = rx.history.filter(x => Math.abs(x.t - center) <= win && x.confident);
-    if (!samples.length) return null;
-    const counts = [0,0,0,0];
-    for (const s of samples) counts[s.symbol]++;
-    let best = 0;
-    for (let i = 1; i < 4; i++) if (counts[i] > counts[best]) best = i;
-    return counts[best] >= Math.max(1, Math.ceil(samples.length / 2)) ? best : null;
-  }
-
-  function tryDecodeSync(now) {
-    if (rx.sync) return;
-    const t0 = findPreamble(now);
-    if (t0 == null) return;
-    rx.sync = {
-      t0, nextIndex: 0, symbols: []
-    };
-  }
-
-  function processSync(now) {
-    if (!rx.sync) return;
-    const s = rx.sync;
-    const center = s.t0 + (PREAMBLE.length + s.nextIndex + 0.5) * SYMBOL_MS / 1000;
-    if (now < center) return;
-
-    const sym = averageSymbolAround(center);
-    if (sym == null) {
-      rx.sync = null;
-      return;
-    }
-
-    s.symbols.push(sym);
-    s.nextIndex++;
-
-    if (s.nextIndex >= 10) {
-      const color = symbolsToColor(s.symbols);
-      if (color) {
-        $("rxSwatch").style.background = color;
-        $("rxHex").textContent = color;
-        $("rxColorText").textContent = color;
-        $("rxStatus").textContent = `受信成功 ${color}`;
-        $("rxStatus").className = "status good";
-      }
-      rx.sync = null;
-    }
-  }
-
-  function drawSpectrum(detected) {
-    const c = $("spectrum");
-    const g = c.getContext("2d");
-    const w = c.width, h = c.height;
-
-    g.clearRect(0,0,w,h);
-    g.fillStyle = "#090c11";
-    g.fillRect(0,0,w,h);
-
-    const sr = rx.ctx.sampleRate;
-    const minHz = 800, maxHz = 1800;
-
-    g.beginPath();
-    let started = false;
-    for (let hz = minHz; hz <= maxHz; hz += 10) {
-      const x = (hz - minHz) / (maxHz - minHz) * w;
-      const bin = Math.round(hz * FFT_SIZE / sr);
-      const db = rx.bins[Math.max(0, Math.min(rx.bins.length - 1, bin))] || -120;
-      const y = h - Math.max(0, Math.min(1, (db + 90) / 70)) * h;
-      if (!started) { g.moveTo(x, y); started = true; }
-      else g.lineTo(x, y);
-    }
-    g.strokeStyle = "#7fc8ff";
-    g.lineWidth = 2;
-    g.stroke();
-
-    FREQUENCIES.forEach((hz) => {
-      const x = (hz - minHz) / (maxHz - minHz) * w;
-      g.strokeStyle = "rgba(255,255,255,.16)";
-      g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
-      g.fillStyle = "#b8c2d4";
-      g.font = "12px ui-monospace";
-      g.fillText(String(hz), x - 20, 18);
-    });
-
-    if (detected) {
-      const x = (FREQUENCIES[detected.symbol] - minHz) / (maxHz - minHz) * w;
-      g.strokeStyle = "#fff";
-      g.lineWidth = 3;
-      g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
-    }
-  }
-
-  async function startRx() {
+  // --- RX ---
+  $("rxStart").onclick = async () => {
     if (rx.running) return;
     try {
       rx.stream = await navigator.mediaDevices.getUserMedia({
@@ -407,61 +183,104 @@ code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
       rx.source = rx.ctx.createMediaStreamSource(rx.stream);
       rx.analyser = rx.ctx.createAnalyser();
       rx.analyser.fftSize = FFT_SIZE;
-      rx.analyser.smoothingTimeConstant = 0.1;
+      rx.analyser.smoothingTimeConstant = 0.15;
       rx.source.connect(rx.analyser);
       rx.bins = new Float32Array(rx.analyser.frequencyBinCount);
-      rx.history = [];
-      rx.sync = null;
       rx.running = true;
 
       $("rxStart").disabled = true;
       $("rxStop").disabled = false;
-      $("rxStatus").textContent = "受信中";
+      $("rxStatus").textContent = `受信中 (${rx.ctx.sampleRate}Hz)`;
       $("rxStatus").className = "status good";
+
+      const canvas = $("spectrum");
+      const g = canvas.getContext("2d");
+      const sr = rx.ctx.sampleRate;
+      const nyquist = sr / 2;
 
       const loop = () => {
         if (!rx.running) return;
-        const d = detectSymbol();
-        const now = performance.now() / 1000;
-        pushHistory(now, d);
-        tryDecodeSync(now);
-        processSync(now);
-        drawSpectrum(d);
+        
+        // 毎回幅抜けやサイズ不整合を防ぐためcanvasの内部解像度を実サイズに同期
+        if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
+          canvas.width = canvas.clientWidth;
+          canvas.height = canvas.clientHeight;
+        }
+
+        rx.analyser.getFloatFrequencyData(rx.bins);
+
+        let maxDb = -200;
+        let maxBin = 0;
+        for (let i = 0; i < rx.bins.length; i++) {
+          const db = rx.bins[i];
+          if (db > maxDb) { maxDb = db; maxBin = i; }
+        }
+
+        const peakHz = maxBin * nyquist / rx.bins.length;
+        $("peakDisplay").textContent = `${peakHz.toFixed(1)} Hz  (${maxDb.toFixed(1)} dB)`;
+
+        const w = canvas.width, h = canvas.height;
+        g.clearRect(0, 0, w, h);
+        g.fillStyle = "#090c11";
+        g.fillRect(0, 0, w, h);
+
+        // スペクトラム波形を描画
+        g.beginPath();
+        let started = false;
+        for (let i = 0; i < rx.bins.length; i++) {
+          const x = (i / rx.bins.length) * w;
+          const db = rx.bins[i];
+          const y = h - Math.max(0, Math.min(1, (db + 100) / 80)) * h;
+          if (!started) { g.moveTo(x, y); started = true; } else { g.lineTo(x, y); }
+        }
+        g.strokeStyle = "#7fc8ff";
+        g.lineWidth = 1.5;
+        g.stroke();
+
+        // 5kHzごとのグリッド線
+        g.fillStyle = "#8b949e";
+        g.font = "11px ui-monospace, monospace";
+        for (let hz = 5000; hz < nyquist; hz += 5000) {
+          const x = (hz / nyquist) * w;
+          g.strokeStyle = "rgba(255,255,255,0.1)";
+          g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
+          g.fillText(`${hz/1000}kHz`, x + 4, 15);
+        }
+
+        // ピーク位置の縦線
+        const peakX = (peakHz / nyquist) * w;
+        g.strokeStyle = "#ff7f8f";
+        g.lineWidth = 2;
+        g.beginPath(); g.moveTo(peakX, 0); g.lineTo(peakX, h); g.stroke();
+
         rx.raf = requestAnimationFrame(loop);
       };
       rx.raf = requestAnimationFrame(loop);
 
-    } catch (e) {
-      console.error(e);
-      $("rxStatus").textContent = "マイク開始失敗";
+    } catch(e) {
+      $("rxLog").textContent = `[Error] ${e.message}`;
+      $("rxStatus").textContent = "マイクエラー";
       $("rxStatus").className = "status bad";
-      $("rxInfo").textContent = e?.message || String(e);
     }
-  }
+  };
 
-  async function stopRx() {
+  $("rxStop").onclick = async () => {
     rx.running = false;
     if (rx.raf) cancelAnimationFrame(rx.raf);
-    rx.raf = null;
-
-    try { rx.source?.disconnect(); } catch {}
-    try { rx.stream?.getTracks().forEach(t => t.stop()); } catch {}
-    try { await rx.ctx?.close(); } catch {}
-
-    rx.stream = rx.source = rx.analyser = rx.ctx = null;
-    rx.bins = null;
-    rx.history = [];
-    rx.sync = null;
-
+    try { rx.source?.disconnect(); rx.stream?.getTracks().forEach(t => t.stop()); await rx.ctx?.close(); } catch {}
+    rx.running = false;
     $("rxStart").disabled = false;
     $("rxStop").disabled = true;
     $("rxStatus").textContent = "停止中";
     $("rxStatus").className = "status";
-  }
+    $("peakDisplay").textContent = "---- Hz (---- dB)";
+    $("rxLog").textContent = "Receiver stopped.";
+  };
 
-  $("rxStart").onclick = startRx;
-  $("rxStop").onclick = stopRx;
-  window.addEventListener("beforeunload", () => { stopTx(); stopRx(); });
+  window.addEventListener("beforeunload", () => {
+    if (tx.running) { tx.osc.stop(); tx.ctx.close(); }
+    if (rx.running) { rx.stream?.getTracks().forEach(t => t.stop()); rx.ctx?.close(); }
+  });
 })();
 </script>
 </body>
