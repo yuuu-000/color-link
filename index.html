@@ -63,28 +63,13 @@
     }
 
     button.live-btn {
-      background: linear-gradient(135deg, #ff3366, #ff9933);
+      background: #334155;
       color: #fff;
     }
 
     button.live-gray-btn {
-      background: linear-gradient(135deg, #444444, #aaaaaa);
+      background: #334155;
       color: #fff;
-    }
-
-    button.live-strobe-btn {
-      background: linear-gradient(135deg, #ff0055, #9900ff);
-      color: #fff;
-    }
-
-    button.live-pulse-btn {
-      background: linear-gradient(135deg, #00ffcc, #0066ff);
-      color: #fff;
-    }
-
-    button.live-rave-btn {
-      background: linear-gradient(135deg, #ffff00, #ff0000);
-      color: #111;
     }
 
     button:disabled {
@@ -247,7 +232,7 @@
     .progress-fill {
       width: 0%;
       height: 100%;
-      background: linear-gradient(90deg, #ff3366, #ff9933, #77e3a2, #7fc8ff);
+      background: #334155;
       transition: width 0.1s linear;
     }
   </style>
@@ -313,18 +298,45 @@
           <div class="hint" style="margin-top: 8px;">
             18.00〜18.50kHz = 黒〜白<br>
             18.60〜20.90kHz = カラー領域<br>
-            20.90〜21.00kHz = 予約周波数（予約）
+            20.90〜21.00kHz = 予約周波数
           </div>
+        </div>
+      </div>
+
+      <!-- 白黒チカチカ速度テスト用パネル -->
+      <div class="panel" style="background: #1a1f2c; border: 1px solid #3a4256; margin-bottom: 12px;">
+        <label>白黒チカチカ・スピードテスト</label>
+
+        <div class="config" style="margin-bottom: 10px;">
+          <div>
+            <label>点滅速度（Hz / 秒間回数）</label>
+            <input type="range" id="strobeSpeedRange" min="1" max="20" step="1" value="5">
+            <input type="number" id="strobeSpeedNum" min="1" max="20" step="1" value="5" style="margin-top: 6px;">
+            <div class="value" id="strobeSpeedText">5 Hz (0.20s周期)</div>
+          </div>
+
+          <div>
+            <label>テスト用クイック切り替え</label>
+            <div class="row" style="margin-top: 4px;">
+              <button id="speedSlow" style="padding: 6px 10px; font-size: 12px;">2 Hz</button>
+              <button id="speedMid" style="padding: 6px 10px; font-size: 12px;">10 Hz</button>
+              <button id="speedFast" style="padding: 6px 10px; font-size: 12px;">20 Hz</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="row" style="margin-bottom: 0;">
+          <button id="liveCustomStrobeStart" class="live-gray-btn" style="width: 100%;">白黒ハイスピードチカチカ開始</button>
         </div>
       </div>
 
       <div class="row">
         <button id="txStart">超音波送信開始</button>
-        <button id="liveColorStart" class="live-btn">⚡ スムーズレインボー</button>
-        <button id="liveStrobeStart" class="live-strobe-btn">🔥 黒混じり爆裂チカチカ</button>
-        <button id="livePulseStart" class="live-pulse-btn">✨ 黒フラッシュパルス</button>
-        <button id="liveRaveStart" class="live-rave-btn">🚨 黒混じり激アツレイブ</button>
-        <button id="liveGrayStart" class="live-gray-btn">📺 白黒リズミカル点滅</button>
+        <button id="liveColorStart" class="live-btn">スムーズレインボー</button>
+        <button id="liveStrobeStart" class="live-btn">黒混じり爆裂チカチカ</button>
+        <button id="livePulseStart" class="live-btn">黒フラッシュパルス</button>
+        <button id="liveRaveStart" class="live-btn">黒混じりレイブ</button>
+        <button id="liveGrayStart" class="live-gray-btn">白黒リズミカル点滅</button>
         <button id="txStop" disabled>停止</button>
         <span id="txStatus" class="status">停止中</span>
       </div>
@@ -394,12 +406,10 @@
       const MIN_FREQ = 18000;
       const MAX_FREQ = 21000;
 
-      // 送信側の定義
-      const TX_GRAY_END = 18500;       // 18.50kHzまで黒〜白
-      const TX_COLOR_START = 18600;    // 18.60kHzから赤〜各色
-      const TX_SPECIAL_START = 20900;  // 20.90kHz〜21.00kHzは予約周波数帯
+      const TX_GRAY_END = 18500;
+      const TX_COLOR_START = 18600;
+      const TX_SPECIAL_START = 20900;
 
-      // 受信側の判定定義
       const RX_WHITE_BOUNDARY = 18550;
 
       const FFT_SIZE = 4096;
@@ -490,23 +500,20 @@
           return MIN_FREQ + (gray / 255) * (TX_GRAY_END - MIN_FREQ);
         }
         const hsl = rgbToHsl(r, g, b);
-        // カラー領域は 18.6kHz〜20.9kHz にマップ
         return TX_COLOR_START + (hsl.h / 360) * (TX_SPECIAL_START - TX_COLOR_START);
       }
 
       function frequencyToResult(freq) {
         const f = Math.max(MIN_FREQ, Math.min(MAX_FREQ, freq));
 
-        // 予約周波数帯（20.9kHz 〜 21.0kHz）
         if (f >= TX_SPECIAL_START) {
           return {
             type: "special",
-            label: "RESERVED (予約周波数)",
+            label: "RESERVED",
             color: "#333b4f"
           };
         }
 
-        // 白黒グレー領域
         if (f <= RX_WHITE_BOUNDARY) {
           if (f <= TX_GRAY_END) {
             const t = (f - MIN_FREQ) / (TX_GRAY_END - MIN_FREQ);
@@ -517,7 +524,6 @@
           return { type: "color", label: "#FFFFFF", color: "#FFFFFF" };
         }
 
-        // カラー領域
         const t = (f - TX_COLOR_START) / (TX_SPECIAL_START - TX_COLOR_START);
         const clampedT = Math.max(0, Math.min(1, t));
         const hex = hslToHex(clampedT * 360, 100, 50);
@@ -581,7 +587,7 @@
           $("txColor").value = tx.color;
         }
 
-        $("txColorText").textContent = f >= TX_SPECIAL_START ? "RESERVED (予約周波数: 何色でもない)" : tx.color;
+        $("txColorText").textContent = f >= TX_SPECIAL_START ? "RESERVED" : tx.color;
         $("txColorBox").style.background = f >= TX_SPECIAL_START ? "#1f2533" : tx.color;
 
         if (tx.running) {
@@ -599,6 +605,28 @@
       $("txColor").oninput = e => updateTxColor(e.target.value);
       $("txFreqRange").oninput = e => updateTxFrequency(e.target.value);
       $("txFreqNum").oninput = e => updateTxFrequency(e.target.value);
+
+      const strobeSpeedRange = $("strobeSpeedRange");
+      const strobeSpeedNum = $("strobeSpeedNum");
+      const strobeSpeedText = $("strobeSpeedText");
+
+      function updateStrobeSpeed(val) {
+        let speed = parseFloat(val);
+        if (!Number.isFinite(speed)) speed = 5;
+        speed = Math.max(1, Math.min(20, speed));
+
+        strobeSpeedRange.value = speed;
+        strobeSpeedNum.value = speed;
+        let intervalSec = (1 / speed).toFixed(2);
+        strobeSpeedText.textContent = `${speed} Hz (${intervalSec}s周期)`;
+      }
+
+      strobeSpeedRange.oninput = (e) => updateStrobeSpeed(e.target.value);
+      strobeSpeedNum.oninput = (e) => updateStrobeSpeed(e.target.value);
+
+      $("speedSlow").onclick = () => updateStrobeSpeed(2);
+      $("speedMid").onclick = () => updateStrobeSpeed(10);
+      $("speedFast").onclick = () => updateStrobeSpeed(20);
 
       async function initAudioContext() {
         if (!tx.ctx) {
@@ -627,6 +655,7 @@
           $("livePulseStart").disabled = true;
           $("liveRaveStart").disabled = true;
           $("liveGrayStart").disabled = true;
+          $("liveCustomStrobeStart").disabled = true;
           $("txStop").disabled = false;
         }
       }
@@ -663,7 +692,7 @@
             let freq = generatorFn(t, elapsed);
 
             updateTxFrequency(freq);
-            $("txStatus").textContent = `⚡ ライブ演出中 (${((durationMs - elapsed) / 1000).toFixed(1)}s)`;
+            $("txStatus").textContent = `演出中 (${((durationMs - elapsed) / 1000).toFixed(1)}s)`;
             tx.liveAnim = requestAnimationFrame(liveLoop);
           };
 
@@ -735,6 +764,14 @@
         });
       };
 
+      $("liveCustomStrobeStart").onclick = () => {
+        let speed = parseFloat(strobeSpeedRange.value) || 5;
+        startLivePreset(60000, (t) => {
+          let cycle = Math.floor(t * speed * 2);
+          return (cycle % 2 === 0) ? MIN_FREQ : TX_GRAY_END;
+        });
+      };
+
       async function stopTxEverything() {
         if (tx.liveAnim) cancelAnimationFrame(tx.liveAnim);
         try {
@@ -753,6 +790,7 @@
         $("livePulseStart").disabled = false;
         $("liveRaveStart").disabled = false;
         $("liveGrayStart").disabled = false;
+        $("liveCustomStrobeStart").disabled = false;
         $("txStop").disabled = true;
         $("txStatus").textContent = "停止中";
         $("liveProgressBar").style.display = "none";
@@ -920,4 +958,5 @@
     })();
   </script>
 </body>
+
 </html>
