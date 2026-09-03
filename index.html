@@ -139,6 +139,7 @@
       display: flex;
       align-items: flex-end;
       padding: 12px;
+      transition: background 0.1s ease;
     }
 
     .color-box span {
@@ -324,26 +325,12 @@
       const MIN_FREQ = 18000;
       const MAX_FREQ = 21000;
 
-      /*
-        18.00kHz -> 黒
-        18.35kHz -> 白
-    
-        18.35kHz -> 赤
-        19.0125kHz -> 黄
-        19.675kHz -> 緑
-        ...
-        21kHz -> 赤
-      */
       const GRAY_END_FREQ = 18350;
       const FFT_SIZE = 4096;
 
-      /*
-        ここが受信判定。
-        MAXピーク
-        さらに連続3フレーム同じような周波数なら本物の信号として扱う。
-      */
-      const RX_THRESHOLD_DB = -90;
-      const RX_CONFIRM_FRAMES = 3;
+      /* 緩和：感度と追従性を重視した設定 */
+      const RX_THRESHOLD_DB = -110;
+      const RX_CONFIRM_FRAMES = 1; // 連続フレーム縛りを撤廃して即座に追従
 
       /* =========================================================
          STATE
@@ -366,8 +353,6 @@
         bins: null,
         raf: null,
         running: false,
-        candidate: null,
-        confirmCount: 0,
         lastColor: "#151923",
         lastFrequency: null,
         expectedFreq: null
@@ -447,17 +432,11 @@
         return { h: h * 360, s, l };
       }
 
-      /*
-        色 -> 周波数
-        黒〜白は狭い18.00〜18.35kHzに割り当てる。
-        それ以外はHSLのHueを18.35〜21kHzへ割り当てる。
-      */
       function colorToFrequency(hex) {
         const { r, g, b } = hexToRgb(hex);
         const max = Math.max(r, g, b);
         const min = Math.min(r, g, b);
 
-        /* グレースケール判定 */
         if (max - min <= 8) {
           const gray = (r + g + b) / 3;
           return MIN_FREQ + (gray / 255) * (GRAY_END_FREQ - MIN_FREQ);
@@ -474,14 +453,12 @@
       function frequencyToColor(freq) {
         const f = Math.max(MIN_FREQ, Math.min(MAX_FREQ, freq));
 
-        /* GRAYSCALE */
         if (f <= GRAY_END_FREQ) {
           const t = (f - MIN_FREQ) / (GRAY_END_FREQ - MIN_FREQ);
           const v = Math.round(t * 255);
           return rgbToHex(v, v, v);
         }
 
-        /* RAINBOW */
         const t = (f - GRAY_END_FREQ) / (MAX_FREQ - GRAY_END_FREQ);
         return hslToHex(t * 360, 100, 50);
       }
@@ -531,7 +508,7 @@
           tx.osc.frequency.setTargetAtTime(
             tx.frequency,
             tx.ctx.currentTime,
-            0.015
+            0.01
           );
           $("txStatus").textContent = `送信中: ${tx.frequency.toFixed(1)} Hz`;
         }
@@ -558,7 +535,7 @@
           tx.osc.frequency.setTargetAtTime(
             f,
             tx.ctx.currentTime,
-            0.015
+            0.01
           );
           $("txStatus").textContent = `送信中: ${f.toFixed(1)} Hz`;
         }
@@ -665,10 +642,6 @@ Range       : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
         const sr = rx.ctx.sampleRate;
         const nyquist = sr / 2;
 
-        /*
-          FFT上の18〜21kHzの範囲だけを見る。
-          これ重要。環境音の低音・人の声などをピークとして拾わない。
-        */
         const minBin = Math.max(
           0,
           Math.floor(MIN_FREQ / nyquist * rx.bins.length)
@@ -692,40 +665,6 @@ Range       : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
         const peakHz = maxBinIndex * nyquist / rx.bins.length;
 
         return { peakHz, maxDb, minBin, maxBin };
-      }
-
-      /* =========================================================
-         SIGNAL CONFIRMATION
-      ========================================================= */
-
-      function confirmSignal(peakHz, maxDb) {
-        /*
-          まず音量判定。
-          ここを通らなければCandidateだけ出て色は変えない。
-        */
-        if (maxDb < RX_THRESHOLD_DB) {
-          rx.confirmCount = 0;
-          rx.candidate = null;
-          return false;
-        }
-
-        /*
-          約10Hz単位に丸める。
-          FFTの揺れで 19482 -> 19492 -> 19472 のようになっても同じ信号として扱いやすくする。
-        */
-        const candidate = Math.round(peakHz / 10) * 10;
-
-        if (
-          rx.candidate !== null &&
-          Math.abs(candidate - rx.candidate) <= 30
-        ) {
-          rx.confirmCount++;
-        } else {
-          rx.candidate = candidate;
-          rx.confirmCount = 1;
-        }
-
-        return rx.confirmCount >= RX_CONFIRM_FRAMES;
       }
 
       /* =========================================================
@@ -756,15 +695,13 @@ Range       : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
           rx.analyser = rx.ctx.createAnalyser();
 
           rx.analyser.fftSize = FFT_SIZE;
-          rx.analyser.smoothingTimeConstant = 0.15;
+          rx.analyser.smoothingTimeConstant = 0.05; // 追従性を上げるためスムージングを小さく
 
           rx.source.connect(rx.analyser);
 
           rx.bins = new Float32Array(rx.analyser.frequencyBinCount);
 
           rx.running = true;
-          rx.confirmCount = 0;
-          rx.candidate = null;
 
           $("rxStart").disabled = true;
           $("rxStop").disabled = false;
@@ -790,15 +727,8 @@ Range       : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
             const nyquist = sr / 2;
             const d = findUltrasonicPeak();
 
-            /*
-              Candidateは毎フレーム表示。
-              ここがユーザーが見ている「Candidateには来てる」の部分。
-            */
-            const confirmed = confirmSignal(d.peakHz, d.maxDb);
+            const confirmed = d.maxDb >= RX_THRESHOLD_DB;
 
-            /*
-              ACTIVEになった瞬間だけ色を更新する。
-            */
             if (confirmed) {
               const color = frequencyToColor(d.peakHz);
 
@@ -811,10 +741,6 @@ Range       : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
               $("rxDetectedFreq").textContent = `${d.peakHz.toFixed(1)} Hz`;
               $("rxStatus").textContent = `SIGNAL ACTIVE`;
             } else {
-              /*
-                無音時は最後の色を維持。
-                これで環境音で 白→赤→青→緑... と荒ぶるのを防ぐ。
-              */
               $("rxColorBox").style.background = rx.lastColor;
               $("rxColorText").textContent =
                 rx.lastFrequency !== null ? rx.lastColor : "NO SIGNAL";
@@ -825,11 +751,9 @@ Range       : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
               $("rxStatus").textContent = "待機中";
             }
 
-            /* Peak表示 */
             $("peakDisplay").textContent =
               `${d.peakHz.toFixed(1)} Hz (${d.maxDb.toFixed(1)} dB)`;
 
-            /* 送信側との周波数差 */
             if (rx.expectedFreq !== null && confirmed) {
               const diff = d.peakHz - rx.expectedFreq;
               $("rxDiff").textContent = `${diff >= 0 ? "+" : ""}${diff.toFixed(1)} Hz`;
@@ -837,45 +761,38 @@ Range       : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
               $("rxDiff").textContent = "---- Hz";
             }
 
-            /* DEBUG */
             $("rxLog").textContent =
               `[RECEIVER DEBUG]
 
-Signal        : ${confirmed ? "ACTIVE" : "NONE"}
+Signal       : ${confirmed ? "ACTIVE" : "NONE"}
 
-Candidate     : ${d.peakHz.toFixed(3)} Hz
-Peak dB       : ${d.maxDb.toFixed(2)} dB
+Candidate    : ${d.peakHz.toFixed(3)} Hz
+Peak dB      : ${d.maxDb.toFixed(2)} dB
 
-Confirm       : ${rx.confirmCount}/${RX_CONFIRM_FRAMES}
+Threshold    : ${RX_THRESHOLD_DB} dB
 
-Threshold     : ${RX_THRESHOLD_DB} dB
-
-TX Frequency  : ${rx.expectedFreq !== null
+TX Frequency : ${rx.expectedFreq !== null
                 ? rx.expectedFreq.toFixed(3)
                 : "----"
               } Hz
 
-RX Frequency  : ${d.peakHz.toFixed(3)} Hz
+RX Frequency : ${d.peakHz.toFixed(3)} Hz
 
-Difference    : ${rx.expectedFreq !== null
+Difference   : ${rx.expectedFreq !== null
                 ? (d.peakHz - rx.expectedFreq).toFixed(3)
                 : "----"
               } Hz
 
-RX Color      : ${confirmed
+RX Color     : ${confirmed
                 ? frequencyToColor(d.peakHz)
                 : rx.lastColor
               }
 
-SampleRate    : ${sr} Hz
-Nyquist       : ${nyquist} Hz
-FFT Size      : ${FFT_SIZE}
+SampleRate   : ${sr} Hz
+Nyquist      : ${nyquist} Hz
+FFT Size     : ${FFT_SIZE}
 
-Target        : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
-
-            /* =====================================================
-               SPECTRUM
-            ===================================================== */
+Target       : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
 
             const w = canvas.width;
             const h = canvas.height;
@@ -884,7 +801,6 @@ Target        : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
             g.fillStyle = "#090c11";
             g.fillRect(0, 0, w, h);
 
-            /* Spectrum */
             g.beginPath();
 
             for (let i = 0; i < rx.bins.length; i++) {
@@ -900,14 +816,12 @@ Target        : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
             g.lineWidth = 1.5;
             g.stroke();
 
-            /* 18〜21kHz target area */
             const x1 = MIN_FREQ / nyquist * w;
             const x2 = MAX_FREQ / nyquist * w;
 
             g.fillStyle = "rgba(119,227,162,.10)";
             g.fillRect(x1, 0, x2 - x1, h);
 
-            /* Grid */
             g.font = "11px ui-monospace,monospace";
             g.fillStyle = "#8b949e";
 
@@ -923,7 +837,6 @@ Target        : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
               g.fillText(`${hz / 1000}kHz`, x + 4, 15);
             }
 
-            /* 18 / 18.35 / 19 / 20 / 21kHz */
             [
               18000,
               18350,
@@ -945,7 +858,6 @@ Target        : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
               g.fillText(`${hz / 1000}kHz`, x + 4, h - 8);
             });
 
-            /* Detected peak */
             if (confirmed) {
               const peakX = d.peakHz / nyquist * w;
 
@@ -987,8 +899,6 @@ Target        : ${MIN_FREQ} - ${MAX_FREQ} Hz`;
         rx.source = null;
         rx.analyser = null;
         rx.bins = null;
-        rx.confirmCount = 0;
-        rx.candidate = null;
 
         $("rxStart").disabled = false;
         $("rxStop").disabled = true;
