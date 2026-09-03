@@ -311,8 +311,9 @@
           <label>ゲイン</label>
           <input type="number" id="txGain" value="0.05" min="0" max="0.5" step="0.005">
           <div class="hint" style="margin-top: 8px;">
-            18.00〜18.70kHz = 黒〜白（範囲拡大）<br>
-            18.70〜21kHz = 色相
+            18.00〜18.50kHz = 黒〜白<br>
+            18.50〜18.80kHz = 白ガード（ズレ防止）<br>
+            18.80〜21kHz = 色相
           </div>
         </div>
       </div>
@@ -392,8 +393,8 @@
 
       const MIN_FREQ = 18000;
       const MAX_FREQ = 21000;
-      const GRAY_END_FREQ = 18700;       // 白黒エリアの終端を 18.35kHz から 18.70kHz に拡大
-      const GRAY_MAX_LIMIT = 18680;      // ライブ用上限も連動して拡大
+      const GRAY_END_FREQ = 18500;       // 白の最大境界（18.50kHz）
+      const COLOR_START_FREQ = 18800;    // 色（赤）の開始境界（18.80kHz）※間の300Hzを白ガードバンドとする
       const FFT_SIZE = 4096;
       const RX_THRESHOLD_DB = -110;
 
@@ -477,22 +478,28 @@
       function colorToFrequency(hex) {
         const { r, g, b } = hexToRgb(hex);
         const max = Math.max(r, g, b), min = Math.min(r, g, b);
-        if (max - min <= 12) { // 判定の許容範囲も少し広げる
+        if (max - min <= 12) {
           const gray = (r + g + b) / 3;
           return MIN_FREQ + (gray / 255) * (GRAY_END_FREQ - MIN_FREQ);
         }
         const hsl = rgbToHsl(r, g, b);
-        return GRAY_END_FREQ + (hsl.h / 360) * (MAX_FREQ - GRAY_END_FREQ);
+        return COLOR_START_FREQ + (hsl.h / 360) * (MAX_FREQ - COLOR_START_FREQ);
       }
 
       function frequencyToColor(freq) {
         const f = Math.max(MIN_FREQ, Math.min(MAX_FREQ, freq));
+        // 1. モノクロ領域（黒〜白）
         if (f <= GRAY_END_FREQ) {
           const t = (f - MIN_FREQ) / (GRAY_END_FREQ - MIN_FREQ);
           const v = Math.round(t * 255);
           return rgbToHex(v, v, v);
         }
-        const t = (f - GRAY_END_FREQ) / (MAX_FREQ - GRAY_END_FREQ);
+        // 2. 白ガードバンド（上方にズレても白を維持して赤に化けるのを防ぐ）
+        if (f < COLOR_START_FREQ) {
+          return "#FFFFFF";
+        }
+        // 3. カラー領域
+        const t = (f - COLOR_START_FREQ) / (MAX_FREQ - COLOR_START_FREQ);
         return hslToHex(t * 360, 100, 50);
       }
 
@@ -635,7 +642,10 @@
       $("liveColorStart").onclick = () => {
         startLivePreset(45000, (t) => {
           let hue = (t * 15) % 360;
-          return colorToFrequency(hslToHex(hue, 100, 50));
+          let hslHex = hslToHex(hue, 100, 50);
+          const { r, g, b } = hexToRgb(hslHex);
+          const hsl = rgbToHsl(r, g, b);
+          return COLOR_START_FREQ + (hsl.h / 360) * (MAX_FREQ - COLOR_START_FREQ);
         });
       };
 
@@ -647,7 +657,10 @@
           }
           let hues = [0, 120, 240, 60, 300, 180];
           let hue = hues[Math.floor(t * 1.5) % hues.length];
-          return colorToFrequency(hslToHex(hue, 100, 50));
+          let hslHex = hslToHex(hue, 100, 50);
+          const { r, g, b } = hexToRgb(hslHex);
+          const hsl = rgbToHsl(r, g, b);
+          return COLOR_START_FREQ + (hsl.h / 360) * (MAX_FREQ - COLOR_START_FREQ);
         });
       };
 
@@ -656,7 +669,10 @@
           let alt = Math.sin(t * Math.PI * 1.2) > 0;
           if (alt) {
             let hue = (t * 40) % 360;
-            return colorToFrequency(hslToHex(hue, 100, 50));
+            let hslHex = hslToHex(hue, 100, 50);
+            const { r, g, b } = hexToRgb(hslHex);
+            const hsl = rgbToHsl(r, g, b);
+            return COLOR_START_FREQ + (hsl.h / 360) * (MAX_FREQ - COLOR_START_FREQ);
           } else {
             return MIN_FREQ;
           }
@@ -668,7 +684,7 @@
           let beat = Math.sin(t * Math.PI * 1.5);
           if (beat > 0.3) {
             let freq = MAX_FREQ - (t * 40) % 1500;
-            return Math.max(MIN_FREQ, Math.min(MAX_FREQ, freq));
+            return Math.max(COLOR_START_FREQ, Math.min(MAX_FREQ, freq));
           } else {
             return MIN_FREQ;
           }
@@ -679,7 +695,7 @@
         startLivePreset(30000, (t) => {
           let wave = (Math.sin(t * Math.PI * 2) + 1) / 2;
           let strobe = Math.floor(t * 3) % 2;
-          let targetV = MIN_FREQ + wave * (GRAY_MAX_LIMIT - MIN_FREQ);
+          let targetV = MIN_FREQ + wave * (GRAY_END_FREQ - MIN_FREQ);
           return strobe ? targetV : MIN_FREQ;
         });
       };
