@@ -1,487 +1,478 @@
 <!doctype html>
 <html lang="ja">
-
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Ultrasonic Color Demo with Live Presets</title>
+  <title>Ultrasonic Color Mixer</title>
   <style>
     * {
-      box-sizing: border-box;
+      box-sizing: border-box
     }
-
     html,
     body {
       margin: 0;
       min-height: 100%;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #0b0d12;
-      color: #fff;
+      background: #080a0f;
+      color: #f5f7fb;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif
     }
-
     body {
       display: flex;
-      justify-content: center;
+      justify-content: center
     }
-
     .wrap {
-      width: min(860px, 100%);
-      padding: 20px;
+      width: min(1180px, 100%);
+      padding: 18px
     }
-
-    h1 {
-      margin: 0 0 8px;
-      font-size: 24px;
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px
     }
-
-    .sub {
-      color: #aeb6c6;
-      margin: 0 0 18px;
-      line-height: 1.5;
+    .brand {
+      font-weight: 900;
+      letter-spacing: -.04em;
+      font-size: 22px
     }
-
+    .brand small {
+      font-size: 10px;
+      color: #687184;
+      letter-spacing: .12em;
+      margin-left: 8px
+    }
     .mode {
       display: flex;
-      gap: 8px;
-      margin-bottom: 16px;
+      gap: 4px;
+      background: #11151e;
+      padding: 4px;
+      border: 1px solid #252b38;
+      border-radius: 10px
     }
-
-    button {
+    .mode button {
       border: 0;
-      border-radius: 10px;
-      padding: 11px 15px;
-      background: #252b38;
-      color: #fff;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 600;
+      background: transparent;
+      color: #7e8798;
+      padding: 8px 13px;
+      border-radius: 7px;
+      font-weight: 800;
+      cursor: pointer
     }
-
-    button.active {
-      background: #fff;
-      color: #111;
+    .mode button.active {
+      background: #edf1f7;
+      color: #10131a
     }
-
-    button.live-btn {
-      background: #334155;
-      color: #fff;
-    }
-
-    button.live-gray-btn {
-      background: #334155;
-      color: #fff;
-    }
-
-    button:disabled {
-      opacity: .45;
-      cursor: not-allowed;
-    }
-
     .panel {
-      background: #151923;
-      border: 1px solid #2a3040;
-      border-radius: 16px;
-      padding: 18px;
-      margin-bottom: 14px;
+      background: linear-gradient(145deg, #131720, #0e1118);
+      border: 1px solid #252b38;
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 12px 40px #0005;
+      margin-bottom: 12px
     }
-
-    label {
-      display: block;
-      color: #aeb6c6;
-      font-size: 13px;
-      margin-bottom: 7px;
-    }
-
-    .palette {
+    .mixer {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(36px, 1fr));
-      gap: 6px;
-      margin-bottom: 12px;
+      grid-template-columns: 1.25fr .75fr;
+      gap: 12px
     }
-
-    .color-chip {
-      height: 36px;
-      border-radius: 8px;
-      border: 1px solid #303746;
-      cursor: pointer;
-      transition: transform 0.1s ease, border-color 0.1s ease;
-    }
-
-    .color-chip:hover {
-      transform: scale(1.08);
-      border-color: #fff;
-    }
-
-    input[type=number] {
-      width: 100%;
-      background: #0d1017;
-      border: 1px solid #2a3040;
-      color: #fff;
-      padding: 10px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-family: ui-monospace, monospace;
-    }
-
-    input[type=range] {
-      width: 100%;
-      accent-color: #77e3a2;
-      cursor: pointer;
-      margin: 8px 0;
-    }
-
-    input[type=color] {
-      width: 100%;
-      height: 80px;
-      border: 0;
-      padding: 0;
-      background: none;
-      cursor: pointer;
-    }
-
-    .row {
+    .hero {
+      min-height: 470px;
       display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      align-items: center;
-      margin-bottom: 12px;
+      flex-direction: column
     }
-
-    .status {
-      font: 600 13px ui-monospace, monospace;
-      padding: 7px 9px;
-      border-radius: 8px;
-      background: #0d1017;
-      color: #c9d1e0;
+    .section-title {
+      font-size: 11px;
+      color: #697386;
+      font-weight: 900;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      margin-bottom: 10px
     }
-
-    .big {
-      font: 800 32px ui-monospace, monospace;
-      color: #77e3a2;
-      margin: 10px 0;
-    }
-
-    .color-box {
-      height: 180px;
+    .color-stage {
+      flex: 1;
+      min-height: 260px;
       border-radius: 14px;
       border: 1px solid #303746;
-      margin: 10px 0 16px;
+      background: #ff0000;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 14px;
+      box-shadow: inset 0 0 80px #0002
+    }
+    .color-stage .freq {
+      font: 900 44px ui-monospace, monospace;
+      text-shadow: 0 2px 15px #0008
+    }
+    .color-stage .hex {
+      font: 800 16px ui-monospace, monospace;
+      background: #0009;
+      width: max-content;
+      padding: 7px 10px;
+      border-radius: 8px
+    }
+    .palette {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 5px;
+      margin-top: 12px
+    }
+    .chip {
+      height: 30px;
+      border-radius: 6px;
+      border: 1px solid #343b49;
+      cursor: pointer;
+      transition: .12s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font: 700 9px ui-monospace, monospace;
+      color: #fff;
+      text-shadow: 0 1px 2px #000
+    }
+    .chip:hover {
+      transform: translateY(-2px);
+      border-color: #fff
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 150px;
+      gap: 12px;
+      margin-top: 12px
+    }
+    .control {
+      background: #0a0d13;
+      border: 1px solid #222936;
+      border-radius: 12px;
+      padding: 12px
+    }
+    label {
+      display: block;
+      color: #7f899b;
+      font-size: 11px;
+      font-weight: 800;
+      margin-bottom: 7px;
+      text-transform: uppercase;
+      letter-spacing: .06em
+    }
+    input[type=range] {
+      width: 100%;
+      accent-color: #7ce5a5
+    }
+    input[type=number] {
+      width: 100%;
+      background: #080b10;
+      color: #fff;
+      border: 1px solid #29303d;
+      border-radius: 7px;
+      padding: 8px;
+      font: 700 13px ui-monospace, monospace
+    }
+    .value {
+      font: 800 14px ui-monospace, monospace;
+      color: #7ce5a5;
+      margin-top: 7px
+    }
+    .right {
+      display: flex;
+      flex-direction: column;
+      gap: 12px
+    }
+    .master {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px
+    }
+    .bigbutton {
+      height: 62px;
+      border: 1px solid #303746;
+      border-radius: 12px;
+      background: #171c27;
+      color: #fff;
+      font-weight: 900;
+      cursor: pointer
+    }
+    .bigbutton.primary {
+      background: #f1f4f8;
+      color: #0b0d12
+    }
+    .bigbutton.live {
+      background: #202936
+    }
+    .bigbutton:disabled {
+      opacity: .35;
+      cursor: not-allowed
+    }
+    .status {
+      padding: 10px;
+      border-radius: 9px;
+      background: #090c11;
+      border: 1px solid #242b37;
+      font: 700 12px ui-monospace, monospace;
+      color: #aeb8c9
+    }
+    .status.on {
+      color: #7ce5a5
+    }
+    .livegrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px
+    }
+    .livegrid button {
+      min-height: 45px;
+      border: 1px solid #2a3140;
+      background: #171c25;
+      color: #dce2eb;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer
+    }
+    .livegrid button:hover {
+      background: #222a37
+    }
+    .progress {
+      height: 5px;
+      background: #080b10;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 8px;
+      display: none
+    }
+    .progress i {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: #7ce5a5
+    }
+    .reserved {
+      margin-top: auto;
+      background: #0a0d13;
+      border: 1px solid #252c39;
+      border-radius: 12px;
+      padding: 12px
+    }
+    .reserved-title {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 900;
+      color: #7f899b
+    }
+    .reserved-list {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-top: 9px
+    }
+    .reserved-list span {
+      font: 700 10px ui-monospace, monospace;
+      color: #8994a8;
+      background: #121722;
+      border: 1px solid #252d3b;
+      padding: 5px 7px;
+      border-radius: 5px
+    }
+    .debug {
+      background: #06080c;
+      border: 1px solid #1c222d;
+      border-radius: 9px;
+      padding: 9px;
+      color: #71bfff;
+      font: 11px/1.5 ui-monospace, monospace;
+      white-space: pre-wrap;
+      margin-top: 10px
+    }
+    .rxpanel {
+      display: none
+    }
+    .rxbox {
+      height: 240px;
+      border-radius: 14px;
+      border: 1px solid #303746;
+      background: #151923;
+      padding: 14px;
       display: flex;
       align-items: flex-end;
-      padding: 12px;
-      transition: background 0.05s ease;
+      font: 800 15px ui-monospace, monospace
     }
-
-    .color-box span {
-      background: rgba(0, 0, 0, .55);
-      padding: 6px 9px;
-      border-radius: 7px;
-      font: 700 14px ui-monospace, monospace;
+    .big {
+      font: 900 34px ui-monospace, monospace;
+      color: #7ce5a5;
+      margin: 10px 0
     }
-
-    .config {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 12px;
-      margin-bottom: 14px;
-    }
-
-    .debug {
-      background: #080a0f;
-      border: 1px solid #1e2533;
-      border-radius: 8px;
-      padding: 10px;
-      font: 12px ui-monospace, monospace;
-      color: #79c0ff;
-      white-space: pre-wrap;
-      line-height: 1.55;
-    }
-
-    .value {
-      font: 700 15px ui-monospace, monospace;
-      color: #77e3a2;
-      padding: 10px 0;
-    }
-
     canvas {
       width: 100%;
       height: 180px;
-      background: #090c11;
-      border-radius: 10px;
+      background: #080b10;
       border: 1px solid #252b36;
+      border-radius: 10px;
       margin-top: 10px;
-      display: block;
+      display: block
     }
-
     .hint {
-      color: #8b949e;
-      font-size: 12px;
+      color: #687386;
+      font-size: 11px;
       line-height: 1.5;
+      margin-top: 7px
     }
-
-    .progress-bar {
-      width: 100%;
-      height: 6px;
-      background: #0d1017;
-      border-radius: 3px;
-      overflow: hidden;
-      margin-bottom: 12px;
-      display: none;
-    }
-
-    .progress-fill {
-      width: 0%;
-      height: 100%;
-      background: #334155;
-      transition: width 0.1s linear;
+    @media(max-width:800px) {
+      .mixer {
+        grid-template-columns: 1fr
+      }
+      .controls {
+        grid-template-columns: 1fr
+      }
+      .palette {
+        grid-template-columns: repeat(4, 1fr)
+      }
+      .hero {
+        min-height: 400px
+      }
     }
   </style>
 </head>
-
 <body>
   <div class="wrap">
-
-    <h1>Ultrasonic Color Demo</h1>
-    <p class="sub">
-      18〜21kHzの超音波をカラー情報として使用。<br>
-      送信側：18,500Hzまで白、18,600Hz以上で赤〜各色（20.9kHz以上は予約周波数）。
-    </p>
-
-    <div class="mode">
-      <button id="txMode" class="active">カラー送信</button>
-      <button id="rxMode">カラー受信</button>
+    <div class="top">
+      <div class="brand">ULTRASONIC <span>MIXER</span><small>18–21 kHz / COLOR CONTROL</small></div>
+      <div class="mode">
+        <button id="txMode" class="active">TRANSMITTER</button>
+        <button id="rxMode">RECEIVER</button>
+      </div>
     </div>
-
-    <!-- ================= TX ================= -->
-
-    <section id="txPanel" class="panel">
-
-      <label>送信カラー（クイックパレット）</label>
-      <div class="palette" id="colorPalette">
-        <div class="color-chip" style="background: #000000;" data-color="#000000" title="黒"></div>
-        <div class="color-chip" style="background: #444444;" data-color="#444444" title="ダークグレー"></div>
-        <div class="color-chip" style="background: #888888;" data-color="#888888" title="グレー"></div>
-        <div class="color-chip" style="background: #CCCCCC;" data-color="#CCCCCC" title="ライトグレー"></div>
-        <div class="color-chip" style="background: #FFFFFF;" data-color="#FFFFFF" title="白"></div>
-        <div class="color-chip" style="background: #FF0000;" data-color="#FF0000" title="赤"></div>
-        <div class="color-chip" style="background: #FF7F00;" data-color="#FF7F00" title="オレンジ"></div>
-        <div class="color-chip" style="background: #FFFF00;" data-color="#FFFF00" title="黄"></div>
-        <div class="color-chip" style="background: #00FF00;" data-color="#00FF00" title="緑"></div>
-        <div class="color-chip" style="background: #00FFFF;" data-color="#00FFFF" title="シアン"></div>
-        <div class="color-chip" style="background: #0000FF;" data-color="#0000FF" title="青"></div>
-        <div class="color-chip" style="background: #8B00FF;" data-color="#8B00FF" title="紫"></div>
-        <div class="color-chip" style="background: #FF00FF;" data-color="#FF00FF" title="マゼンタ"></div>
-      </div>
-
-      <label>カスタムカラー選択</label>
-      <input id="txColor" type="color" value="#FF0000">
-
-      <div class="color-box" id="txColorBox">
-        <span id="txColorText">#FF0000</span>
-      </div>
-
-      <div class="progress-bar" id="liveProgressBar">
-        <div class="progress-fill" id="liveProgressFill"></div>
-      </div>
-
-      <div class="config">
-        <div>
-          <label>送信周波数</label>
-          <input type="range" id="txFreqRange" min="18000" max="21000" step="1" value="18000">
-          <input type="number" id="txFreqNum" min="18000" max="21000" step="1" value="18000" style="margin-top: 8px;">
-          <div class="value" id="txFreqText">18000 Hz</div>
+    <section id="txPanel" class="mixer">
+      <div class="panel hero">
+        <div class="section-title">Color Channel</div>
+        <div class="color-stage" id="txColorBox">
+          <div class="freq" id="txFreqText">18000.0 Hz</div>
+          <div class="hex" id="txColorText">#FFFFFF</div>
         </div>
-
-        <div>
-          <label>ゲイン</label>
-          <input type="number" id="txGain" value="0.05" min="0" max="0.5" step="0.005">
-          <div class="hint" style="margin-top: 8px;">
-            18.00〜18.50kHz = 黒〜白<br>
-            18.60〜20.90kHz = カラー領域<br>
-            20.90〜21.00kHz = 予約周波数
+        <!-- パレット (指定したカスタム周波数に対応) -->
+        <div class="palette" id="colorPalette">
+          <div class="chip" style="background:#000" data-color="#000000">#000</div>
+          <div class="chip" style="background:#888" data-color="#888888">#888</div>
+          <div class="chip" style="background:#fff;color:#000" data-color="#FFFFFF">#FFF</div>
+          <div class="chip" style="background:#f00" data-color="#FF0000">RED</div>
+          <div class="chip" style="background:#ff7f00" data-color="#FF7F00">ORG</div>
+          <div class="chip" style="background:#ff0;color:#000" data-color="#FFFF00">YEL</div>
+          <div class="chip" style="background:#0f0;color:#000" data-color="#00FF00">GRN</div>
+          <div class="chip" style="background:#0ff;color:#000" data-color="#00FFFF">CYN</div>
+          <div class="chip" style="background:#00f" data-color="#0000FF">BLU</div>
+          <div class="chip" style="background:#8b00ff" data-color="#8B00FF">VIO</div>
+          <div class="chip" style="background:#f0f" data-color="#FF00FF">MAG</div>
+          <div class="chip" style="background:#252c39" data-freq="20916">20916</div>
+          <div class="chip" style="background:#252c39" data-freq="20952">20952</div>
+          <div class="chip" style="background:#252c39" data-freq="20982">20982</div>
+        </div>
+        <div class="controls">
+          <div class="control">
+            <label>Frequency</label>
+            <input id="txFreqRange" type="range" min="18000" max="21000" step="1" value="18000">
+            <input id="txFreqNum" type="number" min="18000" max="21000" step="1" value="18000">
+            <div class="value" id="freqModeText">GRAYSCALE / COLOR</div>
+          </div>
+          <div class="control">
+            <label>Gain</label>
+            <input id="txGain" type="number" value=".08" min="0" max=".5" step=".005">
+            <div class="hint">Sine output<br>0.00–0.50</div>
           </div>
         </div>
       </div>
-
-      <!-- 白黒チカチカ速度テスト用パネル -->
-      <div class="panel" style="background: #1a1f2c; border: 1px solid #3a4256; margin-bottom: 12px;">
-        <label>白黒チカチカ・スピードテスト</label>
-
-        <div class="config" style="margin-bottom: 10px;">
-          <div>
-            <label>点滅速度（Hz / 秒間回数）</label>
-            <input type="range" id="strobeSpeedRange" min="1" max="20" step="1" value="5">
-            <input type="number" id="strobeSpeedNum" min="1" max="20" step="1" value="5" style="margin-top: 6px;">
-            <div class="value" id="strobeSpeedText">5 Hz (0.20s周期)</div>
+      <div class="right">
+        <div class="panel">
+          <div class="section-title">Master</div>
+          <div class="master">
+            <button class="bigbutton primary" id="txStart">START</button>
+            <button class="bigbutton" id="txStop" disabled>STOP</button>
           </div>
-
-          <div>
-            <label>テスト用クイック切り替え</label>
-            <div class="row" style="margin-top: 4px;">
-              <button id="speedSlow" style="padding: 6px 10px; font-size: 12px;">2 Hz</button>
-              <button id="speedMid" style="padding: 6px 10px; font-size: 12px;">10 Hz</button>
-              <button id="speedFast" style="padding: 6px 10px; font-size: 12px;">20 Hz</button>
-            </div>
+          <div class="status" id="txStatus">● OFFLINE</div>
+          <div class="progress" id="liveProgress"><i id="liveFill"></i></div>
+        </div>
+        <div class="panel">
+          <div class="section-title">Live Presets</div>
+          <div class="livegrid">
+            <button id="liveColorStart">SMOOTH RAINBOW</button>
+            <button id="liveStrobeStart">EXPLOSIVE STROBE</button>
+            <button id="livePulseStart">BLACK PULSE</button>
+            <button id="liveRaveStart">RAVE</button>
+            <button id="liveGrayStart">GRAYSCALE</button>
+            <button id="liveCustomStrobeStart">CUSTOM STROBE</button>
+          </div>
+          <div class="control" style="margin-top:8px">
+            <label>Strobe Speed</label>
+            <input id="strobeSpeedRange" type="range" min="1" max="20" step="1" value="5">
+            <div class="value" id="strobeSpeedText">5 Hz / 0.20 s</div>
           </div>
         </div>
-
-        <div class="row" style="margin-bottom: 0;">
-          <button id="liveCustomStrobeStart" class="live-gray-btn" style="width: 100%;">白黒ハイスピードチカチカ開始</button>
+        <div class="panel reserved">
+          <div class="reserved-title"><span>RESERVED CHANNELS</span><span>33 Hz STEP</span></div>
+          <div class="reserved-list" id="reservedList"></div>
+          <div class="hint">20900 Hz以上は通常カラー領域ではなく予約チャンネル。</div>
         </div>
+        <div class="debug" id="txDebug">Ready.</div>
       </div>
-
-      <div class="row">
-        <button id="txStart">超音波送信開始</button>
-        <button id="liveColorStart" class="live-btn">スムーズレインボー</button>
-        <button id="liveStrobeStart" class="live-btn">黒混じり爆裂チカチカ</button>
-        <button id="livePulseStart" class="live-btn">黒フラッシュパルス</button>
-        <button id="liveRaveStart" class="live-btn">黒混じりレイブ</button>
-        <button id="liveGrayStart" class="live-gray-btn">白黒リズミカル点滅</button>
-        <button id="txStop" disabled>停止</button>
-        <span id="txStatus" class="status">停止中</span>
-      </div>
-
-      <div id="txDebug" class="debug">Ready.</div>
-
     </section>
-
-    <!-- ================= RX ================= -->
-
-    <section id="rxPanel" class="panel" style="display: none;">
-
-      <label>受信カラー / ステータス</label>
-
-      <div class="color-box" id="rxColorBox" style="background: #151923;">
-        <span id="rxColorText">NO SIGNAL</span>
-      </div>
-
-      <label>受信周波数</label>
-
-      <div class="big" id="peakDisplay">
-        NO SIGNAL
-      </div>
-
-      <div class="config">
-        <div>
-          <label>送信側周波数（比較用）</label>
-          <input type="number" id="rxExpectedFreq" min="18000" max="21000" step="1" placeholder="例: 19500">
-        </div>
-
-        <div>
-          <label>受信周波数</label>
+    <section id="rxPanel" class="panel rxpanel">
+      <div class="section-title">Receiver</div>
+      <div class="rxbox" id="rxColorBox"><span id="rxColorText">NO SIGNAL</span></div>
+      <div class="big" id="peakDisplay">NO SIGNAL</div>
+      <div class="controls">
+        <div class="control"><label>Expected Frequency</label><input id="rxExpectedFreq" type="number" min="18000"
+            max="21000"></div>
+        <div class="control"><label>Detected</label>
           <div class="value" id="rxDetectedFreq">---- Hz</div>
-        </div>
-
-        <div>
-          <label>周波数差</label>
-          <div class="value" id="rxDiff">---- Hz</div>
-        </div>
-
-        <div>
-          <label>変換された結果</label>
           <div class="value" id="rxDetectedColor">----</div>
         </div>
       </div>
-
-      <div class="row">
-        <button id="rxStart">マイク受信開始</button>
-        <button id="rxStop" disabled>停止</button>
-        <span id="rxStatus" class="status">停止中</span>
+      <div class="master" style="margin-top:12px">
+        <button class="bigbutton primary" id="rxStart">MIC START</button>
+        <button class="bigbutton" id="rxStop" disabled>STOP</button>
       </div>
-
+      <div class="status" id="rxStatus">● OFFLINE</div>
       <canvas id="spectrum" width="1000" height="180"></canvas>
-
-      <div id="rxLog" class="debug">
-        Microphone inactive.
-      </div>
-
+      <div class="debug" id="rxLog">Microphone inactive.</div>
     </section>
-
   </div>
-
   <script>
     (() => {
       "use strict";
-
-      const MIN_FREQ = 18000;
-      const MAX_FREQ = 21000;
-
-      const TX_GRAY_END = 18500;
-      const TX_COLOR_START = 18600;
-      const TX_SPECIAL_START = 20900;
-
-      const RX_WHITE_BOUNDARY = 18550;
-
-      const FFT_SIZE = 4096;
-      const RX_THRESHOLD_DB = -110;
-
-      let tx = {
-        ctx: null,
-        osc: null,
-        gain: null,
-        running: false,
-        frequency: 18000,
-        color: "#FFFFFF",
-        liveAnim: null
-      };
-
-      let rx = {
-        ctx: null,
-        stream: null,
-        source: null,
-        analyser: null,
-        bins: null,
-        raf: null,
-        running: false,
-        lastColor: "#151923",
-        lastFrequency: null,
-        expectedFreq: null
-      };
-
+      const MIN_FREQ = 18000, MAX_FREQ = 21000, TX_GRAY_END = 18500, TX_COLOR_START = 18600, TX_SPECIAL_START = 20900, RESERVED_STEP = 33, RX_WHITE_BOUNDARY = 18550, FFT_SIZE = 4096, RX_THRESHOLD_DB = -110;
+      let tx = { ctx: null, osc: null, gain: null, running: false, frequency: 18000, color: "#FFFFFF", liveAnim: null };
+      let rx = { ctx: null, stream: null, source: null, analyser: null, bins: null, raf: null, running: false, lastColor: "#151923", lastFrequency: null, expectedFreq: null };
       const $ = id => document.getElementById(id);
-
-      $("txMode").onclick = () => {
-        $("txMode").classList.add("active");
-        $("rxMode").classList.remove("active");
-        $("txPanel").style.display = "";
-        $("rxPanel").style.display = "none";
-      };
-
-      $("rxMode").onclick = () => {
-        $("rxMode").classList.add("active");
-        $("txMode").classList.remove("active");
-        $("txPanel").style.display = "none";
-        $("rxPanel").style.display = "";
-      };
-
-      document.querySelectorAll(".color-chip").forEach(chip => {
-        chip.onclick = () => {
-          const hex = chip.getAttribute("data-color");
-          $("txColor").value = hex;
-          updateTxColor(hex);
-        };
-      });
-
+      function isReservedFrequency(f) {
+        if (f < TX_SPECIAL_START) return false;
+        let n = Math.round((f - TX_SPECIAL_START) / RESERVED_STEP);
+        let r = TX_SPECIAL_START + n * RESERVED_STEP;
+        return r <= MAX_FREQ && Math.abs(f - r) <= .5;
+      }
+      function nearestReservedFrequency(f) {
+        let n = Math.round((f - TX_SPECIAL_START) / RESERVED_STEP);
+        return Math.max(TX_SPECIAL_START, Math.min(MAX_FREQ, TX_SPECIAL_START + n * RESERVED_STEP));
+      }
+      function getReservedChannels() {
+        let a = [];
+        for (let f = TX_SPECIAL_START; f <= MAX_FREQ; f += RESERVED_STEP) a.push(f);
+        return a;
+      }
+      function renderReserved() {
+        $("reservedList").innerHTML = getReservedChannels().map(f => `<span>${f} Hz</span>`).join("");
+      }
       function hexToRgb(hex) {
-        const n = parseInt(hex.slice(1), 16);
-        return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+        let n = parseInt(hex.slice(1), 16);
+        return { r: n >> 16 & 255, g: n >> 8 & 255, b: n & 255 };
       }
-
       function rgbToHex(r, g, b) {
-        return "#" + [r, g, b].map(v =>
-          Math.round(Math.max(0, Math.min(255, v)))
-            .toString(16)
-            .padStart(2, "0")
-        ).join("").toUpperCase();
+        return "#" + [r, g, b].map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("").toUpperCase();
       }
-
       function rgbToHsl(r, g, b) {
         r /= 255; g /= 255; b /= 255;
-        const max = Math.max(r, g, b), min = Math.min(r, g, b);
-        let h = 0, s = 0, l = (max + min) / 2;
+        let max = Math.max(r, g, b), min = Math.min(r, g, b), h = 0, s = 0, l = (max + min) / 2;
         if (max !== min) {
-          const d = max - min;
-          s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+          let d = max - min;
+          s = l > .5 ? d / (2 - max - min) : d / (max + min);
           switch (max) {
             case r: h = (g - b) / d + (g < b ? 6 : 0); break;
             case g: h = (b - r) / d + 2; break;
@@ -491,472 +482,254 @@
         }
         return { h: h * 360, s, l };
       }
-
-      function colorToFrequency(hex) {
-        const { r, g, b } = hexToRgb(hex);
-        const max = Math.max(r, g, b), min = Math.min(r, g, b);
-        if (max - min <= 12) {
-          const gray = (r + g + b) / 3;
-          return MIN_FREQ + (gray / 255) * (TX_GRAY_END - MIN_FREQ);
-        }
-        const hsl = rgbToHsl(r, g, b);
-        return TX_COLOR_START + (hsl.h / 360) * (TX_SPECIAL_START - TX_COLOR_START);
+      function hslToHex(h, s, l) {
+        s /= 100; l /= 100;
+        let c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs(h / 60 % 2 - 1)), m = l - c / 2, r = 0, g = 0, b = 0;
+        if (h < 60) { r = c; g = x; } else if (h < 120) { r = x; g = c; } else if (h < 180) { g = c; b = x; } else if (h < 240) { g = x; b = c; } else if (h < 300) { r = x; b = c; } else { r = c; b = x; }
+        return rgbToHex((r + m) * 255, (g + m) * 255, (b + m) * 255);
       }
-
-      function frequencyToResult(freq) {
-        const f = Math.max(MIN_FREQ, Math.min(MAX_FREQ, freq));
-
-        if (f >= TX_SPECIAL_START) {
-          return {
-            type: "special",
-            label: "RESERVED",
-            color: "#333b4f"
-          };
+      function colorToFrequency(hex) {
+        let { r, g, b } = hexToRgb(hex), max = Math.max(r, g, b), min = Math.min(r, g, b);
+        if (max - min <= 12) {
+          let gray = (r + g + b) / 3;
+          return MIN_FREQ + gray / 255 * (TX_GRAY_END - MIN_FREQ);
         }
-
+        let hsl = rgbToHsl(r, g, b);
+        return TX_COLOR_START + hsl.h / 360 * (TX_SPECIAL_START - TX_COLOR_START);
+      }
+      function frequencyToColor(f) {
+        if (f >= TX_SPECIAL_START) {
+          return { type: "reserved", label: `RESERVED ${f.toFixed(1)} Hz`, color: "#252c39" };
+        }
         if (f <= RX_WHITE_BOUNDARY) {
           if (f <= TX_GRAY_END) {
-            const t = (f - MIN_FREQ) / (TX_GRAY_END - MIN_FREQ);
-            const v = Math.round(t * 255);
-            const hex = rgbToHex(v, v, v);
-            return { type: "color", label: hex, color: hex };
+            let t = (f - MIN_FREQ) / (TX_GRAY_END - MIN_FREQ), v = Math.round(t * 255), c = rgbToHex(v, v, v);
+            return { type: "color", label: c, color: c };
           }
           return { type: "color", label: "#FFFFFF", color: "#FFFFFF" };
         }
-
-        const t = (f - TX_COLOR_START) / (TX_SPECIAL_START - TX_COLOR_START);
-        const clampedT = Math.max(0, Math.min(1, t));
-        const hex = hslToHex(clampedT * 360, 100, 50);
-        return { type: "color", label: hex, color: hex };
+        let t = (f - TX_COLOR_START) / (TX_SPECIAL_START - TX_COLOR_START);
+        let c = hslToHex(Math.max(0, Math.min(1, t)) * 360, 100, 50);
+        return { type: "color", label: c, color: c };
       }
-
-      function hslToHex(h, s, l) {
-        s /= 100; l /= 100;
-        const c = (1 - Math.abs(2 * l - 1)) * s;
-        const x = c * (1 - Math.abs((h / 60) % 2 - 1));
-        const m = l - c / 2;
-        let r = 0, g = 0, b = 0;
-        if (h < 60) { r = c; g = x; }
-        else if (h < 120) { r = x; g = c; }
-        else if (h < 180) { g = c; b = x; }
-        else if (h < 240) { g = x; b = c; }
-        else if (h < 300) { r = x; b = c; }
-        else { r = c; b = x; }
-        return rgbToHex((r + m) * 255, (g + m) * 255, (b + m) * 255);
-      }
-
       function updateTxColor(hex) {
         tx.color = hex.toUpperCase();
         tx.frequency = colorToFrequency(tx.color);
-
-        $("txFreqRange").value = tx.frequency;
-        $("txFreqNum").value = tx.frequency.toFixed(1);
-        $("txFreqText").textContent = `${tx.frequency.toFixed(1)} Hz`;
-        $("txColorText").textContent = tx.color;
-        $("txColorBox").style.background = tx.color;
-
-        if (tx.running) {
-          tx.osc.frequency.setTargetAtTime(tx.frequency, tx.ctx.currentTime, 0.02);
-          $("txStatus").textContent = `送信中: ${tx.frequency.toFixed(1)} Hz`;
-        }
-        updateTxDebug();
+        updateFrequencyUI(tx.frequency, false);
       }
-
-      function updateTxFrequency(value) {
-        let f = parseFloat(value);
-        if (!Number.isFinite(f)) f = MIN_FREQ;
-        f = Math.max(MIN_FREQ, Math.min(MAX_FREQ, f));
-        tx.frequency = f;
-
-        if (f >= TX_SPECIAL_START) {
-          tx.color = "RESERVED";
-        } else if (f <= TX_GRAY_END) {
-          const v = Math.round(((f - MIN_FREQ) / (TX_GRAY_END - MIN_FREQ)) * 255);
-          tx.color = rgbToHex(v, v, v);
-        } else if (f < TX_COLOR_START) {
-          tx.color = "#FFFFFF";
-        } else {
-          const t = (f - TX_COLOR_START) / (TX_SPECIAL_START - TX_COLOR_START);
-          tx.color = hslToHex(t * 360, 100, 50);
+      // forceExact=true のときは 33Hz スパイク補正を行わずに指定Hzをそのまま適用
+      function updateFrequencyUI(f, forceExact = false) {
+        f = Math.max(MIN_FREQ, Math.min(MAX_FREQ, parseFloat(f) || MIN_FREQ));
+        if (f >= TX_SPECIAL_START && !forceExact) {
+          f = nearestReservedFrequency(f);
         }
-
+        tx.frequency = f;
+        if (f >= TX_SPECIAL_START) {
+          tx.color = `RESERVED ${f.toFixed(1)} Hz`;
+          $("txColorBox").style.background = "#252c39";
+          $("txColorText").textContent = tx.color;
+          $("freqModeText").textContent = "RESERVED CHANNEL / CUSTOM STEP";
+        } else {
+          let r = frequencyToColor(f);
+          tx.color = r.color;
+          $("txColorBox").style.background = r.color;
+          $("txColorText").textContent = r.label;
+          $("freqModeText").textContent = f <= TX_GRAY_END ? "GRAYSCALE" : f < TX_COLOR_START ? "WHITE BUFFER" : "COLOR CHANNEL";
+        }
         $("txFreqRange").value = f;
         $("txFreqNum").value = f.toFixed(1);
         $("txFreqText").textContent = `${f.toFixed(1)} Hz`;
-        if (f < TX_SPECIAL_START && tx.color !== "#FFFFFF") {
-          $("txColor").value = tx.color;
-        }
-
-        $("txColorText").textContent = f >= TX_SPECIAL_START ? "RESERVED" : tx.color;
-        $("txColorBox").style.background = f >= TX_SPECIAL_START ? "#1f2533" : tx.color;
-
-        if (tx.running) {
-          tx.osc.frequency.setTargetAtTime(f, tx.ctx.currentTime, 0.01);
-          $("txStatus").textContent = `送信中: ${f.toFixed(1)} Hz`;
-        }
+        if (tx.running && tx.osc) tx.osc.frequency.setTargetAtTime(f, tx.ctx.currentTime, .01);
         updateTxDebug();
       }
-
       function updateTxDebug() {
-        $("txDebug").textContent =
-          `[TRANSMITTER DEBUG]\nColor/State : ${tx.color}\nFrequency : ${tx.frequency.toFixed(3)} Hz\nRunning : ${tx.running}\nSampleRate : ${tx.ctx ? tx.ctx.sampleRate : "----"} Hz\nGain : ${$("txGain").value}`;
+        $("txDebug").textContent = `[TRANSMITTER]\nSTATE       ${tx.running ? "ONLINE" : "OFFLINE"}\nFREQUENCY   ${tx.frequency.toFixed(3)} Hz\nCHANNEL     ${tx.frequency >= TX_SPECIAL_START ? "RESERVED" : "COLOR"}\nCOLOR       ${tx.color}\nSAMPLE RATE ${tx.ctx ? tx.ctx.sampleRate : "----"} Hz\nGAIN        ${$("txGain").value}`;
       }
-
-      $("txColor").oninput = e => updateTxColor(e.target.value);
-      $("txFreqRange").oninput = e => updateTxFrequency(e.target.value);
-      $("txFreqNum").oninput = e => updateTxFrequency(e.target.value);
-
-      const strobeSpeedRange = $("strobeSpeedRange");
-      const strobeSpeedNum = $("strobeSpeedNum");
-      const strobeSpeedText = $("strobeSpeedText");
-
-      function updateStrobeSpeed(val) {
-        let speed = parseFloat(val);
-        if (!Number.isFinite(speed)) speed = 5;
-        speed = Math.max(1, Math.min(20, speed));
-
-        strobeSpeedRange.value = speed;
-        strobeSpeedNum.value = speed;
-        let intervalSec = (1 / speed).toFixed(2);
-        strobeSpeedText.textContent = `${speed} Hz (${intervalSec}s周期)`;
-      }
-
-      strobeSpeedRange.oninput = (e) => updateStrobeSpeed(e.target.value);
-      strobeSpeedNum.oninput = (e) => updateStrobeSpeed(e.target.value);
-
-      $("speedSlow").onclick = () => updateStrobeSpeed(2);
-      $("speedMid").onclick = () => updateStrobeSpeed(10);
-      $("speedFast").onclick = () => updateStrobeSpeed(20);
-
       async function initAudioContext() {
-        if (!tx.ctx) {
-          tx.ctx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        if (tx.ctx.state === "suspended") {
-          await tx.ctx.resume();
-        }
+        if (!tx.ctx) tx.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (tx.ctx.state === "suspended") await tx.ctx.resume();
         if (!tx.running) {
-          let gainVal = parseFloat($("txGain").value);
-          if (!Number.isFinite(gainVal)) gainVal = .05;
-          gainVal = Math.max(0, Math.min(.5, gainVal));
-
+          let gv = parseFloat($("txGain").value);
+          if (!Number.isFinite(gv)) gv = .05;
+          gv = Math.max(0, Math.min(.5, gv));
           tx.osc = tx.ctx.createOscillator();
           tx.gain = tx.ctx.createGain();
           tx.osc.type = "sine";
           tx.osc.frequency.setValueAtTime(tx.frequency, tx.ctx.currentTime);
-          tx.gain.gain.setValueAtTime(gainVal, tx.ctx.currentTime);
+          tx.gain.gain.setValueAtTime(gv, tx.ctx.currentTime);
           tx.osc.connect(tx.gain).connect(tx.ctx.destination);
           tx.osc.start();
           tx.running = true;
-
           $("txStart").disabled = true;
-          $("liveColorStart").disabled = true;
-          $("liveStrobeStart").disabled = true;
-          $("livePulseStart").disabled = true;
-          $("liveRaveStart").disabled = true;
-          $("liveGrayStart").disabled = true;
-          $("liveCustomStrobeStart").disabled = true;
           $("txStop").disabled = false;
+          $("txStatus").className = "status on";
+          $("txStatus").textContent = `● TRANSMITTING / ${tx.frequency.toFixed(1)} Hz`;
         }
       }
-
+      async function stopTxEverything() {
+        if (tx.liveAnim) cancelAnimationFrame(tx.liveAnim);
+        try { tx.osc?.stop(); await tx.ctx?.close(); } catch { }
+        tx.running = false; tx.osc = null; tx.gain = null; tx.ctx = null;
+        $("txStart").disabled = false;
+        $("txStop").disabled = true;
+        $("txStatus").className = "status";
+        $("txStatus").textContent = "● OFFLINE";
+        $("liveProgress").style.display = "none";
+        $("liveFill").style.width = "0";
+        updateTxDebug();
+      }
+      async function startLivePreset(duration, fn) {
+        if (tx.running) return;
+        await initAudioContext();
+        $("liveProgress").style.display = "block";
+        let st = performance.now();
+        let loop = now => {
+          let e = now - st;
+          if (e >= duration) { stopTxEverything(); return; }
+          $("liveFill").style.width = `${e / duration * 100}%`;
+          let f = fn(e / 1000);
+          updateFrequencyUI(f);
+          $("txStatus").textContent = `● LIVE / ${((duration - e) / 1000).toFixed(1)}s`;
+          tx.liveAnim = requestAnimationFrame(loop);
+        };
+        tx.liveAnim = requestAnimationFrame(loop);
+      }
       $("txStart").onclick = async () => {
         try {
           await initAudioContext();
-          $("txStatus").textContent = `送信中: ${tx.frequency.toFixed(1)} Hz`;
+          $("txStatus").textContent = `● TRANSMITTING / ${tx.frequency.toFixed(1)} Hz`;
           updateTxDebug();
         } catch (e) {
           $("txDebug").textContent = `[ERROR]\n${e.message}`;
         }
       };
-
-      async function startLivePreset(durationMs, generatorFn) {
-        if (tx.running) return;
-        try {
-          await initAudioContext();
-          $("liveProgressBar").style.display = "block";
-
-          let startTime = performance.now();
-
-          const liveLoop = (now) => {
-            let elapsed = now - startTime;
-            let progress = Math.min(100, (elapsed / durationMs) * 100);
-            $("liveProgressFill").style.width = `${progress}%`;
-
-            if (elapsed >= durationMs) {
-              stopTxEverything();
-              return;
-            }
-
-            let t = elapsed / 1000;
-            let freq = generatorFn(t, elapsed);
-
-            updateTxFrequency(freq);
-            $("txStatus").textContent = `演出中 (${((durationMs - elapsed) / 1000).toFixed(1)}s)`;
-            tx.liveAnim = requestAnimationFrame(liveLoop);
-          };
-
-          tx.liveAnim = requestAnimationFrame(liveLoop);
-        } catch (e) {
-          $("txDebug").textContent = `[ERROR]\n${e.message}`;
-          stopTxEverything();
-        }
-      }
-
-      $("liveColorStart").onclick = () => {
-        startLivePreset(45000, (t) => {
-          let hue = (t * 15) % 360;
-          let hslHex = hslToHex(hue, 100, 50);
-          const { r, g, b } = hexToRgb(hslHex);
-          const hsl = rgbToHsl(r, g, b);
-          return TX_COLOR_START + (hsl.h / 360) * (TX_SPECIAL_START - TX_COLOR_START);
-        });
-      };
-
-      $("liveStrobeStart").onclick = () => {
-        startLivePreset(35000, (t) => {
-          let step = Math.floor(t * 2.5);
-          if (step % 2 === 0) {
-            return MIN_FREQ;
-          }
-          let hues = [0, 120, 240, 60, 300, 180];
-          let hue = hues[Math.floor(t * 1.5) % hues.length];
-          let hslHex = hslToHex(hue, 100, 50);
-          const { r, g, b } = hexToRgb(hslHex);
-          const hsl = rgbToHsl(r, g, b);
-          return TX_COLOR_START + (hsl.h / 360) * (TX_SPECIAL_START - TX_COLOR_START);
-        });
-      };
-
-      $("livePulseStart").onclick = () => {
-        startLivePreset(35000, (t) => {
-          let alt = Math.sin(t * Math.PI * 1.2) > 0;
-          if (alt) {
-            let hue = (t * 40) % 360;
-            let hslHex = hslToHex(hue, 100, 50);
-            const { r, g, b } = hexToRgb(hslHex);
-            const hsl = rgbToHsl(r, g, b);
-            return TX_COLOR_START + (hsl.h / 360) * (TX_SPECIAL_START - TX_COLOR_START);
-          } else {
-            return MIN_FREQ;
-          }
-        });
-      };
-
-      $("liveRaveStart").onclick = () => {
-        startLivePreset(35000, (t) => {
-          let beat = Math.sin(t * Math.PI * 1.5);
-          if (beat > 0.3) {
-            let freq = TX_SPECIAL_START - (t * 40) % 1500;
-            return Math.max(TX_COLOR_START, Math.min(TX_SPECIAL_START, freq));
-          } else {
-            return MIN_FREQ;
-          }
-        });
-      };
-
-      $("liveGrayStart").onclick = () => {
-        startLivePreset(30000, (t) => {
-          let wave = (Math.sin(t * Math.PI * 2) + 1) / 2;
-          let strobe = Math.floor(t * 3) % 2;
-          let targetV = MIN_FREQ + wave * (TX_GRAY_END - MIN_FREQ);
-          return strobe ? targetV : MIN_FREQ;
-        });
-      };
-
-      $("liveCustomStrobeStart").onclick = () => {
-        let speed = parseFloat(strobeSpeedRange.value) || 5;
-        startLivePreset(60000, (t) => {
-          let cycle = Math.floor(t * speed * 2);
-          return (cycle % 2 === 0) ? MIN_FREQ : TX_GRAY_END;
-        });
-      };
-
-      async function stopTxEverything() {
-        if (tx.liveAnim) cancelAnimationFrame(tx.liveAnim);
-        try {
-          if (tx.osc) tx.osc.stop();
-          if (tx.ctx) await tx.ctx.close();
-        } catch {}
-
-        tx.running = false;
-        tx.osc = null;
-        tx.gain = null;
-        tx.ctx = null;
-
-        $("txStart").disabled = false;
-        $("liveColorStart").disabled = false;
-        $("liveStrobeStart").disabled = false;
-        $("livePulseStart").disabled = false;
-        $("liveRaveStart").disabled = false;
-        $("liveGrayStart").disabled = false;
-        $("liveCustomStrobeStart").disabled = false;
-        $("txStop").disabled = true;
-        $("txStatus").textContent = "停止中";
-        $("liveProgressBar").style.display = "none";
-        $("liveProgressFill").style.width = "0%";
-
-        updateTxDebug();
-      }
-
       $("txStop").onclick = stopTxEverything;
-
-      $("rxExpectedFreq").oninput = () => {
-        const v = parseFloat($("rxExpectedFreq").value);
-        rx.expectedFreq = Number.isFinite(v) ? v : null;
-      };
-
-      function findUltrasonicPeak() {
-        const sr = rx.ctx.sampleRate;
-        const nyquist = sr / 2;
-        const minBin = Math.max(0, Math.floor(MIN_FREQ / nyquist * rx.bins.length));
-        const maxBin = Math.min(rx.bins.length - 1, Math.ceil(MAX_FREQ / nyquist * rx.bins.length));
-
-        let maxDb = -Infinity;
-        let maxBinIndex = minBin;
-
-        for (let i = minBin; i <= maxBin; i++) {
-          const db = rx.bins[i];
-          if (db > maxDb) {
-            maxDb = db;
-            maxBinIndex = i;
+      $("txFreqRange").oninput = e => updateFrequencyUI(e.target.value);
+      $("txFreqRange").onchange = e => updateFrequencyUI(e.target.value);
+      $("txFreqNum").oninput = e => updateFrequencyUI(e.target.value);
+      // チップ・予約ボタンのクリック処理（forceExact=trueを渡してカスタムHzを維持）
+      document.querySelectorAll(".chip").forEach(c => {
+        c.onclick = () => {
+          if (c.dataset.freq) {
+            updateFrequencyUI(parseFloat(c.dataset.freq), true);
+          } else if (c.dataset.color) {
+            updateTxColor(c.dataset.color);
           }
+        };
+      });
+      $("liveColorStart").onclick = () => startLivePreset(45000, t => TX_COLOR_START + (((t * 15) % 360) / 360) * (TX_SPECIAL_START - TX_COLOR_START));
+      $("liveStrobeStart").onclick = () => startLivePreset(35000, t => {
+        let step = Math.floor(t * 2.5);
+        if (step % 2 === 0) return MIN_FREQ;
+        let h = [0, 120, 240, 60, 300, 180][Math.floor(t * 1.5) % 6];
+        return TX_COLOR_START + h / 360 * (TX_SPECIAL_START - TX_COLOR_START);
+      });
+      $("livePulseStart").onclick = () => startLivePreset(35000, t => Math.sin(t * Math.PI * 1.2) > 0 ? TX_COLOR_START + (((t * 40) % 360) / 360) * (TX_SPECIAL_START - TX_COLOR_START) : MIN_FREQ);
+      $("liveRaveStart").onclick = () => startLivePreset(35000, t => Math.sin(t * Math.PI * 1.5) > .3 ? TX_SPECIAL_START - 1 - (t * 40) % 1500 : MIN_FREQ);
+      $("liveGrayStart").onclick = () => startLivePreset(30000, t => Math.floor(t * 3) % 2 ? MIN_FREQ + (Math.sin(t * Math.PI * 2) + 1) / 2 * (TX_GRAY_END - MIN_FREQ) : MIN_FREQ);
+      $("liveCustomStrobeStart").onclick = () => {
+        let speed = parseFloat($("strobeSpeedRange").value) || 5;
+        startLivePreset(60000, t => Math.floor(t * speed * 2) % 2 === 0 ? MIN_FREQ : TX_GRAY_END);
+      };
+      $("strobeSpeedRange").oninput = e => {
+        let s = +e.target.value;
+        $("strobeSpeedText").textContent = `${s} Hz / ${(1 / s).toFixed(2)} s`;
+      };
+      $("txMode").onclick = () => {
+        $("txMode").classList.add("active");
+        $("rxMode").classList.remove("active");
+        $("txPanel").style.display = "grid";
+        $("rxPanel").style.display = "none";
+      };
+      $("rxMode").onclick = () => {
+        $("rxMode").classList.add("active");
+        $("txMode").classList.remove("active");
+        $("txPanel").style.display = "none";
+        $("rxPanel").style.display = "block";
+      };
+      function findUltrasonicPeak() {
+        let sr = rx.ctx.sampleRate, ny = sr / 2;
+        let minBin = Math.max(0, Math.floor(MIN_FREQ / ny * rx.bins.length));
+        let maxBin = Math.min(rx.bins.length - 1, Math.ceil(MAX_FREQ / ny * rx.bins.length));
+        let maxDb = -Infinity, idx = minBin;
+        for (let i = minBin; i <= maxBin; i++) {
+          if (rx.bins[i] > maxDb) { maxDb = rx.bins[i]; idx = i; }
         }
-        const peakHz = maxBinIndex * nyquist / rx.bins.length;
-        return { peakHz, maxDb, minBin, maxBin };
+        return { peakHz: idx * ny / rx.bins.length, maxDb };
       }
-
       $("rxStart").onclick = async () => {
-        if (rx.running) return;
         try {
-          rx.stream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
-            video: false
-          });
+          rx.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
           rx.ctx = new (window.AudioContext || window.webkitAudioContext)();
           if (rx.ctx.state === "suspended") await rx.ctx.resume();
-
           rx.source = rx.ctx.createMediaStreamSource(rx.stream);
           rx.analyser = rx.ctx.createAnalyser();
           rx.analyser.fftSize = FFT_SIZE;
-          rx.analyser.smoothingTimeConstant = 0.05;
+          rx.analyser.smoothingTimeConstant = .05;
           rx.source.connect(rx.analyser);
           rx.bins = new Float32Array(rx.analyser.frequencyBinCount);
           rx.running = true;
-
           $("rxStart").disabled = true;
           $("rxStop").disabled = false;
-          $("rxStatus").textContent = `受信中 (${rx.ctx.sampleRate}Hz)`;
-
-          const canvas = $("spectrum");
-          const g = canvas.getContext("2d");
-
-          const loop = () => {
+          $("rxStatus").className = "status on";
+          $("rxStatus").textContent = `● LISTENING / ${rx.ctx.sampleRate}Hz`;
+          let c = $("spectrum"), g = c.getContext("2d");
+          let loop = () => {
             if (!rx.running) return;
-
-            if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
-              canvas.width = canvas.clientWidth;
-              canvas.height = canvas.clientHeight;
-            }
-
             rx.analyser.getFloatFrequencyData(rx.bins);
-            const sr = rx.ctx.sampleRate;
-            const nyquist = sr / 2;
-            const d = findUltrasonicPeak();
-            const confirmed = d.maxDb >= RX_THRESHOLD_DB;
-
-            if (confirmed) {
-              const res = frequencyToResult(d.peakHz);
-              rx.lastColor = res.color;
+            let d = findUltrasonicPeak(), ok = d.maxDb >= RX_THRESHOLD_DB;
+            if (ok) {
+              let r = frequencyToColor(d.peakHz);
+              rx.lastColor = r.color;
               rx.lastFrequency = d.peakHz;
-
-              $("rxColorBox").style.background = res.color;
-              $("rxColorText").textContent = res.label;
-              $("rxDetectedColor").textContent = res.label;
+              $("rxColorBox").style.background = r.color;
+              $("rxColorText").textContent = r.label;
               $("rxDetectedFreq").textContent = `${d.peakHz.toFixed(1)} Hz`;
-              $("rxStatus").textContent = `SIGNAL ACTIVE`;
-            } else {
-              $("rxColorBox").style.background = rx.lastColor;
-              $("rxColorText").textContent = rx.lastFrequency !== null ? rx.lastColor : "NO SIGNAL";
-              $("rxDetectedColor").textContent = rx.lastFrequency !== null ? rx.lastColor : "----";
-              $("rxDetectedFreq").textContent = rx.lastFrequency !== null ? `${rx.lastFrequency.toFixed(1)} Hz` : "---- Hz";
-              $("rxStatus").textContent = "待機中";
+              $("rxStatus").textContent = r.type === "reserved" ? `● RESERVED / ${d.peakHz.toFixed(1)} Hz` : "● SIGNAL ACTIVE";
             }
-
             $("peakDisplay").textContent = `${d.peakHz.toFixed(1)} Hz (${d.maxDb.toFixed(1)} dB)`;
-
-            if (rx.expectedFreq !== null && confirmed) {
-              const diff = d.peakHz - rx.expectedFreq;
-              $("rxDiff").textContent = `${diff >= 0 ? "+" : ""}${diff.toFixed(1)} Hz`;
-            } else {
-              $("rxDiff").textContent = "---- Hz";
-            }
-
-            const w = canvas.width, h = canvas.height;
-            g.clearRect(0, 0, w, h);
-            g.fillStyle = "#090c11";
-            g.fillRect(0, 0, w, h);
-
+            g.clearRect(0, 0, c.width, c.height);
             g.beginPath();
             for (let i = 0; i < rx.bins.length; i++) {
-              const x = i / rx.bins.length * w;
-              const db = rx.bins[i];
-              const y = h - Math.max(0, Math.min(1, (db + 100) / 80)) * h;
-              if (i === 0) g.moveTo(x, y);
-              else g.lineTo(x, y);
+              let x = i / rx.bins.length * c.width;
+              let y = c.height - Math.max(0, Math.min(1, (rx.bins[i] + 100) / 80)) * c.height;
+              i ? g.lineTo(x, y) : g.moveTo(x, y);
             }
             g.strokeStyle = "#7fc8ff";
-            g.lineWidth = 1.5;
             g.stroke();
-
-            const x1 = MIN_FREQ / nyquist * w;
-            const x2 = MAX_FREQ / nyquist * w;
-            g.fillStyle = "rgba(119,227,162,.10)";
-            g.fillRect(x1, 0, x2 - x1, h);
-
-            if (confirmed) {
-              const peakX = d.peakHz / nyquist * w;
+            if (ok) {
+              let x = d.peakHz / (rx.ctx.sampleRate / 2) * c.width;
               g.strokeStyle = "#ff7f8f";
-              g.lineWidth = 2;
               g.beginPath();
-              g.moveTo(peakX, 0);
-              g.lineTo(peakX, h);
+              g.moveTo(x, 0);
+              g.lineTo(x, c.height);
               g.stroke();
             }
-
             rx.raf = requestAnimationFrame(loop);
           };
           rx.raf = requestAnimationFrame(loop);
         } catch (e) {
           $("rxLog").textContent = `[ERROR]\n${e.message}`;
-          $("rxStatus").textContent = "マイクエラー";
         }
       };
-
       $("rxStop").onclick = async () => {
         rx.running = false;
         if (rx.raf) cancelAnimationFrame(rx.raf);
-        try {
-          rx.source?.disconnect();
-          rx.stream?.getTracks().forEach(t => t.stop());
-          await rx.ctx?.close();
-        } catch {}
-
+        try { rx.source?.disconnect(); rx.stream?.getTracks().forEach(t => t.stop()); await rx.ctx?.close(); } catch { }
         rx.ctx = null; rx.stream = null; rx.source = null; rx.analyser = null; rx.bins = null;
         $("rxStart").disabled = false;
         $("rxStop").disabled = true;
-        $("rxStatus").textContent = "停止中";
+        $("rxStatus").className = "status";
+        $("rxStatus").textContent = "● OFFLINE";
         $("peakDisplay").textContent = "NO SIGNAL";
-        $("rxDetectedFreq").textContent = "---- Hz";
-        $("rxDiff").textContent = "---- Hz";
-        $("rxDetectedColor").textContent = "----";
         $("rxColorText").textContent = "NO SIGNAL";
         $("rxColorBox").style.background = "#151923";
+        $("rxDetectedFreq").textContent = "---- Hz";
+        $("rxDetectedColor").textContent = "----";
       };
-
-      updateTxColor($("txColor").value);
+      renderReserved();
+      updateTxColor("#FFFFFF");
     })();
   </script>
 </body>
-
 </html>
