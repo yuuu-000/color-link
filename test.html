@@ -236,7 +236,7 @@
 
     <p class="sub">
       リアルタイム送信とマイク入力の音域テスト。
-      18kHz〜22kHz付近の高域も確認できます。
+      0Hz〜22kHzの全域スペクトラムを確認できます。
     </p>
 
     <div class="mode">
@@ -333,7 +333,7 @@
 
       <div class="small">
         上段：マイク波形 
-        下段：17kHz〜22kHzスペクトラム 
+        下段：0kHz〜22kHzスペクトラム 
         48kHzサンプリング時のナイキスト周波数は24kHzです。
       </div>
 
@@ -354,7 +354,7 @@
 
       // CONFIG
       const FFT_SIZE = 2048;
-      const DISPLAY_MIN_HZ = 17000;
+      const DISPLAY_MIN_HZ = 0;
       const DISPLAY_MAX_HZ = 22000;
 
       // TX State
@@ -627,7 +627,7 @@
         g.lineTo(width, halfH);
         g.stroke();
 
-        // HIGH FREQUENCY SPECTRUM
+        // FULL RANGE SPECTRUM (0 - 22kHz)
         const minBin = Math.max(0, Math.floor((DISPLAY_MIN_HZ / nyquist) * bufferLength));
         const maxBin = Math.min(bufferLength - 1, Math.ceil((DISPLAY_MAX_HZ / nyquist) * bufferLength));
         const totalBins = maxBin - minBin + 1;
@@ -655,7 +655,7 @@
         g.font = "11px ui-monospace, monospace";
         g.fillStyle = "#8b949e";
 
-        for (let hz = 18000; hz <= DISPLAY_MAX_HZ; hz += 1000) {
+        for (let hz = 0; hz <= DISPLAY_MAX_HZ; hz += 4000) {
           const x = ((hz - DISPLAY_MIN_HZ) / (DISPLAY_MAX_HZ - DISPLAY_MIN_HZ)) * width;
 
           g.strokeStyle = "rgba(255,255,255,0.08)";
@@ -750,7 +750,7 @@
           `[RX] FFT Size: ${rx.analyser.fftSize}\n` +
           `[RX] FFT Bins: ${bufferLength}\n` +
           `[RX] Max Input: ${maxDb.toFixed(1)} dB\n` +
-          `[RX] 17-22kHz Peaks: ${peaks.length}`;
+          `[RX] 0-22kHz Peaks: ${peaks.length}`;
 
         drawSpectrum();
 
