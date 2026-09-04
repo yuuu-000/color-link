@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>CUE-X | Character Protocol Engine (v3 / Robust)</title>
+  <title>CUE-X | Character Protocol Engine (v4 / Sync Fixed)</title>
   <style>
     :root {
       --bg: #050507;
@@ -522,7 +522,7 @@
   <div class="app-container">
     <header>
       <div class="brand">CUE-X <span>PROTOCOL ENGINE</span></div>
-      <div class="badge">v3 · CHECKSUM VERIFIED</div>
+      <div class="badge">v4 · SYNC FIXED</div>
     </header>
 
     <div class="split-layout">
@@ -596,20 +596,58 @@
 
       let wakeLock = null;
 
+      const debug = document.createElement('div');
+      debug.style.cssText = `
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 99999;
+    padding: 10px;
+    background: rgba(0,0,0,.8);
+    color: #0f0;
+    font-size: 14px;
+    font-family: monospace;
+  `;
+      document.body.appendChild(debug);
+
+      function log(message) {
+        console.log('[WakeLock]', message);
+        debug.textContent = message;
+
+        // 3秒後に表示を消す
+        setTimeout(() => {
+          debug.remove();
+        }, 3000);
+      }
+
       async function requestWakeLock() {
+        if (!('wakeLock' in navigator)) {
+          log('❌ Wake Lock 非対応');
+          return;
+        }
+
         try {
           wakeLock = await navigator.wakeLock.request('screen');
-          console.log('Wake Lock ON');
+
+          log('✅ Wake Lock 成功');
+
+          wakeLock.addEventListener('release', () => {
+            log('⚠️ Wake Lock 解除');
+          });
+
         } catch (err) {
-          console.error('Wake Lock失敗:', err);
+          log(`❌ Wake Lock 失敗: ${err.name} / ${err.message}`);
+          console.error(err);
         }
       }
 
-      requestWakeLock();
+      document.addEventListener('click', requestWakeLock, { once: true });
+
+      log('⏳ 画面をタップしてください');
     }
 
     const FREQ_TRIGGER = 20500;
-    const GUARD_FREQ = 19000; // トリガー音の「鋭さ」判定用の参照周波数（広帯域ノイズ検出）
+    const GUARD_FREQ = 19000;
     const FREQ_DATA = [];
     for (let i = 0; i < 31; i++) {
       FREQ_DATA.push(17300 + (i * 100));
@@ -623,21 +661,24 @@
     }
     const PAIR_COUNT = PAIRS.length; // 465
 
-    const TIME_START = 0.15;
+    // ★ 同期遅延解消のため、トリガー送信時間を大幅に延長
+    const TIME_START = 0.25; // (旧:0.15) 確実に検知させる
     const TIME_SLOT = 0.12;
-    const SLOT_COUNT = 4; // データ3 + チェックサム1（IDの取りうる数=465^3はそのまま。検証専用の追加トーン）
-    const THRESHOLD = -100;               // スロット内ピア判定の絶対フロア（保険）
-    const PAIR_PEAK_MARGIN = 7;          // 1位候補と3位候補のdB差。小さいと「不確実」として棄却
-    const TRIGGER_MARGIN_DB = 18;        // 適応ノイズフロアからのマージン
-    const TRIGGER_PROMINENCE_DB = 10;    // トリガー周波数とガード周波数のdB差（純音らしさ）
-    const TRIGGER_CONFIRM_FRAMES = 3;    // 連続何フレーム条件を満たしたらトリガー確定とするか
-    const TRIGGER_ABS_FLOOR = -100;       // ノイズフロアが異常に低い場合の絶対下限
+    const SLOT_COUNT = 4;
 
-    // プロトコル定義 (ダイレクトUnicode通信化)
+    // ★ 判定条件の緩和（高音減衰・ノイズに負けないように）
+    const THRESHOLD = -105;               // 絶対フロアを緩和 (旧:-100)
+    const TOP2_FLOOR = -105;              // 2位音の足切りラインを大幅緩和
+    const PAIR_PEAK_MARGIN = 3;           // 3位ノイズとの差分を緩和 (旧:7)
+    const TRIGGER_MARGIN_DB = 10;         // 環境音からの飛び出しマージン緩和
+    const TRIGGER_PROMINENCE_DB = 5;      // ガード周波数との差を緩和
+    const TRIGGER_CONFIRM_FRAMES = 2;     // 2フレームで早期検知
+    const TRIGGER_ABS_FLOOR = -105;
+
     const ID_CMD_CACHE_START = 100544501;
     const ID_CMD_CACHE_END = 100544502;
     const ID_CMD_FIRE = 100544503;
-    const UNICODE_OFFSET = 1000000; // ID 100万〜をUnicodeに割り当て
+    const UNICODE_OFFSET = 1000000;
 
     let rxTextCache = "";
 
@@ -652,61 +693,35 @@
       "22": { cat: "SOLID", name: "マゼンタピンク", color: "#FF00FF", ms: 0 },
       "25": { cat: "SOLID", name: "プラチナホワイト", color: "#F8FAFC", ms: 0 },
 
-      "1000": { cat: "FADE", name: "オレンジフェード (3秒)", color: "#FF5500", ms: 3000 },
-      "1001": { cat: "FADE", name: "ディープオーシャン (5秒)", color: "#001144", ms: 5000 },
-      "1002": { cat: "FADE", name: "オーロラ (4秒)", color: "#00FF66", ms: 4000 },
-      "1003": { cat: "FADE", name: "パルススイープ (2秒)", color: "#FF00FF", ms: 2000 },
-      "1004": { cat: "FADE", name: "fd5 (6秒)", color: "#FFDD55", ms: 6000 },
+      "1000": { cat: "FADE", name: "オレンジフェード", color: "#FF5500", ms: 3000 },
+      "1001": { cat: "FADE", name: "ディープオーシャン", color: "#001144", ms: 5000 },
+      "1002": { cat: "FADE", name: "オーロラ", color: "#00FF66", ms: 4000 },
+      "1003": { cat: "FADE", name: "パルススイープ", color: "#FF00FF", ms: 2000 },
+      "1004": { cat: "FADE", name: "fd5", color: "#FFDD55", ms: 6000 },
 
       "50000": { cat: "FLASH", name: "白黒1Hz", color: "#FFFFFF", ms: 0, strobe: 1 },
-      "50001": { cat: "FLASH", name: "白黒2Hz", color: "#FFFFFF", ms: 0, strobe: 2 },
-      "50002": { cat: "FLASH", name: "白黒3Hz", color: "#FFFFFF", ms: 0, strobe: 3 },
-      "50003": { cat: "FLASH", name: "白黒4Hz", color: "#FFFFFF", ms: 0, strobe: 4 },
       "50004": { cat: "FLASH", name: "白黒5Hz", color: "#FFFFFF", ms: 0, strobe: 5 },
-      "50005": { cat: "FLASH", name: "白黒6Hz", color: "#FFFFFF", ms: 0, strobe: 6 },
-      "50006": { cat: "FLASH", name: "白黒7Hz", color: "#FFFFFF", ms: 0, strobe: 7 },
-      "50007": { cat: "FLASH", name: "白黒8Hz", color: "#FFFFFF", ms: 0, strobe: 8 },
-      "50008": { cat: "FLASH", name: "白黒9Hz", color: "#FFFFFF", ms: 0, strobe: 9 },
       "50009": { cat: "FLASH", name: "白黒10Hz", color: "#FFFFFF", ms: 0, strobe: 10 },
-      "50010": { cat: "FLASH", name: "白黒11Hz", color: "#FFFFFF", ms: 0, strobe: 11 },
-      "50011": { cat: "FLASH", name: "白黒12Hz", color: "#FFFFFF", ms: 0, strobe: 12 },
-      "50012": { cat: "FLASH", name: "白黒13Hz", color: "#FFFFFF", ms: 0, strobe: 13 },
-      "50013": { cat: "FLASH", name: "白黒14Hz", color: "#FFFFFF", ms: 0, strobe: 14 },
       "50014": { cat: "FLASH", name: "白黒15Hz", color: "#FFFFFF", ms: 0, strobe: 15 },
-      "50015": { cat: "FLASH", name: "白黒16Hz", color: "#FFFFFF", ms: 0, strobe: 16 },
-      "50016": { cat: "FLASH", name: "白黒17Hz", color: "#FFFFFF", ms: 0, strobe: 17 },
-      "50017": { cat: "FLASH", name: "白黒18Hz", color: "#FFFFFF", ms: 0, strobe: 18 },
-      "50018": { cat: "FLASH", name: "白黒19Hz", color: "#FFFFFF", ms: 0, strobe: 19 },
       "50019": { cat: "FLASH", name: "白黒20Hz", color: "#FFFFFF", ms: 0, strobe: 20 },
-      "50020": { cat: "FLASH", name: "白黒21Hz", color: "#FFFFFF", ms: 0, strobe: 21 },
-      "50021": { cat: "FLASH", name: "白黒22Hz", color: "#FFFFFF", ms: 0, strobe: 22 },
-      "50022": { cat: "FLASH", name: "白黒23Hz", color: "#FFFFFF", ms: 0, strobe: 23 },
-      "50023": { cat: "FLASH", name: "白黒24Hz", color: "#FFFFFF", ms: 0, strobe: 24 },
-      "50024": { cat: "FLASH", name: "白黒25Hz", color: "#FFFFFF", ms: 0, strobe: 25 },
-      "50025": { cat: "FLASH", name: "白黒26Hz", color: "#FFFFFF", ms: 0, strobe: 26 },
-      "50026": { cat: "FLASH", name: "白黒27Hz", color: "#FFFFFF", ms: 0, strobe: 27 },
-      "50027": { cat: "FLASH", name: "白黒28Hz", color: "#FFFFFF", ms: 0, strobe: 28 },
-      "50028": { cat: "FLASH", name: "白黒29Hz", color: "#FFFFFF", ms: 0, strobe: 29 },
       "50029": { cat: "FLASH", name: "白黒30Hz", color: "#FFFFFF", ms: 0, strobe: 30 },
 
       "50100": { cat: "FLASH", name: "警告フラッシュ (赤)", color: "#FF0000", ms: 0, strobe: 6 },
-
       "70000": { cat: "LASER", name: "サイバービーム", color: "#00FFFF", ms: 3000, strobe: 10 },
 
-      // --- 🎉 新規追加：楽しいエフェクト系プリセット ---
       "80000": { cat: "EFFECT", name: "レインボーサイクル", type: "rainbow", ms: 6000 },
       "80001": { cat: "EFFECT", name: "パーティーモード", type: "party", ms: 5000 },
       "80002": { cat: "EFFECT", name: "ハートビート", type: "heartbeat", color: "#FF0033", ms: 4800 },
       "80003": { cat: "EFFECT", name: "カラーチェイス", type: "sequence", colors: ["#FF0033", "#FFB703", "#39FF14", "#00f0ff", "#FF00FF"], stepMs: 180, ms: 4500 },
       "80004": { cat: "EFFECT", name: "スパークル", type: "party", colors: ["#FFFFFF", "#F8FAFC", "#00f0ff"], ms: 3000 },
-      "80005": { cat: "EFFECT", name: "カウントダウン導光", type: "sequence", colors: ["#0055FF", "#39FF14", "#FFB703", "#FF0033", "#FFFFFF"], stepMs: 700, ms: 3500 },
+      "80005": { cat: "EFFECT", name: "カウントダウン", type: "sequence", colors: ["#0055FF", "#39FF14", "#FFB703", "#FF0033", "#FFFFFF"], stepMs: 700, ms: 3500 },
 
       "1000000": { cat: "HAPTIC", name: "ヘビードロップ", color: "#FFFFFF", ms: 50, vibrate: [300, 100, 300] },
 
       "100544576": { cat: "MESSAGE", name: "ウェルカム通知", color: "#000", msg: "ようこそ、ライブ会場へ！", ms: 300 },
-      "100544577": { cat: "MESSAGE", name: "緊急避難アナウンス", color: "#000", msg: "緊急避難指示：係員の誘導に従ってください", ms: 200, strobe: 15 },
-      "100544578": { cat: "MESSAGE", name: "サプライズ発表", color: "#000", msg: "ゲスト登場！", ms: 400, strobe: 10 },
-      "100544579": { cat: "MESSAGE", name: "休憩アナウンス", color: "#000", msg: "15分間の休憩時間です", ms: 0 }
+      "100544577": { cat: "MESSAGE", name: "緊急避難", color: "#000", msg: "緊急避難指示：係員の誘導に従ってください", ms: 200, strobe: 15 },
+      "100544578": { cat: "MESSAGE", name: "サプライズ", color: "#000", msg: "ゲスト登場！", ms: 400, strobe: 10 },
+      "100544579": { cat: "MESSAGE", name: "休憩", color: "#000", msg: "15分間の休憩時間です", ms: 0 }
     };
 
     let txCtx = null;
@@ -727,7 +742,6 @@
       rxDebugLog.textContent = `[${t}] ${msg}\n` + rxDebugLog.textContent.slice(0, 1800);
     }
 
-    // idから3つのペアインデックス(0-464)を導出し、検証用チェックサムペアも計算する
     function decomposeId(id) {
       const base1 = PAIR_COUNT * PAIR_COUNT;
       const base2 = PAIR_COUNT;
@@ -803,12 +817,11 @@
         const label = idx === 3 ? "CS" : `S${idx + 1}`;
         return `${label}[${p[0]},${p[1]}]=(${FREQ_DATA[p[0]]}Hz,${FREQ_DATA[p[1]]}Hz)`;
       }).join("\n  ");
-      logTX(`送信開始 ID:${id} (465進:[${val1},${val2},${val3}] CS:${checksumVal})\n  Trig:${FREQ_TRIGGER}Hz\n  ${sInfo}`);
+      logTX(`送信 ID:${id} \n  Trig:${FREQ_TRIGGER}Hz\n  ${sInfo}`);
 
-      return (t - now) * 1000 + 30; // 実行時間 + 安全マージン
+      return (t - now) * 1000 + 30;
     }
 
-    // 文字列のシーケンシャル送信 (完全Unicode対応 + 進捗表示 + 二重送信防止)
     const txStatusLine = document.getElementById("txStatusLine");
     const sendCharCacheBtn = document.getElementById("sendCharCacheBtn");
     const sendFireBtn = document.getElementById("sendFireBtn");
@@ -822,28 +835,25 @@
       customInputText.disabled = true;
       txStatusLine.classList.add("busy");
 
-      // 絵文字等のサロゲートペア対応のため Array.from を使用
       const charArray = Array.from(str);
 
-      txStatusLine.innerText = `キャッシュ開始信号を送信中...`;
+      txStatusLine.innerText = `キャッシュ開始...`;
       let waitMs = sendTrigger(ID_CMD_CACHE_START.toString());
-      // エコーを断ち切るために長めのマージンを取る
       await new Promise(r => setTimeout(r, waitMs + 80));
 
       for (let i = 0; i < charArray.length; i++) {
         const ch = charArray[i];
         txStatusLine.innerText = `送信中: ${i + 1} / ${charArray.length} 文字目「${ch}」`;
-        // UnicodeポイントをそのままID化 (漢字も絵文字も送れる。各文字にチェックサムが自動付与される)
         const charId = UNICODE_OFFSET + ch.codePointAt(0);
         waitMs = sendTrigger(charId.toString());
         await new Promise(r => setTimeout(r, waitMs + 80));
       }
 
-      txStatusLine.innerText = `キャッシュ終了信号を送信中...`;
+      txStatusLine.innerText = `キャッシュ終了...`;
       waitMs = sendTrigger(ID_CMD_CACHE_END.toString());
       await new Promise(r => setTimeout(r, waitMs + 80));
 
-      txStatusLine.innerText = `送信完了（${charArray.length}文字）。受信側の画面を確認してから「発火」してください。`;
+      txStatusLine.innerText = `送信完了。受信側を確認して発火してください。`;
       txStatusLine.classList.remove("busy");
       sendCharCacheBtn.disabled = false;
       customInputText.disabled = false;
@@ -902,13 +912,9 @@
     let rxState = "IDLE";
     let rxStartTime = 0;
     let decodedValues = [];
-    let slotDebugDetails = [];
 
-    // --- ノイズ耐性用の状態 ---
-    let triggerNoiseFloor = null;   // 適応型ノイズフロア（EMA）
-    let triggerConfirmCount = 0;    // 連続フレームでの確認カウンタ
-
-    // --- 表示エフェクト管理 ---
+    let triggerNoiseFloor = null;
+    let triggerConfirmCount = 0;
     let effectInterval = null;
     let effectTimeout = null;
 
@@ -944,7 +950,6 @@
         const source = rxCtx.createMediaStreamSource(stream);
         analyser = rxCtx.createAnalyser();
 
-        // FFTサイズを縮小し、スムージングを無効化 (残響混入バグの撃退)
         analyser.fftSize = 2048;
         analyser.smoothingTimeConstant = 0.0;
 
@@ -956,7 +961,7 @@
 
         UI_STATE("キャリブレーション中...", "#ffb703");
         document.getElementById("rxStartBtn").style.display = "none";
-        logRX(`マイク接続完了 サンプルレート:${rxCtx.sampleRate}Hz FFT:2048`);
+        logRX(`マイク接続完了`);
         requestAnimationFrame(rxLoop);
       } catch (e) { alert("マイクアクセスが拒否されました。"); }
     };
@@ -1014,7 +1019,6 @@
       drawSpectrum();
 
       if (rxState === "IDLE") {
-        // --- 適応型ノイズフロア（待機中のみ、ゆっくり環境音レベルに追従） ---
         if (triggerNoiseFloor === null) {
           triggerNoiseFloor = magTrigger;
         } else {
@@ -1023,7 +1027,6 @@
         const dynThreshold = Math.max(TRIGGER_ABS_FLOOR, triggerNoiseFloor + TRIGGER_MARGIN_DB);
         document.getElementById("rxThresh").innerText = dynThreshold.toFixed(0);
 
-        // --- ピークの鋭さ判定（純音か、広帯域の生活音かを判別） ---
         const isPeakSharp = (magTrigger - guardMag) > TRIGGER_PROMINENCE_DB;
 
         if (magTrigger > dynThreshold && isPeakSharp) {
@@ -1032,18 +1035,18 @@
           triggerConfirmCount = 0;
         }
 
-        // --- 連続フレームで確認できて初めてトリガー確定（単発ノイズスパイクを無視） ---
         if (triggerConfirmCount >= TRIGGER_CONFIRM_FRAMES) {
           triggerConfirmCount = 0;
           rxState = "READING";
-          rxStartTime = now;
+
+          // ★【同期遅延の完全解消】マイク/FFT/フレーム遅延分(約60ms)を引いて時計を「真の開始時刻」に合わせる
+          rxStartTime = now - 60;
+
           decodedValues = [];
-          slotDebugDetails = [];
           UI_STATE("デコード中...", "#ffeb3b");
           resetSlotUI();
-          logRX(`トリガー捕捉: Trig=${magTrigger.toFixed(1)}dB (閾値=${dynThreshold.toFixed(1)}dB, ガード差=${(magTrigger - guardMag).toFixed(1)}dB)`);
+          logRX(`トリガー捕捉: Trig=${magTrigger.toFixed(1)}dB`);
         } else if (UI_STATE) {
-          // キャリブレーション完了後の通常表示
           const stateEl = document.getElementById("rxState");
           if (stateEl.innerText !== "リスニング中" && stateEl.innerText !== "デコード中...") {
             UI_STATE("リスニング中", "var(--accent)");
@@ -1060,8 +1063,8 @@
           for (let i = 1; i <= SLOT_COUNT; i++) document.getElementById(`slot${i}`).classList.remove('active');
           document.getElementById(`slot${slotIndex + 1}`).classList.add('active');
 
-          // 安定期判定をスロット後半（50%〜80%）にずらし、残響混入を防止
-          if (decodedValues[slotIndex] === undefined && timeOffset > (TIME_SLOT * 0.5) && timeOffset < (TIME_SLOT * 0.8)) {
+          // ★ 判定幅を 0.3〜0.8 に拡張
+          if (decodedValues[slotIndex] === undefined && timeOffset > (TIME_SLOT * 0.3) && timeOffset < (TIME_SLOT * 0.8)) {
             let results = [];
             for (let i = 0; i < 31; i++) {
               results.push({ idx: i, hz: FREQ_DATA[i], mag: getMagnitude(FREQ_DATA[i], nyquist, bufferLength) });
@@ -1072,10 +1075,9 @@
             const top2 = results[1];
             const top3 = results[2];
 
-            // 1位・2位が十分明瞭で、かつ3位候補と明確な差(PAIR_PEAK_MARGIN)がある場合のみ採用。
-            // これにより「たまたま2つの周波数が少し盛り上がった」だけのノイズを弾く。
+            // ★ 条件緩和 (MARGIN=3, FLOOR=-105)
             const isClearPair = top1.mag > THRESHOLD
-              && top2.mag > -110
+              && top2.mag > TOP2_FLOOR
               && (top1.mag - top3.mag) > PAIR_PEAK_MARGIN;
 
             const slotLabel = slotIndex === 3 ? "CS" : `S${slotIndex + 1}`;
@@ -1086,18 +1088,10 @@
               if (val !== -1) {
                 decodedValues[slotIndex] = val;
                 UI_SLOT(slotIndex + 1, val, true);
-                const info = `${slotLabel}: 一致[${val}] (${top1.hz}Hz=${top1.mag.toFixed(1)}dB, ${top2.hz}Hz=${top2.mag.toFixed(1)}dB, 差=${(top1.mag - top3.mag).toFixed(1)}dB)`;
-                slotDebugDetails[slotIndex] = info;
-                logRX(`  ${info}`);
-              } else {
-                const info = `${slotLabel}: ペア未定義 (1位:${top1.hz}Hz, 2位:${top2.hz}Hz)`;
-                slotDebugDetails[slotIndex] = info;
-                logRX(`  ${info}`);
+                logRX(`  ${slotLabel}: 一致[${val}] (1位:${top1.hz}Hz=${top1.mag.toFixed(1)}dB, 2位:${top2.hz}Hz=${top2.mag.toFixed(1)}dB, 差=${(top1.mag - top3.mag).toFixed(1)}dB)`);
               }
             } else {
-              const info = `${slotLabel}: 閾値未達 (1位:${top1.hz}Hz=${top1.mag.toFixed(1)}dB, 2位:${top2.hz}Hz=${top2.mag.toFixed(1)}dB, 差=${(top1.mag - top3.mag).toFixed(1)}dB)`;
-              slotDebugDetails[slotIndex] = info;
-              logRX(`  ${info}`);
+              logRX(`  ${slotLabel}: 閾値未達 (1位:${top1.hz}Hz=${top1.mag.toFixed(1)}dB, 2位:${top2.hz}Hz=${top2.mag.toFixed(1)}dB, 差=${(top1.mag - top3.mag).toFixed(1)}dB)`);
             }
           }
         } else if (elapsed >= windowEnd) {
@@ -1110,14 +1104,13 @@
             const expectedChecksum = (v0 + v1 + v2) % PAIR_COUNT;
 
             if (v3 === expectedChecksum) {
-              // ✅ チェックサム一致。信頼できるパケットとして実行。
               const finalId = (v0 * PAIR_COUNT * PAIR_COUNT) + (v1 * PAIR_COUNT) + v2;
-              logRX(`受信成功 ID:${finalId} (復元[${v0},${v1},${v2}] CS:${v3}==${expectedChecksum})`);
+              logRX(`受信成功 ID:${finalId}`);
               executeCue(finalId.toString());
               rxState = "IDLE";
               UI_STATE("リスニング中", "var(--accent)");
             } else {
-              logRX(`破棄: チェックサム不一致 受信CS:${v3} != 期待CS:${expectedChecksum} (S1-S3:[${v0},${v1},${v2}])`);
+              logRX(`破棄: チェックサム不一致 受信CS:${v3} != 期待CS:${expectedChecksum}`);
               rejectPacket("チェックサム不一致(破棄)");
             }
           } else {
@@ -1143,7 +1136,6 @@
 
     let isCaching = false;
 
-    // --- 表示エフェクトの統一ハンドラ ---
     function clearEffects() {
       if (effectInterval) { clearInterval(effectInterval); effectInterval = null; }
       if (effectTimeout) { clearTimeout(effectTimeout); effectTimeout = null; }
@@ -1191,13 +1183,10 @@
           canvas.style.backgroundColor = on ? cue.color : "#000";
         }, 1000 / (hz * 2));
       } else {
-        // 通常のソリッド/フェード
         canvas.style.transition = `background-color ${duration || 300}ms ease`;
         canvas.style.backgroundColor = cue.color;
       }
 
-      // ms(継続時間)が指定されている場合は自動的にブラックアウトへ復帰。
-      // ms=0 (ストロボ等) は次のキューが来るまで継続。
       if (duration > 0) {
         effectTimeout = setTimeout(() => {
           clearEffects();
@@ -1214,7 +1203,6 @@
       const sub = document.getElementById("rxSub");
       const msgEl = document.getElementById("rxMsg");
 
-      // --- キャッシュ関連 ---
       if (idNum === ID_CMD_CACHE_START) {
         clearEffects();
         isCaching = true;
@@ -1239,7 +1227,6 @@
         return;
       }
 
-      // --- 💥 FIRE (発火) ---
       if (idNum === ID_CMD_FIRE) {
         clearEffects();
         title.style.display = "none";
@@ -1252,7 +1239,6 @@
         return;
       }
 
-      // --- Unicode文字のダイレクト受信 (絵文字・漢字対応) ---
       if (idNum >= UNICODE_OFFSET && idNum < UNICODE_OFFSET + 2000000) {
         clearEffects();
         let codePoint = idNum - UNICODE_OFFSET;
@@ -1269,12 +1255,10 @@
         return;
       }
 
-      // 毎回UIリセット
       title.style.display = "block";
       sub.style.display = "block";
       msgEl.classList.remove("fired");
 
-      // --- プリセット処理（ソリッド/フェード/ストロボ/レインボー等すべて runEffect に集約） ---
       if (CUE_DATA[idStr]) {
         const cue = CUE_DATA[idStr];
         title.innerText = cue.name;
@@ -1295,7 +1279,6 @@
         return;
       }
 
-      // --- RGBカラー直接同期 ---
       if (idNum >= 20000000 && idNum <= 36777215) {
         clearEffects();
         const rgbNum = idNum - 20000000;
