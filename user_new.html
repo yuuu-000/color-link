@@ -306,12 +306,12 @@
     const TIME_START = 0.15;
     const TIME_SLOT = 0.12;
     const SLOT_COUNT = 4; // データ3 + チェックサム1（IDの取りうる数=465^3はそのまま。検証専用の追加トーン）
-    const THRESHOLD = -90;             // スロット内ピア判定の絶対フロア（保険）
+    const THRESHOLD = -110;             // スロット内ピア判定の絶対フロア（保険）
     const PAIR_PEAK_MARGIN = 7;         // 1位候補と3位候補のdB差。小さいと「不確実」として棄却
     const TRIGGER_MARGIN_DB = 18;        // 適応ノイズフロアからのマージン
     const TRIGGER_PROMINENCE_DB = 10;    // トリガー周波数とガード周波数のdB差（純音らしさ）
     const TRIGGER_CONFIRM_FRAMES = 3;    // 連続何フレーム条件を満たしたらトリガー確定とするか
-    const TRIGGER_ABS_FLOOR = -85;       // ノイズフロアが異常に低い場合の絶対下限
+    const TRIGGER_ABS_FLOOR = -115;       // ノイズフロアが異常に低い場合の絶対下限
 
     // プロトコル定義 (ダイレクトUnicode通信化)
     const ID_CMD_CACHE_START = 100544501;
@@ -335,16 +335,39 @@
       "1000": { cat: "FADE", name: "オレンジフェード (3秒)", color: "#FF5500", ms: 3000 },
       "1001": { cat: "FADE", name: "ディープオーシャン (5秒)", color: "#001144", ms: 5000 },
       "1002": { cat: "FADE", name: "オーロラ (4秒)", color: "#00FF66", ms: 4000 },
-      "1006": { cat: "FADE", name: "パルススイープ (2秒)", color: "#FF00FF", ms: 2000 },
+      "1003": { cat: "FADE", name: "パルススイープ (2秒)", color: "#FF00FF", ms: 2000 },
+      "1004": { cat: "FADE", name: "fd5 (6秒)", color: "#FFDD55", ms: 6000 },
 
-      // 自動展開により1Hz〜30Hzを完全に網羅（15Hzも完全対応）
-      ...(() => {
-        const obj = {};
-        for (let i = 0; i < 30; i++) {
-          obj[(50000 + i).toString()] = { cat: "FLASH", name: `白黒${i + 1}Hz`, color: "#FFFFFF", ms: 0, strobe: i + 1 };
-        }
-        return obj;
-      })(),
+      "50000": { cat: "FLASH", name: "白黒1Hz", color: "#FFFFFF", ms: 0, strobe: 1 },
+      "50001": { cat: "FLASH", name: "白黒2Hz", color: "#FFFFFF", ms: 0, strobe: 2 },
+      "50002": { cat: "FLASH", name: "白黒3Hz", color: "#FFFFFF", ms: 0, strobe: 3 },
+      "50003": { cat: "FLASH", name: "白黒4Hz", color: "#FFFFFF", ms: 0, strobe: 4 },
+      "50004": { cat: "FLASH", name: "白黒5Hz", color: "#FFFFFF", ms: 0, strobe: 5 },
+      "50005": { cat: "FLASH", name: "白黒6Hz", color: "#FFFFFF", ms: 0, strobe: 6 },
+      "50006": { cat: "FLASH", name: "白黒7Hz", color: "#FFFFFF", ms: 0, strobe: 7 },
+      "50007": { cat: "FLASH", name: "白黒8Hz", color: "#FFFFFF", ms: 0, strobe: 8 },
+      "50008": { cat: "FLASH", name: "白黒9Hz", color: "#FFFFFF", ms: 0, strobe: 9 },
+      "50009": { cat: "FLASH", name: "白黒10Hz", color: "#FFFFFF", ms: 0, strobe: 10 },
+      "50010": { cat: "FLASH", name: "白黒11Hz", color: "#FFFFFF", ms: 0, strobe: 11 },
+      "50011": { cat: "FLASH", name: "白黒12Hz", color: "#FFFFFF", ms: 0, strobe: 12 },
+      "50012": { cat: "FLASH", name: "白黒13Hz", color: "#FFFFFF", ms: 0, strobe: 13 },
+      "50013": { cat: "FLASH", name: "白黒14Hz", color: "#FFFFFF", ms: 0, strobe: 14 },
+      "50014": { cat: "FLASH", name: "白黒15Hz", color: "#FFFFFF", ms: 0, strobe: 15 },
+      "50015": { cat: "FLASH", name: "白黒16Hz", color: "#FFFFFF", ms: 0, strobe: 16 },
+      "50016": { cat: "FLASH", name: "白黒17Hz", color: "#FFFFFF", ms: 0, strobe: 17 },
+      "50017": { cat: "FLASH", name: "白黒18Hz", color: "#FFFFFF", ms: 0, strobe: 18 },
+      "50018": { cat: "FLASH", name: "白黒19Hz", color: "#FFFFFF", ms: 0, strobe: 19 },
+      "50019": { cat: "FLASH", name: "白黒20Hz", color: "#FFFFFF", ms: 0, strobe: 20 },
+      "50020": { cat: "FLASH", name: "白黒21Hz", color: "#FFFFFF", ms: 0, strobe: 21 },
+      "50021": { cat: "FLASH", name: "白黒22Hz", color: "#FFFFFF", ms: 0, strobe: 22 },
+      "50022": { cat: "FLASH", name: "白黒23Hz", color: "#FFFFFF", ms: 0, strobe: 23 },
+      "50023": { cat: "FLASH", name: "白黒24Hz", color: "#FFFFFF", ms: 0, strobe: 24 },
+      "50024": { cat: "FLASH", name: "白黒25Hz", color: "#FFFFFF", ms: 0, strobe: 25 },
+      "50025": { cat: "FLASH", name: "白黒26Hz", color: "#FFFFFF", ms: 0, strobe: 26 },
+      "50026": { cat: "FLASH", name: "白黒27Hz", color: "#FFFFFF", ms: 0, strobe: 27 },
+      "50027": { cat: "FLASH", name: "白黒28Hz", color: "#FFFFFF", ms: 0, strobe: 28 },
+      "50028": { cat: "FLASH", name: "白黒29Hz", color: "#FFFFFF", ms: 0, strobe: 29 },
+      "50029": { cat: "FLASH", name: "白黒30Hz", color: "#FFFFFF", ms: 0, strobe: 30 },
 
       "50100": { cat: "FLASH", name: "警告フラッシュ (赤)", color: "#FF0000", ms: 0, strobe: 6 },
 
@@ -365,7 +388,7 @@
       "100544578": { cat: "MESSAGE", name: "サプライズ発表", color: "#000", msg: "ゲスト登場！", ms: 400, strobe: 10 },
       "100544579": { cat: "MESSAGE", name: "休憩アナウンス", color: "#000", msg: "15分間の休憩時間です", ms: 0 }
     };
-
+    
     let txCtx = null;
     function initTx() { if (!txCtx) txCtx = new (window.AudioContext || window.webkitAudioContext)(); }
 
