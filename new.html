@@ -3,176 +3,304 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>CUE-Style Base-15 FSK Protocol</title>
+  <title>CUE-X | 100M ID Ultrasonic Protocol</title>
   <style>
-    * { box-sizing: border-box; }
-    body, html { margin: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #121212; color: #e0e0e0; overflow-x: hidden; }
-    .container { display: flex; flex-direction: column; height: 100%; }
+    :root {
+      --bg: #050507;
+      --panel: #121216;
+      --panel-border: #23232b;
+      --accent: #00f0ff;
+      --accent-hover: #33f3ff;
+      --accent-glow: rgba(0, 240, 255, 0.25);
+      --text-main: #f1f5f9;
+      --text-sub: #94a3b8;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body, html { height: 100%; font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text-main); overflow: hidden; }
 
-    /* TX (送信側) UI */
-    .tx-panel { flex: 1; padding: 20px; border-bottom: 2px solid #2c3e50; overflow-y: auto; background: #1a1a24; }
-    h2 { margin: 0 0 5px 0; font-size: 18px; color: #00d2ff; letter-spacing: 1px; }
-    .desc { font-size: 12px; color: #8892b0; margin-bottom: 15px; line-height: 1.4; }
+    .app-container { display: flex; flex-direction: column; height: 100dvh; }
 
-    .category { font-size: 13px; font-weight: bold; color: #3a86ff; margin: 20px 0 10px; border-bottom: 1px solid #2c3e50; padding-bottom: 5px; text-transform: uppercase; }
+    /* Header */
+    header { background: rgba(5, 5, 7, 0.9); backdrop-filter: blur(16px); border-bottom: 1px solid var(--panel-border); padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; z-index: 100; }
+    .brand { font-size: 18px; font-weight: 800; letter-spacing: 2px; display: flex; align-items: center; gap: 8px; }
+    .brand span { color: var(--accent); text-shadow: 0 0 12px var(--accent-glow); }
+    .badge { background: rgba(0, 240, 255, 0.08); color: var(--accent); border: 1px solid rgba(0, 240, 255, 0.3); padding: 5px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+
+    /* Layout */
+    .split-layout { display: flex; flex: 1; flex-direction: column; overflow: hidden; }
+    @media (min-width: 900px) { .split-layout { flex-direction: row; } }
+
+    /* TX Panel (送信機) */
+    .tx-area { flex: 1.3; padding: 20px; overflow-y: auto; border-right: 1px solid var(--panel-border); background: var(--panel); scrollbar-width: thin; scrollbar-color: var(--panel-border) transparent; }
+    .tx-area h2 { font-size: 12px; color: var(--text-sub); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+
+    .preset-group { margin-bottom: 24px; }
+    .preset-group-title { font-size: 11px; color: var(--accent); margin-bottom: 12px; font-weight: 800; letter-spacing: 1.5px; display: flex; align-items: center; gap: 8px; }
+    .preset-group-title::after { content: ""; flex: 1; height: 1px; background: var(--panel-border); }
+
     .btn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
-    button { background: #242933; color: #e0e0e0; border: 1px solid #3a86ff; padding: 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.1s; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-    button:active { background: #00d2ff; color: #000; transform: scale(0.95); }
-    button span.id { font-size: 16px; color: #fff; margin-bottom: 4px; font-family: ui-monospace, monospace; }
 
-    /* RX (受信側) UI */
-    .rx-panel { flex: 1; background: #000; position: relative; transition: background-color 0.1s; display: flex; flex-direction: column; }
-    .status-box { background: rgba(26, 26, 36, 0.9); padding: 15px 20px; border-bottom: 1px solid #2c3e50; z-index: 10; display: flex; justify-content: space-between; align-items: flex-start; backdrop-filter: blur(10px); }
-    .status-left { display: flex; flex-direction: column; gap: 5px; }
-    .status-right { text-align: right; font-size: 11px; color: #8892b0; display: flex; flex-direction: column; gap: 4px; }
-    .val { color: #fff; font-family: ui-monospace, monospace; font-size: 13px; }
+    .tx-btn { background: #1a1a22; border: 1px solid var(--panel-border); color: var(--text-main); padding: 14px 12px; border-radius: var(--radius); cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; align-items: flex-start; text-align: left; position: relative; overflow: hidden; }
+    .tx-btn:hover { border-color: var(--accent); background: #22222f; box-shadow: 0 4px 20px var(--accent-glow); transform: translateY(-2px); }
+    .tx-btn:active { transform: translateY(0); filter: brightness(0.9); }
 
-    #rxStartBtn { background: #00d2ff; color: #000; border: none; padding: 10px 24px; font-size: 14px; font-weight: 900; border-radius: 20px; cursor: pointer; }
-    .bits-display { font-size: 26px; font-weight: 900; letter-spacing: 6px; color: #00d2ff; margin-top: 5px; font-family: ui-monospace, monospace; }
+    .tx-btn .id-label { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 9px; color: var(--text-sub); margin-bottom: 6px; font-weight: 700; z-index: 2; background: rgba(0,0,0,0.4); padding: 2px 6px; border-radius: 4px; }
+    .tx-btn .name-label { font-size: 13px; font-weight: 700; line-height: 1.35; z-index: 2; color: #ffffff; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
 
-    #rxTarget { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; font-size: 36px; font-weight: 900; color: rgba(255,255,255,0.95); text-shadow: 0 4px 20px rgba(0,0,0,0.8); z-index: 1; text-align: center; padding: 20px; }
-    .sub-target { font-size: 16px; color: rgba(255,255,255,0.7); font-weight: normal; margin-top: 10px; text-transform: uppercase; letter-spacing: 2px; }
+    /* RX Panel (受信機) */
+    .rx-area { flex: 1; display: flex; flex-direction: column; background: #000; position: relative; }
+
+    .rx-hud { position: absolute; top: 0; left: 0; right: 0; padding: 16px; z-index: 10; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+    .rx-card { background: rgba(12, 12, 16, 0.88); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 16px; pointer-events: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+
+    .rx-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap; }
+    .btn-group { display: flex; gap: 8px; }
+
+    #rxStartBtn, #rxFullscreenBtn { padding: 10px 18px; border-radius: 24px; font-weight: 800; font-size: 11px; cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px; border: none; }
+    #rxStartBtn { background: var(--accent); color: #000; box-shadow: 0 0 15px var(--accent-glow); }
+    #rxStartBtn:hover { background: var(--accent-hover); box-shadow: 0 0 25px var(--accent-glow); }
+
+    #rxFullscreenBtn { background: #272730; color: #f1f5f9; border: 1px solid rgba(255,255,255,0.1); }
+    #rxFullscreenBtn:hover { background: #353542; color: #fff; border-color: rgba(255,255,255,0.3); }
+
+    .rx-status { font-family: ui-monospace, monospace; font-size: 11px; color: var(--text-sub); display: flex; flex-direction: column; gap: 4px; text-align: right;}
+    .rx-status span { color: #fff; font-weight: bold; }
+
+    .slot-monitor { display: flex; gap: 8px; margin-top: 10px; }
+    .slot { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px 0; text-align: center; font-family: ui-monospace, monospace; font-size: 11px; font-weight: bold; color: var(--text-sub); transition: 0.2s; }
+    .slot.active { background: rgba(0, 240, 255, 0.2); color: #fff; border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+
+    /* 演出ターゲット描画エリア */
+    #rxCanvas { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; transition: background-color 0.15s ease; position: relative; overflow: hidden; z-index: 1; }
+    .target-title { font-size: clamp(28px, 6vw, 48px); font-weight: 900; color: #fff; text-shadow: 0 4px 24px rgba(0,0,0,0.9); z-index: 2; text-align: center; line-height: 1.15; padding: 0 20px; }
+    .target-id { font-family: ui-monospace, monospace; font-size: 14px; color: rgba(255,255,255,0.8); margin-top: 12px; letter-spacing: 2px; z-index: 2; background: rgba(0,0,0,0.5); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.15); }
+
+    /* リアルタイム受信グラフ（17kHz〜20.5kHz専用スペクトラム） */
+    #spectrumCanvas { position: absolute; bottom: 0; left: 0; width: 100%; height: 110px; z-index: 3; pointer-events: none; opacity: 0.85; }
+
+    /* TX送信中のプログレスバー */
+    #txProgress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); width: 0%; z-index: 1000; box-shadow: 0 0 10px var(--accent); transition: width 0.1s linear; }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div id="txProgress"></div>
+  <div class="app-container">
+    <header>
+      <div class="brand">CUE-X <span>PRO</span></div>
+      <div class="badge">MAX ID: 100,544,625</div>
+    </header>
 
-    <!-- 送信側 (TX) -->
-    <div class="tx-panel">
-      <h2>📡 TRANSMITTER (Base-15 FSK)</h2>
-      <div class="desc">
-        周波数帯域: 17.7kHz 〜 19.7kHz (133Hz間隔)<br>
-        15 Data Keys + 1 Triggerで、0〜3374のIDを0.5秒で送信します。
+    <div class="split-layout">
+      <div class="tx-area">
+        <h2><span>Transmitter Console</span><span>UI v2.5</span></h2>
+        <div id="txPresets"></div>
       </div>
-      <div id="txButtonsContainer"></div>
-    </div>
 
-    <!-- 受信側 (RX) -->
-    <div class="rx-panel" id="rxPanel">
-      <div class="status-box">
-        <div class="status-left">
-          <button id="rxStartBtn">🎤 RX START (マイク接続)</button>
-          <div style="font-size: 12px; margin-top: 5px; color:#8892b0;">STATE: <strong id="rxState" style="color:#666;">OFFLINE</strong></div>
-          <div class="bits-display" id="rxBits">---</div>
+      <div class="rx-area" id="rxAreaContainer">
+        <div class="rx-hud">
+          <div class="rx-card">
+            <div class="rx-header">
+              <div class="btn-group">
+                <button id="rxStartBtn">MIC CONNECT</button>
+                <button id="rxFullscreenBtn">FULLSCREEN</button>
+              </div>
+              <div class="rx-status">
+                <div>STATE: <span id="rxState" style="color: var(--text-sub);">OFFLINE</span></div>
+                <div>T-PEAK: <span id="rxPeak">--</span> dB</div>
+              </div>
+            </div>
+            <div style="font-size: 10px; color: var(--text-sub); margin-bottom: 4px; font-weight: 700; letter-spacing: 0.5px;">DECODE MONITOR (465³ PROTOCOL)</div>
+            <div class="slot-monitor">
+              <div class="slot" id="slot1">S1: ---</div>
+              <div class="slot" id="slot2">S2: ---</div>
+              <div class="slot" id="slot3">S3: ---</div>
+            </div>
+          </div>
         </div>
-        <div class="status-right">
-          <div>PEAK: <span class="val" id="rxPeakHz">0</span> Hz</div>
-          <div>LEVEL: <span class="val" id="rxPeakDb">-100</span> dB</div>
-          <div>BASE-15: <span class="val" id="rxRaw">N/A</span></div>
+
+        <div id="rxCanvas">
+          <div class="target-title" id="rxTitle">STANDBY</div>
+          <div class="target-id" id="rxSub">Waiting for signal...</div>
+          <canvas id="spectrumCanvas"></canvas>
         </div>
       </div>
-      <div id="rxTarget">STANDBY</div>
     </div>
-
   </div>
 
   <script>
-    // ==========================================
-    // 1. 演出定義 JSON (CUE_DATA)
-    // 最大3374まで登録可能
-    // ==========================================
+    // =========================================================================
+    // 1. 次世代1億ID プロトコル定義 (31-Freq Dual-Tone x 3 Slots)
+    // =========================================================================
+    const FREQ_TRIGGER = 20500;
+    const FREQ_DATA = [];
+    for(let i = 0; i < 31; i++) {
+      FREQ_DATA.push(17300 + (i * 100));
+    }
+
+    const PAIRS = [];
+    for(let i = 0; i < 31; i++) {
+      for(let j = i + 1; j < 31; j++) {
+        PAIRS.push([i, j]);
+      }
+    }
+
+    const TIME_START = 0.15;
+    const TIME_SLOT  = 0.12;
+    const THRESHOLD  = -90;
+
+    // =========================================================================
+    // 2. 高度な演出プリセット (CUE_DATA)
+    // =========================================================================
     const CUE_DATA = {
-      // 0〜9: ソリッドカラー（フェードなし）
-      "0": { cat: "SOLID", name: "BLACKOUT", color: "#000000", ms: 0 },
-      "1": { cat: "SOLID", name: "PURE RED", color: "#FF0000", ms: 0 },
-      "2": { cat: "SOLID", name: "PURE GREEN", color: "#00FF00", ms: 0 },
-      "3": { cat: "SOLID", name: "PURE BLUE", color: "#0000FF", ms: 0 },
-      "4": { cat: "SOLID", name: "PURE WHITE", color: "#FFFFFF", ms: 0 },
+      "0": { cat: "SOLID", name: "BLACKOUT", color: "#050505", ms: 0 },
+      "1": { cat: "SOLID", name: "MIDNIGHT NAVY", color: "#0B132B", ms: 0 },
+      "2": { cat: "SOLID", name: "DEEP CRIMSON", color: "#780000", ms: 0 },
+      "3": { cat: "SOLID", name: "PURE RED", color: "#FF0033", ms: 0 },
+      "4": { cat: "SOLID", name: "VIVID CORAL", color: "#FF5964", ms: 0 },
+      "5": { cat: "SOLID", name: "BURNT ORANGE", color: "#E05306", ms: 0 },
+      "6": { cat: "SOLID", name: "CYBER ORANGE", color: "#FF6600", ms: 0 },
+      "7": { cat: "SOLID", name: "SUNBURST YELLOW", color: "#FFB703", ms: 0 },
+      "8": { cat: "SOLID", name: "ELECTRIC YELLOW", color: "#CCFF00", ms: 0 },
+      "9": { cat: "SOLID", name: "LIME SPARK", color: "#38B000", ms: 0 },
+      "10": { cat: "SOLID", name: "LASER LIME", color: "#39FF14", ms: 0 },
+      "11": { cat: "SOLID", name: "TOXIC GREEN", color: "#00FF66", ms: 0 },
+      "12": { cat: "SOLID", name: "EMERALD GLOW", color: "#028090", ms: 0 },
+      "13": { cat: "SOLID", name: "MINT BREEZE", color: "#00F5D4", ms: 0 },
+      "14": { cat: "SOLID", name: "ICE BLUE", color: "#A5FFF6", ms: 0 },
+      "15": { cat: "SOLID", name: "NEON CYAN", color: "#00F0FF", ms: 0 },
+      "16": { cat: "SOLID", name: "SKY BLUE", color: "#0077B6", ms: 0 },
+      "17": { cat: "SOLID", name: "ROYAL BLUE", color: "#1D3557", ms: 0 },
+      "18": { cat: "SOLID", name: "ELECTRIC BLUE", color: "#0055FF", ms: 0 },
+      "19": { cat: "SOLID", name: "DEEP INDIGO", color: "#3A0CA3", ms: 0 },
+      "20": { cat: "SOLID", name: "ULTRA VIOLET", color: "#7209B7", ms: 0 },
+      "21": { cat: "SOLID", name: "VIVID PURPLE", color: "#B5179E", ms: 0 },
+      "22": { cat: "SOLID", name: "HOT MAGENTA", color: "#F72585", ms: 0 },
+      "23": { cat: "SOLID", name: "PLASMA PINK", color: "#FF1493", ms: 0 },
+      "24": { cat: "SOLID", name: "ROSE BLUSH", color: "#FF70A6", ms: 0 },
+      "25": { cat: "SOLID", name: "PLATINUM WHITE", color: "#F8FAFC", ms: 0 },
 
-      // 100番台: フェードイン/アウト
-      "100": { cat: "FADE", name: "SLOW RED (3sec)", color: "#FF0000", ms: 3000 },
-      "101": { cat: "FADE", name: "SLOW CYAN (3sec)", color: "#00FFFF", ms: 3000 },
-      "150": { cat: "FADE", name: "SLOW BLACKOUT", color: "#000000", ms: 4000 },
+      "1000": { cat: "FADE", name: "SUNSET (Orange 3s)", color: "#FF5500", ms: 3000 },
+      "1001": { cat: "FADE", name: "DEEP OCEAN (Blue 5s)", color: "#001144", ms: 5000 },
+      "1002": { cat: "FADE", name: "AURORA BOREALIS (Green 4s)", color: "#00FF66", ms: 4000 },
+      "1003": { cat: "FADE", name: "NEON MIDNIGHT (Purple 2s)", color: "#9400D3", ms: 2000 },
+      "1004": { cat: "FADE", name: "SOLAR FLARE (Gold 1.5s)", color: "#FFD700", ms: 1500 },
+      "1005": { cat: "FADE", name: "BLOOD MOON (Crimson 3.5s)", color: "#DC143C", ms: 3500 },
+      "1006": { cat: "FADE", name: "NEON PULSE SWEEP (2s)", color: "#FF00FF", ms: 2000 },
+      "1007": { cat: "FADE", name: "ACID WASH (Green/Cyan 2.5s)", color: "#00FFCC", ms: 2500 },
+      "1008": { cat: "FADE", name: "VELVET DUSK (Violet 4s)", color: "#8A2BE2", ms: 4000 },
+      "1009": { cat: "FADE", name: "FIREWALK (Orange/Red 3s)", color: "#FF4500", ms: 3000 },
 
-      // 500番台: ストロボ（フラッシュ）
-      "500": { cat: "STROBE", name: "WHITE STROBE (15Hz)", color: "#FFFFFF", ms: 0, strobe: true, hz: 15 },
-      "501": { cat: "STROBE", name: "RED POLICE (10Hz)", color: "#FF0000", ms: 0, strobe: true, hz: 10 },
-      "550": { cat: "STROBE", name: "BLUE PULSE (4Hz)", color: "#0088FF", ms: 300, strobe: true, hz: 4 },
+      "50000": { cat: "FLASH", name: "CRAZY STROBE (20Hz)", color: "#FFFFFF", ms: 0, strobe: 20 },
+      "50001": { cat: "FLASH", name: "WARNING (Red/Blk)", color: "#FF0000", ms: 0, strobe: 8 },
+      "50002": { cat: "FLASH", name: "HYPER BLITZ (30Hz)", color: "#E0FFFF", ms: 0, strobe: 30 },
+      "50003": { cat: "FLASH", name: "ACID PULSE (12Hz Green)", color: "#39FF14", ms: 0, strobe: 12 },
+      "50004": { cat: "FLASH", name: "GLITCH STROBE (Random 15Hz)", color: "#FF00FF", ms: 0, strobe: 15 },
+      "50005": { cat: "FLASH", name: "SUB-BASS BLINK (4Hz)", color: "#0055FF", ms: 0, strobe: 4 },
+      "50006": { cat: "FLASH", name: "BLINDING WHITE (50Hz)", color: "#FFFFFF", ms: 0, strobe: 50 },
+      "50007": { cat: "FLASH", name: "CYBER PULSE (10Hz Cyan)", color: "#00FFFF", ms: 0, strobe: 10 },
+      "50008": { cat: "FLASH", name: "HELLFIRE STROBE (18Hz Orange)", color: "#FF4500", ms: 0, strobe: 18 },
+      "50009": { cat: "FLASH", name: "ULTRA HZ RAVE (40Hz)", color: "#FFFFFF", ms: 0, strobe: 40 },
 
-      // 1000番台: ハプティクス（振動）連動・爆発音等
-      "1000": { cat: "HAPTIC", name: "HEAVY KICK", color: "#FF3300", ms: 50, vibrate: [200] },
-      "1001": { cat: "HAPTIC", name: "HEARTBEAT", color: "#8800FF", ms: 300, vibrate: [100, 100, 300, 100] },
+      "70000": { cat: "LASER", name: "CYBER LASER BEAM", color: "#00FFFF", ms: 100, strobe: 10 },
+      "70001": { cat: "LASER", name: "PLASMA CUTTER", color: "#FF0055", ms: 80, strobe: 20 },
+      "70002": { cat: "LASER", name: "QUANTUM GRID", color: "#39FF14", ms: 150 },
+      "70003": { cat: "LASER", name: "SINGULARITY BEAM", color: "#8A2BE2", ms: 200, strobe: 15 },
+      "70004": { cat: "LASER", name: "ION BEAM SWEEP", color: "#00BFFF", ms: 300 },
 
-      // 3000番台: アリーナ/スタンド分割など特殊用途
-      "3374": { cat: "SYSTEM", name: "MAX ID TEST", color: "#FFFFFF", ms: 0 }
+      "1000000": { cat: "HAPTIC", name: "HEAVY DROP (Flash+Vib)", color: "#FFFFFF", ms: 50, vibrate: [300, 100, 300] },
+      "1000001": { cat: "HAPTIC", name: "SUB-BASS RUMBLE", color: "#0055FF", ms: 100, vibrate: [600, 200, 400] },
+      "1000002": { cat: "HAPTIC", name: "MACHINE GUN SHOT", color: "#FF0000", ms: 20, vibrate: [50, 50, 50, 50, 50] },
+      "1000003": { cat: "HAPTIC", name: "ELECTRIC SHOCK", color: "#00FFFF", ms: 80, vibrate: [100, 50, 150, 50, 300] },
+      "1000004": { cat: "HAPTIC", name: "HEARTBEAT DROP", color: "#FF007F", ms: 150, vibrate: [200, 100, 200, 300] },
+
+      "100544624": { cat: "MAXIMUM", name: "ULTIMATE MAX ID", color: "#FF00FF", ms: 200, vibrate: [500] },
+      "100544625": { cat: "MAXIMUM", name: "APOCALYPSE SYNC", color: "#FF4500", ms: 500, strobe: 40, vibrate: [400, 200, 800] },
+      "100544626": { cat: "MAXIMUM", name: "CYBERPUNK OVERDRIVE", color: "#00FFFF", ms: 300, strobe: 25, vibrate: [300, 100, 300, 100, 500] },
+      "100544627": { cat: "MAXIMUM", name: "SUPERNOVA CLIMAX", color: "#FFFFFF", ms: 400, strobe: 50, vibrate: [700, 300, 700] },
+      "100544628": { cat: "MAXIMUM", name: "OMEGA DROP RAVE", color: "#39FF14", ms: 350, strobe: 30, vibrate: [500, 100, 500, 200, 900] }
     };
 
-    // ==========================================
-    // 2. Base-15 + 1 Trigger プロトコル設定
-    // 帯域: 17700Hz 〜 19700Hz (2000Hz幅)
-    // 16分割 = 133.33Hz間隔
-    // ==========================================
-    const FREQ_TRIGGER = 19700;
-
-    // データ用周波数配列 [0〜14] に対応 (15キー)
-    const FREQ_DATA = [];
-    for(let i = 0; i < 15; i++) {
-      // 17700Hzから133.33Hz刻みで配置
-      FREQ_DATA.push(Math.round(17700 + (i * (2000 / 15))));
-    }
-
-    const TIME_START = 0.2; // トリガーの長さ(秒)
-    const TIME_DIGIT = 0.1; // 1桁あたりの長さ(秒)
-    const THRESHOLD = -85;  // 検知閾値(dB)
-
-    // ==========================================
-    // 3. 送信ロジック (TX)
-    // ==========================================
+    // =========================================================================
+    // 3. 送信エンジン (Transmitter)
+    // =========================================================================
     let txCtx = null;
-
-    function initTx() {
-      if (!txCtx) txCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
+    function initTx() { if (!txCtx) txCtx = new (window.AudioContext || window.webkitAudioContext)(); }
 
     function sendTrigger(idStr) {
       initTx();
       const now = txCtx.currentTime;
-      const osc = txCtx.createOscillator();
-      const gain = txCtx.createGain();
+      const id = parseInt(idStr, 10);
 
-      osc.type = 'sine';
-      osc.connect(gain);
-      gain.connect(txCtx.destination);
+      const base1 = 465 * 465;
+      const base2 = 465;
 
-      // ID(10進数)を15進数の文字列に変換 (例: 1000 -> "46a")
-      const base15Str = parseInt(idStr, 10).toString(15);
-      // 必ず3桁(000〜eee)にゼロパディング
-      const paddedStr = base15Str.padStart(3, '0');
-      // 15進数の各文字を数値(0〜14)の配列に変換
-      const digits = paddedStr.split('').map(char => parseInt(char, 15));
+      const val1 = Math.floor(id / base1);
+      const rem1 = id % base1;
+      const val2 = Math.floor(rem1 / base2);
+      const val3 = rem1 % base2;
 
-      // 1. トリガー (プリアンブル)
-      osc.frequency.setValueAtTime(FREQ_TRIGGER, now);
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(0.5, now + 0.02);
+      const p1 = PAIRS[val1];
+      const p2 = PAIRS[val2];
+      const p3 = PAIRS[val3];
 
-      // 2. データ（3桁）送信
-      let timeOffset = TIME_START;
-      for(let i = 0; i < 3; i++) {
-        const freq = FREQ_DATA[digits[i]];
+      const oscA = txCtx.createOscillator();
+      const oscB = txCtx.createOscillator();
+      const gainA = txCtx.createGain();
+      const gainB = txCtx.createGain();
+      oscA.connect(gainA).connect(txCtx.destination);
+      oscB.connect(gainB).connect(txCtx.destination);
 
-        osc.frequency.setValueAtTime(freq, now + timeOffset);
+      const MAX_GAIN = 0.25;
 
-        // Return-to-Zero: 音の区切りをハッキリさせるため一瞬だけゲインを絞る
-        gain.gain.setValueAtTime(0.5, now + timeOffset - 0.01);
-        gain.gain.linearRampToValueAtTime(0.1, now + timeOffset);
-        gain.gain.linearRampToValueAtTime(0.5, now + timeOffset + 0.01);
+      const scheduleSlot = (pair, startTime, duration) => {
+        if(!pair) return;
+        oscA.frequency.setValueAtTime(FREQ_DATA[pair[0]], startTime);
+        oscB.frequency.setValueAtTime(FREQ_DATA[pair[1]], startTime);
+      };
 
-        timeOffset += TIME_DIGIT;
+      const applyEnvelope = (start, duration) => {
+        gainA.gain.setValueAtTime(0, start);
+        gainB.gain.setValueAtTime(0, start);
+        gainA.gain.linearRampToValueAtTime(MAX_GAIN, start + 0.015);
+        gainB.gain.linearRampToValueAtTime(MAX_GAIN, start + 0.015);
+        gainA.gain.setValueAtTime(MAX_GAIN, start + duration - 0.015);
+        gainB.gain.setValueAtTime(MAX_GAIN, start + duration - 0.015);
+        gainA.gain.linearRampToValueAtTime(0, start + duration);
+        gainB.gain.linearRampToValueAtTime(0, start + duration);
+      };
+
+      let t = now;
+      oscA.frequency.setValueAtTime(FREQ_TRIGGER, t);
+      gainA.gain.setValueAtTime(0, t);
+      gainA.gain.linearRampToValueAtTime(MAX_GAIN, t + 0.02);
+      gainA.gain.setValueAtTime(MAX_GAIN, t + TIME_START - 0.02);
+      gainA.gain.linearRampToValueAtTime(0, t + TIME_START);
+      gainB.gain.setValueAtTime(0, t);
+
+      t += TIME_START;
+
+      const slots = [p1, p2, p3];
+      for(let i=0; i<3; i++) {
+        scheduleSlot(slots[i], t, TIME_SLOT);
+        applyEnvelope(t, TIME_SLOT);
+        t += TIME_SLOT;
       }
 
-      // 終了エンベロープ
-      gain.gain.setValueAtTime(0.5, now + timeOffset - 0.02);
-      gain.gain.linearRampToValueAtTime(0, now + timeOffset);
+      oscA.start(now); oscA.stop(t + 0.1);
+      oscB.start(now); oscB.stop(t + 0.1);
 
-      osc.start(now);
-      osc.stop(now + timeOffset + 0.1);
-
-      console.log(`[TX] Sent ID: ${idStr} -> Base15: [${paddedStr}] -> Digits: [${digits}]`);
+      const bar = document.getElementById("txProgress");
+      bar.style.transition = "none"; bar.style.width = "0%";
+      setTimeout(() => {
+        bar.style.transition = `width ${(t - now)}s linear`;
+        bar.style.width = "100%";
+        setTimeout(() => { bar.style.opacity = 0; setTimeout(()=> { bar.style.width = "0%"; bar.style.opacity = 1; }, 200); }, (t-now)*1000);
+      }, 10);
     }
 
-    // UIへボタン生成
-    const txContainer = document.getElementById("txButtonsContainer");
+    // UIボタン生成
+    const txContainer = document.getElementById("txPresets");
     const categories = {};
     Object.keys(CUE_DATA).forEach(id => {
       const cat = CUE_DATA[id].cat;
@@ -181,48 +309,57 @@
     });
 
     for(const cat in categories) {
-      const catTitle = document.createElement('div');
-      catTitle.className = "category";
-      catTitle.innerText = cat;
-      txContainer.appendChild(catTitle);
-
+      const grp = document.createElement('div');
+      grp.className = "preset-group";
+      grp.innerHTML = `<div class="preset-group-title">${cat}</div>`;
       const grid = document.createElement('div');
       grid.className = "btn-grid";
+
       categories[cat].forEach(id => {
+        const cue = CUE_DATA[id];
         const btn = document.createElement("button");
-        btn.innerHTML = `<span class="id">${id}</span>${CUE_DATA[id].name}`;
+        btn.className = "tx-btn";
+
+        if (cat === "SOLID") {
+          btn.style.background = `linear-gradient(135deg, ${cue.color}33 0%, #16161c 70%)`;
+          btn.style.borderLeft = `3px solid ${cue.color}`;
+        }
+
+        btn.innerHTML = `<div class="id-label">ID: ${id.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}</div><div class="name-label">${cue.name}</div>`;
         btn.onclick = () => sendTrigger(id);
         grid.appendChild(btn);
       });
-      txContainer.appendChild(grid);
+      grp.appendChild(grid);
+      txContainer.appendChild(grp);
     }
 
-    // ==========================================
-    // 4. 受信ロジック (RX)
-    // ==========================================
+    // =========================================================================
+    // 4. 受信エンジン (Receiver) & 17kHz-20.5kHz リアルタイムスペクトラムグラフ
+    // =========================================================================
     let rxCtx, analyser, dataArray;
     let rxState = "IDLE";
     let rxStartTime = 0;
-    let decodedChars = [];
+    let decodedValues = [];
     let strobeInterval = null;
 
-    // 指定周波数周辺の最大dBを取得 (FFTのビンズレを吸収)
+    const spectrumCanvas = document.getElementById("spectrumCanvas");
+    const specCtx = spectrumCanvas.getContext("2d");
+
     function getMagnitude(freq, nyquist, bufferLength) {
       const bin = Math.round((freq / nyquist) * bufferLength);
       return Math.max(dataArray[bin-1]||-999, dataArray[bin], dataArray[bin+1]||-999);
     }
 
-    // デバッグ・モニター用ピーク検出
-    function findPeak() {
-      const nyquist = rxCtx.sampleRate / 2;
-      let maxDb = -Infinity;
-      let maxBin = 0;
-      const startBin = Math.floor(17500 / nyquist * dataArray.length);
-      for (let i = startBin; i < dataArray.length; i++) {
-        if (dataArray[i] > maxDb) { maxDb = dataArray[i]; maxBin = i; }
-      }
-      return { hz: maxBin * nyquist / dataArray.length, db: maxDb };
-    }
+    const UI_STATE = (msg, color) => {
+      const el = document.getElementById("rxState");
+      el.innerText = msg; el.style.color = color;
+    };
+
+    const UI_SLOT = (idx, val, active=false) => {
+      const el = document.getElementById(`slot${idx}`);
+      if(val !== null) el.innerText = `S${idx}: ${val.toString().padStart(3,'0')}`;
+      if(active) el.classList.add('active'); else el.classList.remove('active');
+    };
 
     document.getElementById("rxStartBtn").onclick = async () => {
       try {
@@ -232,17 +369,102 @@
         const source = rxCtx.createMediaStreamSource(stream);
         analyser = rxCtx.createAnalyser();
         analyser.fftSize = 4096;
-        analyser.smoothingTimeConstant = 0.0; // 通信の必須要件(平滑化ゼロ)
+        analyser.smoothingTimeConstant = 0.2; // 少し滑らかに
         source.connect(analyser);
         dataArray = new Float32Array(analyser.frequencyBinCount);
 
-        document.getElementById("rxState").innerText = "WAITING SIGNAL...";
-        document.getElementById("rxState").style.color = "#00d2ff";
+        UI_STATE("LISTENING", "var(--accent)");
         document.getElementById("rxStartBtn").style.display = "none";
-
         requestAnimationFrame(rxLoop);
       } catch(e) { alert("マイクへのアクセスが拒否されました。"); }
     };
+
+    document.getElementById("rxFullscreenBtn").onclick = () => {
+      const elem = document.getElementById("rxAreaContainer");
+      if (!document.fullscreenElement) {
+        if (elem.requestFullscreen) elem.requestFullscreen();
+        else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      }
+    };
+
+    function drawSpectrum() {
+      if (!analyser || !rxCtx) return;
+
+      // キャンバスの解像度を画面サイズに合わせる
+      if (spectrumCanvas.width !== spectrumCanvas.clientWidth || spectrumCanvas.height !== spectrumCanvas.clientHeight) {
+        spectrumCanvas.width = spectrumCanvas.clientWidth;
+        spectrumCanvas.height = spectrumCanvas.clientHeight;
+      }
+
+      const width = spectrumCanvas.width;
+      const height = spectrumCanvas.height;
+      specCtx.clearRect(0, 0, width, height);
+
+      const nyquist = rxCtx.sampleRate / 2;
+      const bufferLength = analyser.frequencyBinCount;
+
+      // 描画範囲: 17,000Hz 〜 20,600Hz
+      const minFreq = 17000;
+      const maxFreq = 20600;
+
+      const minBin = Math.floor((minFreq / nyquist) * bufferLength);
+      const maxBin = Math.floor((maxFreq / nyquist) * bufferLength);
+      const totalBins = maxBin - minBin;
+
+      if (totalBins <= 0) return;
+
+      const barWidth = width / totalBins;
+
+      // グリッド線の描画 (背景にうっすらと)
+      specCtx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+      specCtx.lineWidth = 1;
+      [17300, 18300, 19300, 20300, FREQ_TRIGGER].forEach(f => {
+        const x = ((f - minFreq) / (maxFreq - minFreq)) * width;
+        specCtx.beginPath();
+        specCtx.moveTo(x, 0);
+        specCtx.lineTo(x, height);
+        specCtx.stroke();
+      });
+
+      // スペクトラムバーの描画
+      for (let i = 0; i < totalBins; i++) {
+        const binIdx = minBin + i;
+        const db = dataArray[binIdx]; // -dB値 (-100 〜 0 付近)
+
+        // dB値を高さ（0.0 〜 1.0）に変換 (-100dBを底辺、-20dBを天井とする)
+        let normHeight = (db + 100) / 70;
+        normHeight = Math.max(0, Math.min(1, normHeight));
+
+        const barHeight = normHeight * height;
+        const x = i * barWidth;
+        const y = height - barHeight;
+
+        // カラーグラデーション（高音・トリガー付近ほどシアンからマゼンタ/レッドへ変化）
+        const currentFreq = minFreq + (i / totalBins) * (maxFreq - minFreq);
+        let grad = specCtx.createLinearGradient(0, height, 0, 0);
+
+        if (Math.abs(currentFreq - FREQ_TRIGGER) < 100) {
+          grad.addColorStop(0, "rgba(239, 68, 68, 0.2)");
+          grad.addColorStop(1, "rgba(239, 68, 68, 0.9)"); // トリガー周波数は赤色系
+        } else {
+          grad.addColorStop(0, "rgba(0, 240, 255, 0.1)");
+          grad.addColorStop(1, "rgba(0, 240, 255, 0.8)"); // 通常データはシアン系
+        }
+
+        specCtx.fillStyle = grad;
+        specCtx.fillRect(x, y, Math.max(1, barWidth - 0.5), barHeight);
+      }
+
+      // 周波数ラベルの簡易描画
+      specCtx.fillStyle = "rgba(255, 255, 255, 0.4)";
+      specCtx.font = "9px ui-monospace, monospace";
+      specCtx.fillText("17kHz", 4, height - 6);
+      specCtx.fillText("18.5kHz", width * 0.42, height - 6);
+      specCtx.fillText("20.5kHz(Trg)", width - 75, height - 6);
+    }
 
     function rxLoop() {
       analyser.getFloatFrequencyData(dataArray);
@@ -250,111 +472,106 @@
       const bufferLength = analyser.frequencyBinCount;
       const now = performance.now();
 
-      // UIモニター更新
-      const peak = findPeak();
-      if(peak.db > -110) {
-        document.getElementById("rxPeakHz").innerText = peak.hz.toFixed(0);
-        document.getElementById("rxPeakDb").innerText = peak.db.toFixed(1);
-      }
-
       const magTrigger = getMagnitude(FREQ_TRIGGER, nyquist, bufferLength);
+      document.getElementById("rxPeak").innerText = magTrigger > -100 ? magTrigger.toFixed(0) : "--";
 
-      // ステートマシン
+      // リアルタイムスペクトラム描画を実行
+      drawSpectrum();
+
       if (rxState === "IDLE") {
         if (magTrigger > THRESHOLD) {
           rxState = "READING";
           rxStartTime = now;
-          decodedChars = [];
-          document.getElementById("rxState").innerText = "DECODING...";
-          document.getElementById("rxState").style.color = "#ffeb3b";
-          document.getElementById("rxBits").innerText = "___";
-          document.getElementById("rxRaw").innerText = "---";
+          decodedValues = [];
+          UI_STATE("DECODING...", "#ffeb3b");
+          UI_SLOT(1, "---"); UI_SLOT(2, "---"); UI_SLOT(3, "---");
         }
       }
       else if (rxState === "READING") {
         const elapsed = (now - rxStartTime) / 1000;
 
-        if (elapsed > TIME_START && elapsed < TIME_START + (TIME_DIGIT * 3)) {
-          const digitIndex = Math.floor((elapsed - TIME_START) / TIME_DIGIT);
-          const timeOffset = (elapsed - TIME_START) % TIME_DIGIT;
+        if (elapsed > TIME_START && elapsed < TIME_START + (TIME_SLOT * 3)) {
+          const slotIndex = Math.floor((elapsed - TIME_START) / TIME_SLOT);
+          const timeOffset = (elapsed - TIME_START) % TIME_SLOT;
 
-          // 0.1秒の「真ん中付近(40ms〜60ms)」で安定した周波数を1度だけサンプリング
-          if (decodedChars.length === digitIndex && timeOffset > (TIME_DIGIT * 0.4) && timeOffset < (TIME_DIGIT * 0.6)) {
+          [1,2,3].forEach(i => document.getElementById(`slot${i}`).classList.remove('active'));
+          document.getElementById(`slot${slotIndex+1}`).classList.add('active');
 
-            // 0〜14の周波数から最もdBが高いものを探す
-            let bestVal = 0;
-            let bestMag = -Infinity;
-            for(let i=0; i<15; i++) {
-              let mag = getMagnitude(FREQ_DATA[i], nyquist, bufferLength);
-              if(mag > bestMag) { bestMag = mag; bestVal = i; }
+          if (decodedValues.length === slotIndex && timeOffset > (TIME_SLOT * 0.4) && timeOffset < (TIME_SLOT * 0.6)) {
+            let results = [];
+            for(let i=0; i<31; i++) {
+              results.push({ idx: i, mag: getMagnitude(FREQ_DATA[i], nyquist, bufferLength) });
             }
+            results.sort((a, b) => b.mag - a.mag);
 
-            // 0〜14を15進数文字(0-9, a-e)に変換して保存
-            const hexChar = bestVal.toString(15);
-            decodedChars.push(hexChar);
+            const top1 = results[0];
+            const top2 = results[1];
 
-            // UI表示更新
-            let disp = "";
-            for(let i=0; i<3; i++) disp += (decodedChars[i] !== undefined ? decodedChars[i] : "_");
-            document.getElementById("rxBits").innerText = disp;
+            if(top1.mag > THRESHOLD && top2.mag > -95) {
+              const idxA = Math.min(top1.idx, top2.idx);
+              const idxB = Math.max(top1.idx, top2.idx);
+
+              let val = PAIRS.findIndex(p => p[0] === idxA && p[1] === idxB);
+              if(val !== -1) {
+                decodedValues.push(val);
+                UI_SLOT(slotIndex + 1, val);
+              }
+            }
           }
         }
-        else if (elapsed >= TIME_START + (TIME_DIGIT * 3)) {
-          // 3桁読み取り完了
-          if (decodedChars.length === 3) {
-            const base15Str = decodedChars.join('');
-            // 15進数文字列を10進数のIDに戻す
-            const id = parseInt(base15Str, 15).toString(10);
+        else if (elapsed >= TIME_START + (TIME_SLOT * 3)) {
+          [1,2,3].forEach(i => document.getElementById(`slot${i}`).classList.remove('active'));
 
-            document.getElementById("rxRaw").innerText = base15Str;
-            executeCue(id);
+          if (decodedValues.length === 3) {
+            const v1 = decodedValues[0];
+            const v2 = decodedValues[1];
+            const v3 = decodedValues[2];
+            const base1 = 465 * 465;
+            const base2 = 465;
+            const finalId = (v1 * base1) + (v2 * base2) + v3;
+
+            executeCue(finalId.toString());
           }
 
-          // リセット待機
           rxState = "IDLE";
-          document.getElementById("rxState").innerText = "WAITING SIGNAL...";
-          document.getElementById("rxState").style.color = "#00d2ff";
+          UI_STATE("LISTENING", "var(--accent)");
         }
       }
       requestAnimationFrame(rxLoop);
     }
 
-    // ==========================================
-    // 5. 演出実行 (JSON連動)
-    // ==========================================
+    // =========================================================================
+    // 5. ローカルレンダリング (Execution)
+    // =========================================================================
     function executeCue(id) {
-      console.log(`[RX] Cue Triggered: ${id}`);
       const cue = CUE_DATA[id];
-      const panel = document.getElementById("rxPanel");
-      const targetWrap = document.getElementById("rxTarget");
+      const canvas = document.getElementById("rxCanvas");
+      const title = document.getElementById("rxTitle");
+      const sub = document.getElementById("rxSub");
 
       if(strobeInterval) { clearInterval(strobeInterval); strobeInterval = null; }
 
       if (!cue) {
-        targetWrap.innerHTML = `IGNORE ID:<br><span style="color:#ff5555">${id}</span>`;
+        title.innerText = "UNKNOWN";
+        sub.innerText = `ID: ${id}`;
         return;
       }
 
-      targetWrap.innerHTML = `${cue.name}<div class="sub-target">ID: ${id}</div>`;
+      title.innerText = cue.name;
+      sub.innerText = `ID: ${id.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
 
-      // CSSトランジション(フェード時間)の適用
-      panel.style.transition = `background-color ${cue.ms}ms ease`;
-      panel.style.backgroundColor = cue.color;
+      canvas.style.transition = `background-color ${cue.ms}ms ease`;
+      canvas.style.backgroundColor = cue.color;
 
-      // Haptics (バイブレーション)
-      if (cue.vibrate && navigator.vibrate) {
-        navigator.vibrate(cue.vibrate);
-      }
+      if (cue.vibrate && navigator.vibrate) navigator.vibrate(cue.vibrate);
 
-      // ストロボ処理
       if (cue.strobe) {
-        const intervalMs = 1000 / cue.hz;
         let toggle = true;
         strobeInterval = setInterval(() => {
-          panel.style.transition = 'none';
-          panel.style.backgroundColor = toggle ? cue.color : "#000000";
+          canvas.style.transition = 'none';
+          canvas.style.backgroundColor = toggle ? cue.color : "#000000";
           toggle = !toggle;
-        }, intervalMs);
+        }, 1000 / cue.strobe);
       }
     }
   </script>
