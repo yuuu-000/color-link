@@ -117,17 +117,36 @@
       color: #c9d1e0
     }
 
-    .big-peak {
-      font-size: 32px;
-      font-weight: 800;
+    .peaks-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 8px;
+      margin: 10px 0;
+    }
+
+    .peak-card {
+      background: #0d1017;
+      border: 1px solid #252b36;
+      border-radius: 8px;
+      padding: 10px;
       font-family: ui-monospace, monospace;
+    }
+
+    .peak-card-title {
+      font-size: 11px;
+      color: #aeb6c6;
+      margin-bottom: 4px;
+    }
+
+    .peak-card-val {
+      font-size: 18px;
+      font-weight: 700;
       color: #77e3a2;
-      margin: 10px 0
     }
 
     canvas {
       width: 100%;
-      height: 180px;
+      height: 260px;
       background: #090c11;
       border-radius: 10px;
       border: 1px solid #252b36;
@@ -136,8 +155,8 @@
     }
 
     .config-group {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      display: flex;
+      flex-direction: column;
       gap: 12px;
       margin-bottom: 12px
     }
@@ -166,7 +185,7 @@
 <body>
   <div class="wrap">
     <h1>Real-time Frequency Generator & Analyzer</h1>
-    <p class="sub">スライダーによる滑らかなリアルタイム周波数変更と、常時安定動作する全音域スペクトラム・ピークアナライザー。</p>
+    <p class="sub">スライダーによる滑らかなリアルタイム周波数変更と、波形＆全音域スペクトラム・上位3ピークアナライザー。</p>
 
     <div class="mode">
       <button id="txMode" class="active">リアルタイム送信</button>
@@ -186,7 +205,7 @@
         </div>
         <div>
           <label>ゲイン (音量 0.0 - 0.5)</label>
-          <input type="text" id="txGainVal" value="0.05" style="margin-top:28px;">
+          <input type="text" id="txGainVal" value="0.05">
         </div>
       </div>
 
@@ -200,8 +219,21 @@
 
     <!-- RX PANEL -->
     <section id="rxPanel" class="panel" style="display:none">
-      <label>検出された最強ピーク周波数 (Max Peak)</label>
-      <div class="big-peak" id="peakDisplay">---- Hz (---- dB)</div>
+      <label>上位3つの検出ピーク周波数 (Top Peaks)</label>
+      <div class="peaks-container">
+        <div class="peak-card">
+          <div class="peak-card-title">1st Peak (最強)</div>
+          <div class="peak-card-val" id="peak1">---- Hz (---- dB)</div>
+        </div>
+        <div class="peak-card">
+          <div class="peak-card-title">2nd Peak</div>
+          <div class="peak-card-val" id="peak2" style="color:#7fc8ff">---- Hz (---- dB)</div>
+        </div>
+        <div class="peak-card">
+          <div class="peak-card-title">3rd Peak</div>
+          <div class="peak-card-val" id="peak3" style="color:#ffae7f">---- Hz (---- dB)</div>
+        </div>
+      </div>
 
       <div class="row">
         <button id="rxStart">マイク全音域受信開始</button>
@@ -209,7 +241,7 @@
         <span id="rxStatus" class="status">停止中</span>
       </div>
 
-      <canvas id="spectrum" width="1000" height="180"></canvas>
+      <canvas id="spectrum" width="1000" height="260"></canvas>
       <div id="rxLog" class="debug-box">Microphone inactive.</div>
     </section>
   </div>
@@ -221,11 +253,10 @@
       const FFT_SIZE = 4096;
 
       let tx = { ctx: null, osc: null, gain: null, running: false };
-      let rx = { ctx: null, stream: null, source: null, analyser: null, bins: null, raf: null, running: false };
+      let rx = { ctx: null, stream: null, source: null, analyser: null, bins: null, timeBins: null, raf: null, running: false };
 
       const $ = id => document.getElementById(id);
 
-      // Mode switching with canvas resize/refresh fix
       $("txMode").onclick = () => {
         $("txMode").classList.add("active");
         $("rxMode").classList.remove("active");
@@ -238,10 +269,8 @@
         $("txMode").classList.remove("active");
         $("rxPanel").style.display = "";
         $("txPanel").style.display = "none";
-        // 再表示時にcanvasの描画コンテキストがボケる/止まるのを防ぐため強制トリガー
       };
 
-      // --- TX Real-time Controls ---
       const freqRange = $("txFreqRange");
       const freqNum = $("txFreqNum");
       const freqValText = $("freqValText");
@@ -254,7 +283,6 @@
 
         if (tx.running && tx.osc && tx.ctx) {
           if (smooth) {
-            // プチプチ音（クリックノイズ）を防ぐ滑らかな遷移
             tx.osc.frequency.setTargetAtTime(f, tx.ctx.currentTime, 0.02);
           } else {
             tx.osc.frequency.setValueAtTime(f, tx.ctx.currentTime);
@@ -263,7 +291,7 @@
         }
       }
 
-      freqRange.oninput = e => updateFrequency(e.target.value, true); // スライダーはスムーズ変更
+      freqRange.oninput = e => updateFrequency(e.target.value, true);
       freqNum.oninput = e => updateFrequency(e.target.value, false);
 
       $("txStart").onclick = async () => {
@@ -286,7 +314,7 @@
 
           $("txStart").disabled = true;
           $("txStop").disabled = false;
-          $("txStatus").textContent = `送信中: ${freq}Hz (${tx.ctx.sampleRate}Hz)`;
+          $("txStatus").textContent = `送信中: ${freq}Hz`;
           $("txStatus").className = "status good";
           $("txLog").textContent = `[Info] Tone active at ${freq} Hz.`;
         } catch (e) {
@@ -305,7 +333,6 @@
         $("txLog").textContent = "Transmitter stopped.";
       };
 
-      // --- RX ---
       $("rxStart").onclick = async () => {
         if (rx.running) return;
         try {
@@ -321,6 +348,7 @@
           rx.analyser.smoothingTimeConstant = 0.15;
           rx.source.connect(rx.analyser);
           rx.bins = new Float32Array(rx.analyser.frequencyBinCount);
+          rx.timeBins = new Uint8Array(rx.analyser.fftSize);
           rx.running = true;
 
           $("rxStart").disabled = true;
@@ -336,57 +364,77 @@
           const loop = () => {
             if (!rx.running) return;
 
-            // 毎回幅抜けやサイズ不整合を防ぐためcanvasの内部解像度を実サイズに同期
             if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
               canvas.width = canvas.clientWidth;
               canvas.height = canvas.clientHeight;
             }
 
             rx.analyser.getFloatFrequencyData(rx.bins);
+            rx.analyser.getByteTimeDomainData(rx.timeBins);
 
-            let maxDb = -200;
-            let maxBin = 0;
-            for (let i = 0; i < rx.bins.length; i++) {
-              const db = rx.bins[i];
-              if (db > maxDb) { maxDb = db; maxBin = i; }
+            // ピーク抽出（極大値ベースで上位3つを抽出）
+            let peaks = [];
+            for (let i = 1; i < rx.bins.length - 1; i++) {
+              if (rx.bins[i] > rx.bins[i - 1] && rx.bins[i] > rx.bins[i + 1] && rx.bins[i] > -80) {
+                peaks.push({ bin: i, db: rx.bins[i] });
+              }
             }
+            peaks.sort((a, b) => b.db - a.db);
 
-            const peakHz = maxBin * nyquist / rx.bins.length;
-            $("peakDisplay").textContent = `${peakHz.toFixed(1)} Hz  (${maxDb.toFixed(1)} dB)`;
+            const getPeakText = (p) => {
+              if (!p) return "---- Hz (---- dB)";
+              const hz = p.bin * nyquist / rx.bins.length;
+              return `${hz.toFixed(1)} Hz (${p.db.toFixed(1)} dB)`;
+            };
+
+            $("peak1").textContent = getPeakText(peaks[0]);
+            $("peak2").textContent = getPeakText(peaks[1]);
+            $("peak3").textContent = getPeakText(peaks[2]);
 
             const w = canvas.width, h = canvas.height;
             g.clearRect(0, 0, w, h);
             g.fillStyle = "#090c11";
             g.fillRect(0, 0, w, h);
 
-            // スペクトラム波形を描画
+            // 1. 上半分：波形グラフ (Oscilloscope)
+            const halfH = h / 2;
+            g.beginPath();
+            for (let i = 0; i < rx.timeBins.length; i++) {
+              const x = (i / rx.timeBins.length) * w;
+              const v = rx.timeBins[i] / 128.0;
+              const y = (v * halfH) / 2 + halfH / 2;
+              if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+            }
+            g.strokeStyle = "#77e3a2";
+            g.lineWidth = 1.5;
+            g.stroke();
+
+            // 区切り線
+            g.strokeStyle = "#252b36";
+            g.beginPath(); g.moveTo(0, halfH); g.lineTo(w, halfH); g.stroke();
+
+            // 2. 下半分：スペクトラム山形グラフ (Spectrum)
             g.beginPath();
             let started = false;
             for (let i = 0; i < rx.bins.length; i++) {
               const x = (i / rx.bins.length) * w;
               const db = rx.bins[i];
-              const y = h - Math.max(0, Math.min(1, (db + 100) / 80)) * h;
+              const y = h - Math.max(0, Math.min(1, (db + 100) / 80)) * (halfH - 10);
               if (!started) { g.moveTo(x, y); started = true; } else { g.lineTo(x, y); }
             }
             g.strokeStyle = "#7fc8ff";
             g.lineWidth = 1.5;
             g.stroke();
 
-            // 5kHzごとのグリッド線
+            // 5kHzグリッド
             g.fillStyle = "#8b949e";
             g.font = "11px ui-monospace, monospace";
             for (let hz = 5000; hz < nyquist; hz += 5000) {
               const x = (hz / nyquist) * w;
-              g.strokeStyle = "rgba(255,255,255,0.1)";
-              g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
-              g.fillText(`${hz / 1000}kHz`, x + 4, 15);
+              g.strokeStyle = "rgba(255,255,255,0.05)";
+              g.beginPath(); g.moveTo(x, halfH); g.lineTo(x, h); g.stroke();
+              g.fillText(`${hz / 1000}kHz`, x + 4, halfH + 15);
             }
-
-            // ピーク位置の縦線
-            const peakX = (peakHz / nyquist) * w;
-            g.strokeStyle = "#ff7f8f";
-            g.lineWidth = 2;
-            g.beginPath(); g.moveTo(peakX, 0); g.lineTo(peakX, h); g.stroke();
 
             rx.raf = requestAnimationFrame(loop);
           };
@@ -408,7 +456,9 @@
         $("rxStop").disabled = true;
         $("rxStatus").textContent = "停止中";
         $("rxStatus").className = "status";
-        $("peakDisplay").textContent = "---- Hz (---- dB)";
+        $("peak1").textContent = "---- Hz (---- dB)";
+        $("peak2").textContent = "---- Hz (---- dB)";
+        $("peak3").textContent = "---- Hz (---- dB)";
         $("rxLog").textContent = "Receiver stopped.";
       };
 
