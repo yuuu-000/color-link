@@ -593,6 +593,19 @@
       document.querySelectorAll('.tx-area').forEach(el => {
         el.style.display = 'none';
       });
+
+      let wakeLock = null;
+
+      async function requestWakeLock() {
+        try {
+          wakeLock = await navigator.wakeLock.request('screen');
+          console.log('Wake Lock ON');
+        } catch (err) {
+          console.error('Wake Lock失敗:', err);
+        }
+      }
+
+      requestWakeLock();
     }
 
     const FREQ_TRIGGER = 20500;
@@ -1062,7 +1075,7 @@
             // 1位・2位が十分明瞭で、かつ3位候補と明確な差(PAIR_PEAK_MARGIN)がある場合のみ採用。
             // これにより「たまたま2つの周波数が少し盛り上がった」だけのノイズを弾く。
             const isClearPair = top1.mag > THRESHOLD
-              && top2.mag > -95
+              && top2.mag > -110
               && (top1.mag - top3.mag) > PAIR_PEAK_MARGIN;
 
             const slotLabel = slotIndex === 3 ? "CS" : `S${slotIndex + 1}`;
