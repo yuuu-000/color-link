@@ -1,693 +1,852 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
-
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>Color Receiver - クライアント受信用</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>アコースティック・レシーバー</title>
   <style>
+    :root {
+      --bg: #090a0f;
+      --card-bg: #141721;
+      --accent: #00f0ff;
+      --accent-glow: rgba(0, 240, 255, 0.3);
+      --text: #f8fafc;
+      --text-sub: #94a3b8;
+      --danger: #ff3366;
+      --success: #39ff14;
+    }
+
     * {
       box-sizing: border-box;
-    }
-
-    html,
-    body {
       margin: 0;
-      width: 100%;
-      height: 100%;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #121620;
-      color: #fff;
-      overflow: hidden;
-      overscroll-behavior: none;
-      transition: background 0.15s ease;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    .fullscreen-bg {
-      position: fixed;
-      inset: 0;
-      width: 100%;
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      height: 100vh;
       height: 100dvh;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
-      align-items: center;
-      padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
-      z-index: 10;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-      touch-action: manipulation;
+      overflow: hidden;
     }
 
-    .top-bar {
+    /* 受信エリア（フルスクリーン対応コンテナ） */
+    #rxAreaContainer {
+      position: relative;
+      flex: 1;
       width: 100%;
+      background-color: #000000;
       display: flex;
-      justify-content: space-between;
+      flex-direction: column;
+      justify-content: center;
       align-items: center;
+      overflow: hidden;
+    }
+
+    #rxCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #050505;
+      z-index: 1;
+      transition: background-color 0.3s ease;
+    }
+
+    /* 受信時のUIオーバーレイ */
+    .rx-overlay {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      padding: 24px;
+      pointer-events: none;
+      width: 100%;
+      max-width: 600px;
+    }
+
+    #rxTitle {
+      font-size: clamp(1.8rem, 5vw, 3rem);
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+      text-shadow: 0 4px 20px rgba(0,0,0,0.8);
+    }
+
+    #rxSub {
+      font-size: clamp(0.9rem, 2vw, 1.1rem);
+      color: var(--text-sub);
+      font-family: monospace;
+      margin-bottom: 16px;
+    }
+
+    #rxMsg {
+      font-size: clamp(1.2rem, 3.5vw, 2rem);
+      font-weight: 600;
+      line-height: 1.5;
+      word-break: break-all;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+    }
+
+    /* 発火時のモーダルメッセージ演出 */
+    #rxMsg.fired {
+      font-size: clamp(2rem, 7vw, 4.5rem);
+      font-weight: 900;
+      color: #fff;
+      animation: pulse-glow 2s infinite alternate;
+    }
+
+    @keyframes pulse-glow {
+      0% { text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+      100% { text-shadow: 0 0 30px var(--accent), 0 0 60px var(--accent-glow); }
+    }
+
+    /* コントロールパネル（下部ダッシュボード） */
+    .control-panel {
+      background: var(--card-bg);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 16px 20px calc(16px + env(safe-area-inset-bottom)) 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 10;
+      box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+    }
+
+    .panel-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .status-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.85rem;
     }
 
     .status-badge {
-      background: rgba(0, 0, 0, 0.4);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      padding: 8px 16px;
+      padding: 4px 10px;
       border-radius: 20px;
-      font-size: 13px;
-      font-weight: 500;
-      color: rgba(255, 255, 255, 0.9);
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      font-weight: 700;
+      background: rgba(0, 240, 255, 0.1);
+      color: var(--accent);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      letter-spacing: 0.03em;
     }
 
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      background-color: #34d399;
-      border-radius: 50%;
-      box-shadow: 0 0 8px #34d399;
-      animation: pulse-dot 2s infinite;
+    .metrics {
+      font-family: monospace;
+      color: var(--text-sub);
+      font-size: 0.8rem;
     }
 
-    @keyframes pulse-dot {
-      0% { transform: scale(0.95); opacity: 0.8; }
-      50% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 12px #34d399; }
-      100% { transform: scale(0.95); opacity: 0.8; }
+    /* スロットインジケーター */
+    .slots-container {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
     }
 
-    .icon-btn {
-      background: rgba(0, 0, 0, 0.4);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 14px;
-      width: 44px;
-      height: 44px;
+    .slot-box {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      padding: 6px 4px;
+      text-align: center;
+      font-family: monospace;
+      font-size: 0.75rem;
+      color: var(--text-sub);
+      transition: all 0.15s ease;
+    }
+
+    .slot-box.active {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+      color: #fff;
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    /* ボタン・キャンバス類 */
+    .btn-action {
+      background: linear-gradient(135deg, var(--accent) 0%, #0088ff 100%);
+      color: #000;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #fff;
+      gap: 8px;
+      box-shadow: 0 4px 15px var(--accent-glow);
+      transition: transform 0.1s ease, opacity 0.2s;
+      width: 100%;
+    }
+
+    .btn-action:active {
+      transform: scale(0.97);
+    }
+
+    .btn-sub {
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.85rem;
       cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-      touch-action: manipulation;
-      transition: background 0.2s, transform 0.1s;
+      transition: background 0.2s;
     }
 
-    .icon-btn:hover {
-      background: rgba(0, 0, 0, 0.6);
+    .btn-sub:hover {
+      background: rgba(255,255,255,0.15);
     }
 
-    .icon-btn:active {
-      transform: scale(0.95);
+    #spectrumCanvas {
+      width: 100%;
+      height: 35px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 4px;
     }
 
-    .center-display {
-      text-align: center;
-      pointer-events: none;
+    /* 初期スタート画面オーバーレイ */
+    #startOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      z-index: 100;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
-    }
-
-    .center-status {
-      background: rgba(0, 0, 0, 0.45);
-      backdrop-filter: blur(12px);
-      padding: 10px 22px;
-      border-radius: 24px;
-      font: 600 14px ui-monospace, monospace;
-      letter-spacing: 0.08em;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      color: rgba(255, 255, 255, 0.95);
-    }
-
-    .helper-tip {
-      font-size: 12px;
-      color: rgba(255, 255, 255, 0.6);
-      background: rgba(0, 0, 0, 0.25);
-      backdrop-filter: blur(8px);
-      padding: 6px 14px;
-      border-radius: 14px;
-    }
-
-    .setup-screen,
-    .settings-modal,
-    .message-modal {
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100dvh;
-      display: flex;
       justify-content: center;
-      align-items: center;
-      padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
-      background: rgba(10, 13, 20, 0.92);
-      backdrop-filter: blur(20px);
-      z-index: 20;
-      overflow-y: auto;
-      overscroll-behavior: none;
-    }
-
-    .settings-modal,
-    .message-modal {
-      display: none;
-      z-index: 30;
-      cursor: pointer;
-      background: rgba(0, 0, 0, 0.7);
-    }
-
-    .settings-modal.active,
-    .message-modal.active {
-      display: flex;
-    }
-
-    .panel {
-      width: min(400px, 100%);
-      background: #161b26;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 24px;
-      padding: 28px;
-      text-align: left;
-      cursor: default;
-      color: #f3f4f6;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-    }
-
-    h1 {
-      margin: 0 0 8px;
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      color: #fff;
+      padding: 24px;
       text-align: center;
     }
 
-    .subtitle {
-      text-align: center;
-      font-size: 13px;
-      color: #9ca3af;
-      margin-bottom: 24px;
-    }
-
-    .guide-box {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 16px;
-      padding: 16px;
-      margin-bottom: 24px;
-      font-size: 13px;
-      line-height: 1.6;
-      color: #d1d5db;
-    }
-
-    .guide-box ol {
-      margin: 0;
-      padding-left: 20px;
-    }
-
-    .guide-box li {
-      margin-bottom: 6px;
-    }
-
-    .guide-box li:last-child {
-      margin-bottom: 0;
-    }
-
-    .guide-box strong {
+    #startOverlay h1 {
+      font-size: 1.8rem;
+      margin-bottom: 12px;
       color: #fff;
     }
 
-    button.primary-btn {
-      width: 100%;
-      border: none;
-      border-radius: 14px;
-      padding: 16px;
-      background: #3b82f6;
-      color: #fff;
-      cursor: pointer;
-      font-size: 15px;
-      font-weight: 600;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-      touch-action: manipulation;
-      transition: background 0.2s, transform 0.1s;
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-    }
-
-    button.primary-btn:hover {
-      background: #2563eb;
-    }
-
-    button.danger-btn {
-      width: 100%;
-      border: none;
-      border-radius: 14px;
-      padding: 14px;
-      background: rgba(239, 68, 68, 0.15);
-      color: #f87171;
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      cursor: pointer;
-      font-size: 15px;
-      font-weight: 600;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-      touch-action: manipulation;
-      transition: background 0.2s, transform 0.1s;
-      margin-top: 10px;
-    }
-
-    button.danger-btn:hover {
-      background: rgba(239, 68, 68, 0.25);
-    }
-
-    button.secondary-btn {
-      width: 100%;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 14px;
-      padding: 14px;
-      background: transparent;
-      color: #d1d5db;
-      cursor: pointer;
-      font-size: 15px;
-      font-weight: 600;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-      touch-action: manipulation;
-      transition: background 0.2s;
-      margin-top: 10px;
-    }
-
-    button.secondary-btn:hover {
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    button.primary-btn:active,
-    button.danger-btn:active,
-    button.secondary-btn:active {
-      transform: scale(0.98);
-    }
-
-    .modal-text {
-      text-align: center;
-      font-size: 14px;
-      color: #d1d5db;
+    #startOverlay p {
+      color: var(--text-sub);
+      font-size: 0.95rem;
+      max-width: 400px;
       line-height: 1.6;
       margin-bottom: 24px;
     }
   </style>
 </head>
-
 <body>
 
-  <div id="setupScreen" class="setup-screen">
-    <div class="panel">
-      <h1>カラーレシーバー</h1>
-      <div class="subtitle">音声ビジュアル同期システム</div>
-      <div class="guide-box">
-        <ol>
-          <li>下のボタンを押して<strong>マイクへのアクセス</strong>を許可します。</li>
-          <li>自動的にフルスクリーンモードに切り替わります。</li>
-          <li>周囲の音響信号に合わせて画面の色が変化します。</li>
-          <li>画面をタップするといつでも設定メニューを開けます。</li>
-        </ol>
-      </div>
-      <button id="rxStart" class="primary-btn">受信を開始する</button>
+  <div id="startOverlay">
+    <h1>Acoustic Receiver</h1>
+    <p>ライブやイベントの音響同期を受信するため、マイクへのアクセスと画面のフルスクリーン化を許可してください。</p>
+    <button class="btn-action" id="rxStartBtn" style="max-width: 280px;">受信を開始する</button>
+  </div>
+
+  <div id="rxAreaContainer">
+    <div id="rxCanvas"></div>
+    <div class="rx-overlay">
+      <div id="rxTitle">スタンバイ中</div>
+      <div id="rxSub">音響同期を待っています...</div>
+      <div id="rxMsg"></div>
     </div>
   </div>
 
-  <div id="settingsModal" class="settings-modal">
-    <div class="panel" onclick="event.stopPropagation()">
-      <h1>設定メニュー</h1>
-      <div class="subtitle">レシーバーの管理</div>
-      <button id="micStopBtn" class="danger-btn">マイク接続を解除する</button>
-      <button id="closeSettingsBtn" class="secondary-btn">キャンセル</button>
-    </div>
-  </div>
-
-  <div id="messageModal" class="message-modal">
-    <div class="panel" onclick="event.stopPropagation()">
-      <h1 id="modalTitle">通知</h1>
-      <div id="modalText" class="modal-text">-</div>
-      <div id="modalButtons">
-        <button id="closeMsgBtn" class="primary-btn">閉じる</button>
+  <div class="control-panel">
+    <div class="panel-row">
+      <div class="status-group">
+        <div class="status-badge" id="rxState">初期化待ち</div>
+        <div class="metrics">Peak: <span id="rxPeak">--</span>dB / Thresh: <span id="rxThresh">--</span>dB</div>
       </div>
-    </div>
-  </div>
-
-  <div id="fullscreenBg" class="fullscreen-bg">
-    <div class="top-bar">
-      <div class="status-badge">
-        <div class="status-dot"></div>
-        <span id="badgeText">受信中</span>
-      </div>
-      <button id="fullscreenBtn" class="icon-btn" title="フルスクリーン切替">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-      </button>
+      <button class="btn-sub" id="rxFullscreenBtn">⛶ フルスクリーン</button>
     </div>
 
-    <div class="center-display">
-      <div class="center-status" id="centerStatus">待機中...</div>
-      <div class="helper-tip">タップしてメニューを表示</div>
+    <div class="slots-container">
+      <div class="slot-box" id="slot1">S1: ---</div>
+      <div class="slot-box" id="slot2">S2: ---</div>
+      <div class="slot-box" id="slot3">S3: ---</div>
+      <div class="slot-box" id="slot4">CS: ---</div>
     </div>
 
-    <div style="height: 44px;"></div>
+    <canvas id="spectrumCanvas"></canvas>
   </div>
 
   <script>
-    (() => {
-      "use strict";
+    const FREQ_TRIGGER = 20500;
+    const GUARD_FREQ = 19000; // トリガー音の「鋭さ」判定用の参照周波数（広帯域ノイズ検出）
+    const FREQ_DATA = [];
+    for (let i = 0; i < 31; i++) {
+      FREQ_DATA.push(17300 + (i * 100));
+    }
 
-      const MIN_FREQ = 18000;
-      const MAX_FREQ = 21000;
-      const TX_GRAY_END = 18500;
-      const TX_COLOR_START = 18600;
-      const RX_WHITE_BOUNDARY = 18550;
+    const PAIRS = [];
+    for (let i = 0; i < 31; i++) {
+      for (let j = i + 1; j < 31; j++) {
+        PAIRS.push([i, j]);
+      }
+    }
+    const PAIR_COUNT = PAIRS.length; // 465
 
-      const FFT_SIZE = 4096;
-      const RX_THRESHOLD_DB = -110;
+    const TIME_START = 0.15;
+    const TIME_SLOT = 0.12;
+    const SLOT_COUNT = 4; // データ3 + チェックサム1（IDの取りうる数=465^3はそのまま。検証専用の追加トーン）
+    const THRESHOLD = -90;             // スロット内ピア判定の絶対フロア（保険）
+    const PAIR_PEAK_MARGIN = 7;         // 1位候補と3位候補のdB差。小さいと「不確実」として棄却
+    const TRIGGER_MARGIN_DB = 18;        // 適応ノイズフロアからのマージン
+    const TRIGGER_PROMINENCE_DB = 10;    // トリガー周波数とガード周波数のdB差（純音らしさ）
+    const TRIGGER_CONFIRM_FRAMES = 3;    // 連続何フレーム条件を満たしたらトリガー確定とするか
+    const TRIGGER_ABS_FLOOR = -85;       // ノイズフロアが異常に低い場合の絶対下限
 
-      let rx = {
-        ctx: null,
-        stream: null,
-        source: null,
-        analyser: null,
-        bins: null,
-        raf: null,
-        running: false,
-        lastColor: "#121620",
-        lastFrequency: null,
-        wakeLock: null,
-        isStable: false,
-        activeModalType: null
+    // プロトコル定義 (ダイレクトUnicode通信化)
+    const ID_CMD_CACHE_START = 100544501;
+    const ID_CMD_CACHE_END = 100544502;
+    const ID_CMD_FIRE = 100544503;
+    const UNICODE_OFFSET = 1000000; // ID 100万〜をUnicodeに割り当て
+
+    let rxTextCache = "";
+
+    const CUE_DATA = {
+      "0": { cat: "SOLID", name: "ブラックアウト", color: "#050505", ms: 0 },
+      "3": { cat: "SOLID", name: "ピュアレッド", color: "#FF0033", ms: 0 },
+      "5": { cat: "SOLID", name: "サンセットオレンジ", color: "#FF6600", ms: 0 },
+      "7": { cat: "SOLID", name: "サンバースト黄", color: "#FFB703", ms: 0 },
+      "10": { cat: "SOLID", name: "ライムグリーン", color: "#39FF14", ms: 0 },
+      "15": { cat: "SOLID", name: "ネオンシアン", color: "#00f0ff", ms: 0 },
+      "18": { cat: "SOLID", name: "エレクトリック青", color: "#0055FF", ms: 0 },
+      "22": { cat: "SOLID", name: "マゼンタピンク", color: "#FF00FF", ms: 0 },
+      "25": { cat: "SOLID", name: "プラチナホワイト", color: "#F8FAFC", ms: 0 },
+
+      "1000": { cat: "FADE", name: "オレンジフェード (3秒)", color: "#FF5500", ms: 3000 },
+      "1001": { cat: "FADE", name: "ディープオーシャン (5秒)", color: "#001144", ms: 5000 },
+      "1002": { cat: "FADE", name: "オーロラ (4秒)", color: "#00FF66", ms: 4000 },
+      "1006": { cat: "FADE", name: "パルススイープ (2秒)", color: "#FF00FF", ms: 2000 },
+
+      // 自動展開により1Hz〜30Hzを完全に網羅（15Hzも完全対応）
+      ...(() => {
+        const obj = {};
+        for (let i = 0; i < 30; i++) {
+          obj[(50000 + i).toString()] = { cat: "FLASH", name: `白黒${i + 1}Hz`, color: "#FFFFFF", ms: 0, strobe: i + 1 };
+        }
+        return obj;
+      })(),
+
+      "50100": { cat: "FLASH", name: "警告フラッシュ (赤)", color: "#FF0000", ms: 0, strobe: 6 },
+
+      "70000": { cat: "LASER", name: "サイバービーム", color: "#00FFFF", ms: 3000, strobe: 10 },
+
+      // --- 🎉 新規追加：楽しいエフェクト系プリセット ---
+      "80000": { cat: "EFFECT", name: "レインボーサイクル", type: "rainbow", ms: 6000 },
+      "80001": { cat: "EFFECT", name: "パーティーモード", type: "party", ms: 5000 },
+      "80002": { cat: "EFFECT", name: "ハートビート", type: "heartbeat", color: "#FF0033", ms: 4800 },
+      "80003": { cat: "EFFECT", name: "カラーチェイス", type: "sequence", colors: ["#FF0033", "#FFB703", "#39FF14", "#00f0ff", "#FF00FF"], stepMs: 180, ms: 4500 },
+      "80004": { cat: "EFFECT", name: "スパークル", type: "party", colors: ["#FFFFFF", "#F8FAFC", "#00f0ff"], ms: 3000 },
+      "80005": { cat: "EFFECT", name: "カウントダウン導光", type: "sequence", colors: ["#0055FF", "#39FF14", "#FFB703", "#FF0033", "#FFFFFF"], stepMs: 700, ms: 3500 },
+
+      "1000000": { cat: "HAPTIC", name: "ヘビードロップ", color: "#FFFFFF", ms: 50, vibrate: [300, 100, 300] },
+
+      "100544576": { cat: "MESSAGE", name: "ウェルカム通知", color: "#000", msg: "ようこそ、ライブ会場へ！", ms: 300 },
+      "100544577": { cat: "MESSAGE", name: "緊急避難アナウンス", color: "#000", msg: "緊急避難指示：係員の誘導に従ってください", ms: 200, strobe: 15 },
+      "100544578": { cat: "MESSAGE", name: "サプライズ発表", color: "#000", msg: "ゲスト登場！", ms: 400, strobe: 10 },
+      "100544579": { cat: "MESSAGE", name: "休憩アナウンス", color: "#000", msg: "15分間の休憩時間です", ms: 0 }
+    };
+
+    let txCtx = null;
+    function initTx() { if (!txCtx) txCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+
+    // idから3つのペアインデックス(0-464)を導出し、検証用チェックサムペアも計算する
+    function decomposeId(id) {
+      const base1 = PAIR_COUNT * PAIR_COUNT;
+      const base2 = PAIR_COUNT;
+      const val1 = Math.floor(id / base1);
+      const rem1 = id % base1;
+      const val2 = Math.floor(rem1 / base2);
+      const val3 = rem1 % base2;
+      const checksumVal = (val1 + val2 + val3) % PAIR_COUNT;
+      return [val1, val2, val3, checksumVal];
+    }
+
+    function sendTrigger(idStr) {
+      initTx();
+      const now = txCtx.currentTime;
+      const id = parseInt(idStr, 10);
+
+      const [val1, val2, val3, checksumVal] = decomposeId(id);
+      const slots = [PAIRS[val1], PAIRS[val2], PAIRS[val3], PAIRS[checksumVal]];
+
+      const oscA = txCtx.createOscillator();
+      const oscB = txCtx.createOscillator();
+      const gainA = txCtx.createGain();
+      const gainB = txCtx.createGain();
+      oscA.connect(gainA).connect(txCtx.destination);
+      oscB.connect(gainB).connect(txCtx.destination);
+
+      const MAX_GAIN = 0.25;
+
+      const scheduleSlot = (pair, startTime) => {
+        if (!pair) return;
+        oscA.frequency.setValueAtTime(FREQ_DATA[pair[0]], startTime);
+        oscB.frequency.setValueAtTime(FREQ_DATA[pair[1]], startTime);
       };
 
-      const $ = id => document.getElementById(id);
+      const applyEnvelope = (start, duration) => {
+        gainA.gain.setValueAtTime(0, start);
+        gainB.gain.setValueAtTime(0, start);
+        gainA.gain.linearRampToValueAtTime(MAX_GAIN, start + 0.015);
+        gainB.gain.linearRampToValueAtTime(MAX_GAIN, start + 0.015);
+        gainA.gain.setValueAtTime(MAX_GAIN, start + duration - 0.015);
+        gainB.gain.setValueAtTime(MAX_GAIN, start + duration - 0.015);
+        gainA.gain.linearRampToValueAtTime(0, start + duration);
+        gainB.gain.linearRampToValueAtTime(0, start + duration);
+      };
 
-      function rgbToHex(r, g, b) {
-        return "#" + [r, g, b].map(v =>
-          Math.round(Math.max(0, Math.min(255, v)))
-            .toString(16)
-            .padStart(2, "0")
-        ).join("").toUpperCase();
+      let t = now;
+      oscA.frequency.setValueAtTime(FREQ_TRIGGER, t);
+      gainA.gain.setValueAtTime(0, t);
+      gainA.gain.linearRampToValueAtTime(MAX_GAIN, t + 0.02);
+      gainA.gain.setValueAtTime(MAX_GAIN, t + TIME_START - 0.02);
+      gainA.gain.linearRampToValueAtTime(0, t + TIME_START);
+      gainB.gain.setValueAtTime(0, t);
+
+      t += TIME_START;
+      for (let i = 0; i < SLOT_COUNT; i++) {
+        scheduleSlot(slots[i], t);
+        applyEnvelope(t, TIME_SLOT);
+        t += TIME_SLOT;
       }
 
-      function hslToHex(h, s, l) {
-        s /= 100; l /= 100;
-        const c = (1 - Math.abs(2 * l - 1)) * s;
-        const x = c * (1 - Math.abs((h / 60) % 2 - 1));
-        const m = l - c / 2;
-        let r = 0, g = 0, b = 0;
-        if (h < 60) { r = c; g = x; }
-        else if (h < 120) { r = x; g = c; }
-        else if (h < 180) { g = c; b = x; }
-        else if (h < 240) { g = x; b = c; }
-        else if (h < 300) { r = x; b = c; }
-        else { r = c; b = x; }
-        return rgbToHex((r + m) * 255, (g + m) * 255, (b + m) * 255);
-      }
+      oscA.start(now); oscA.stop(t + 0.1);
+      oscB.start(now); oscB.stop(t + 0.1);
 
-      function frequencyToColor(freq) {
-        const f = Math.max(MIN_FREQ, Math.min(MAX_FREQ, freq));
-        if (f <= RX_WHITE_BOUNDARY) {
-          if (f <= TX_GRAY_END) {
-            const t = (f - MIN_FREQ) / (TX_GRAY_END - MIN_FREQ);
-            const v = Math.round(t * 255);
-            return rgbToHex(v, v, v);
-          }
-          return "#FFFFFF";
-        }
-        const t = (f - TX_COLOR_START) / (MAX_FREQ - TX_COLOR_START);
-        const clampedT = Math.max(0, Math.min(1, t));
-        return hslToHex(clampedT * 360, 100, 50);
-      }
+      return (t - now) * 1000 + 30; // 実行時間 + 安全マージン
+    }
 
-      function findUltrasonicPeak() {
-        const sr = rx.ctx.sampleRate;
-        const nyquist = sr / 2;
-        const minBin = Math.max(0, Math.floor(MIN_FREQ / nyquist * rx.bins.length));
-        const maxBin = Math.min(rx.bins.length - 1, Math.ceil(MAX_FREQ / nyquist * rx.bins.length));
+    // 受信機ロジック
+    let rxCtx, analyser, dataArray;
+    let rxState = "IDLE";
+    let rxStartTime = 0;
+    let decodedValues = [];
 
-        let maxDb = -Infinity;
-        let maxBinIndex = minBin;
+    // --- ノイズ耐性用の状態 ---
+    let triggerNoiseFloor = null;    // 適応型ノイズフロア（EMA）
+    let triggerConfirmCount = 0;     // 連続フレームでの確認カウンタ
 
-        for (let i = minBin; i <= maxBin; i++) {
-          const db = rx.bins[i];
-          if (db > maxDb) {
-            maxDb = db;
-            maxBinIndex = i;
-          }
-        }
-        const peakHz = maxBinIndex * nyquist / rx.bins.length;
-        return { peakHz, maxDb };
-      }
+    // --- 表示エフェクト管理 ---
+    let effectInterval = null;
+    let effectTimeout = null;
 
-      async function requestWakeLock() {
-        if ('wakeLock' in navigator) {
-          try {
-            rx.wakeLock = await navigator.wakeLock.request('screen');
-          } catch (err) {}
-        }
-      }
+    const spectrumCanvas = document.getElementById("spectrumCanvas");
+    const specCtx = spectrumCanvas.getContext("2d");
 
-      async function releaseWakeLock() {
-        if (rx.wakeLock) {
-          try {
-            await rx.wakeLock.release();
-          } catch (err) {}
-          rx.wakeLock = null;
-        }
-      }
+    function getMagnitude(freq, nyquist, bufferLength) {
+      const bin = Math.round((freq / nyquist) * bufferLength);
+      return Math.max(dataArray[bin - 1] || -999, dataArray[bin], dataArray[bin + 1] || -999);
+    }
 
-      function getFullscreenElement() {
-        return document.fullscreenElement ?? document.webkitFullscreenElement ?? null;
-      }
+    const UI_STATE = (msg, color) => {
+      const el = document.getElementById("rxState");
+      el.innerText = msg; el.style.color = color;
+    };
 
-      async function enterFullscreen() {
+    const UI_SLOT = (idx, val, active = false) => {
+      const el = document.getElementById(`slot${idx}`);
+      const prefix = idx === 4 ? "CS" : `S${idx}`;
+      if (val !== null) el.innerText = `${prefix}: ${typeof val === 'number' ? val.toString().padStart(3, '0') : val}`;
+      if (active) el.classList.add('active'); else el.classList.remove('active');
+    };
+
+    function resetSlotUI() {
+      UI_SLOT(1, "---"); UI_SLOT(2, "---"); UI_SLOT(3, "---"); UI_SLOT(4, "---");
+    }
+
+    // --- Screen Wake Lock API (画面消灯防止) ---
+    let wakeLock = null;
+    async function requestWakeLock() {
+      if ('wakeLock' in navigator) {
         try {
-          if (document.documentElement.requestFullscreen) {
-            await document.documentElement.requestFullscreen();
-            return true;
-          }
-          if (document.documentElement.webkitRequestFullscreen) {
-            document.documentElement.webkitRequestFullscreen();
-            return true;
-          }
-        } catch (error) {}
-        return false;
+          wakeLock = await navigator.wakeLock.request('screen');
+          wakeLock.addEventListener('release', () => { wakeLock = null; });
+        } catch (err) { console.error(err); }
       }
-
-      async function exitFullscreen() {
-        try {
-          if (document.exitFullscreen) {
-            await document.exitFullscreen();
-            return true;
-          }
-          if (document.webkitExitFullscreen) {
-            document.webkitExitFullscreen();
-            return true;
-          }
-        } catch (error) {}
-        return false;
+    }
+    document.addEventListener('visibilitychange', async () => {
+      if (wakeLock !== null && document.visibilityState === 'visible') {
+        await requestWakeLock();
       }
+    });
 
-      async function toggleFullscreen() {
-        if (getFullscreenElement()) {
-          await exitFullscreen();
+    document.getElementById("rxStartBtn").onclick = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+        rxCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (rxCtx.state === "suspended") await rxCtx.resume();
+        const source = rxCtx.createMediaStreamSource(stream);
+        analyser = rxCtx.createAnalyser();
+
+        // FFTサイズを縮小し、スムージングを無効化 (残響混入バグの撃退)
+        analyser.fftSize = 2048;
+        analyser.smoothingTimeConstant = 0.0;
+
+        source.connect(analyser);
+        dataArray = new Float32Array(analyser.frequencyBinCount);
+
+        triggerNoiseFloor = null;
+        triggerConfirmCount = 0;
+
+        document.getElementById("startOverlay").style.display = "none";
+        const elem = document.getElementById("rxAreaContainer");
+        if (elem.requestFullscreen) elem.requestFullscreen().catch(() => {});
+
+        await requestWakeLock();
+
+        UI_STATE("キャリブレーション中...", "#ffb703");
+        requestAnimationFrame(rxLoop);
+      } catch (e) { alert("マイクアクセスが拒否されました。"); }
+    };
+
+    document.getElementById("rxFullscreenBtn").onclick = () => {
+      const elem = document.getElementById("rxAreaContainer");
+      if (!document.fullscreenElement) {
+        if (elem.requestFullscreen) elem.requestFullscreen();
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+      }
+    };
+
+    function drawSpectrum() {
+      if (!analyser || !rxCtx) return;
+      if (spectrumCanvas.width !== spectrumCanvas.clientWidth || spectrumCanvas.height !== spectrumCanvas.clientHeight) {
+        spectrumCanvas.width = spectrumCanvas.clientWidth;
+        spectrumCanvas.height = spectrumCanvas.clientHeight;
+      }
+      const width = spectrumCanvas.width;
+      const height = spectrumCanvas.height;
+      specCtx.clearRect(0, 0, width, height);
+
+      const nyquist = rxCtx.sampleRate / 2;
+      const bufferLength = analyser.frequencyBinCount;
+      const minBin = Math.floor((17000 / nyquist) * bufferLength);
+      const maxBin = Math.floor((20600 / nyquist) * bufferLength);
+      const totalBins = maxBin - minBin;
+
+      if (totalBins <= 0) return;
+      const barWidth = width / totalBins;
+
+      for (let i = 0; i < totalBins; i++) {
+        const binIdx = minBin + i;
+        const db = dataArray[binIdx];
+        let normHeight = Math.max(0, Math.min(1, (db + 100) / 70));
+        let barHeight = normHeight * height;
+        let grad = specCtx.createLinearGradient(0, height, 0, 0);
+        grad.addColorStop(0, "rgba(0, 240, 255, 0.1)");
+        grad.addColorStop(1, "rgba(0, 240, 255, 0.8)");
+        specCtx.fillStyle = grad;
+        specCtx.fillRect(i * barWidth, height - barHeight, Math.max(1, barWidth - 0.5), barHeight);
+      }
+    }
+
+    function rxLoop() {
+      analyser.getFloatFrequencyData(dataArray);
+      const nyquist = rxCtx.sampleRate / 2;
+      const bufferLength = analyser.frequencyBinCount;
+      const now = performance.now();
+
+      const magTrigger = getMagnitude(FREQ_TRIGGER, nyquist, bufferLength);
+      const guardMag = getMagnitude(GUARD_FREQ, nyquist, bufferLength);
+      document.getElementById("rxPeak").innerText = magTrigger > -100 ? magTrigger.toFixed(0) : "--";
+      drawSpectrum();
+
+      if (rxState === "IDLE") {
+        // --- 適応型ノイズフロア（待機中のみ、ゆっくり環境音レベルに追従） ---
+        if (triggerNoiseFloor === null) {
+          triggerNoiseFloor = magTrigger;
         } else {
-          await enterFullscreen();
+          triggerNoiseFloor = triggerNoiseFloor * 0.985 + magTrigger * 0.015;
         }
-      }
+        const dynThreshold = Math.max(TRIGGER_ABS_FLOOR, triggerNoiseFloor + TRIGGER_MARGIN_DB);
+        document.getElementById("rxThresh").innerText = dynThreshold.toFixed(0);
 
-      function applyBackgroundColor(color) {
-        document.documentElement.style.background = color;
-        document.body.style.background = color;
-        $("fullscreenBg").style.background = color;
-      }
+        // --- ピークの鋭さ判定（純音か、広帯域の生活音かを判別） ---
+        const isPeakSharp = (magTrigger - guardMag) > TRIGGER_PROMINENCE_DB;
 
-      $("fullscreenBtn").addEventListener("pointerup", (e) => {
-        e.stopPropagation();
-        toggleFullscreen();
-      });
-
-      $("fullscreenBg").addEventListener("pointerup", (e) => {
-        if (e.target.closest("#fullscreenBtn")) return;
-        if ($("messageModal").classList.contains("active")) return;
-        $("settingsModal").classList.add("active");
-      });
-
-      $("settingsModal").addEventListener("pointerup", (e) => {
-        if (e.target === $("settingsModal")) {
-          $("settingsModal").classList.remove("active");
-        }
-      });
-
-      $("closeSettingsBtn").addEventListener("pointerup", () => {
-        $("settingsModal").classList.remove("active");
-      });
-
-      function closeModal() {
-        $("messageModal").classList.remove("active");
-        rx.activeModalType = null;
-      }
-
-      $("closeMsgBtn")?.addEventListener("pointerup", closeModal);
-      $("messageModal").addEventListener("pointerup", (e) => {
-        if (e.target === $("messageModal")) {
-          closeModal();
-        }
-      });
-
-      async function stopMic() {
-        rx.running = false;
-        if (rx.raf) cancelAnimationFrame(rx.raf);
-
-        if (rx.stream) {
-          rx.stream.getTracks().forEach(track => track.stop());
-          rx.stream = null;
+        if (magTrigger > dynThreshold && isPeakSharp) {
+          triggerConfirmCount++;
+        } else {
+          triggerConfirmCount = 0;
         }
 
-        if (rx.ctx && rx.ctx.state !== "closed") {
-          await rx.ctx.close();
-          rx.ctx = null;
+        // --- 連続フレームで確認できて初めてトリガー確定（単発ノイズスパイクを無視） ---
+        if (triggerConfirmCount >= TRIGGER_CONFIRM_FRAMES) {
+          triggerConfirmCount = 0;
+          rxState = "READING";
+          rxStartTime = now;
+          decodedValues = [];
+          UI_STATE("デコード中...", "#ffeb3b");
+          resetSlotUI();
+        } else if (UI_STATE) {
+          // キャリブレーション完了後の通常表示
+          const stateEl = document.getElementById("rxState");
+          if (stateEl.innerText !== "リスニング中" && stateEl.innerText !== "デコード中...") {
+            UI_STATE("リスニング中", "var(--accent)");
+          }
         }
+      } else if (rxState === "READING") {
+        const elapsed = (now - rxStartTime) / 1000;
+        const windowEnd = TIME_START + (TIME_SLOT * SLOT_COUNT);
 
-        await releaseWakeLock();
+        if (elapsed > TIME_START && elapsed < windowEnd) {
+          const slotIndex = Math.floor((elapsed - TIME_START) / TIME_SLOT);
+          const timeOffset = (elapsed - TIME_START) % TIME_SLOT;
 
-        if (getFullscreenElement()) {
-          await exitFullscreen();
-        }
+          for (let i = 1; i <= SLOT_COUNT; i++) document.getElementById(`slot${i}`).classList.remove('active');
+          document.getElementById(`slot${slotIndex + 1}`).classList.add('active');
 
-        $("settingsModal").classList.remove("active");
-        closeModal();
-        $("setupScreen").style.display = "flex";
-        $("centerStatus").textContent = "待機中...";
-        rx.lastColor = "#121620";
-        rx.lastFrequency = null;
-        rx.isStable = false;
-        applyBackgroundColor(rx.lastColor);
-      }
-
-      $("micStopBtn").addEventListener("pointerup", stopMic);
-
-      $("rxStart").addEventListener("pointerup", async () => {
-        if (rx.running) return;
-        try {
-          rx.stream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
-            video: false
-          });
-          rx.ctx = new (window.AudioContext || window.webkitAudioContext)();
-          if (rx.ctx.state === "suspended") await rx.ctx.resume();
-
-          rx.source = rx.ctx.createMediaStreamSource(rx.stream);
-          rx.analyser = rx.ctx.createAnalyser();
-          rx.analyser.fftSize = FFT_SIZE;
-          rx.analyser.smoothingTimeConstant = 0.03;
-          rx.source.connect(rx.analyser);
-          rx.bins = new Float32Array(rx.analyser.frequencyBinCount);
-          rx.running = true;
-          rx.isStable = false;
-          rx.activeModalType = null;
-
-          await requestWakeLock();
-          await enterFullscreen();
-
-          $("setupScreen").style.display = "none";
-
-          setTimeout(() => {
-            if (rx.running) {
-              rx.isStable = true;
+          // 安定期判定をスロット後半（50%〜80%）にずらし、残響混入を防止
+          if (decodedValues[slotIndex] === undefined && timeOffset > (TIME_SLOT * 0.5) && timeOffset < (TIME_SLOT * 0.8)) {
+            let results = [];
+            for (let i = 0; i < 31; i++) {
+              results.push({ idx: i, mag: getMagnitude(FREQ_DATA[i], nyquist, bufferLength) });
             }
-          }, 1000);
+            results.sort((a, b) => b.mag - a.mag);
 
-          const loop = () => {
-            if (!rx.running) return;
+            const top1 = results[0];
+            const top2 = results[1];
+            const top3 = results[2];
 
-            rx.analyser.getFloatFrequencyData(rx.bins);
-            const d = findUltrasonicPeak();
-            const confirmed = d.maxDb >= RX_THRESHOLD_DB;
+            // 1位・2位が十分明瞭で、かつ3位候補と明確な差(PAIR_PEAK_MARGIN)がある場合のみ採用。
+            const isClearPair = top1.mag > THRESHOLD
+              && top2.mag > -95
+              && (top1.mag - top3.mag) > PAIR_PEAK_MARGIN;
 
-            if (!rx.isStable) {
-              applyBackgroundColor("#121620");
-              $("centerStatus").textContent = "準備中...";
-              rx.raf = requestAnimationFrame(loop);
-              return;
+            if (isClearPair) {
+              const idxA = Math.min(top1.idx, top2.idx);
+              const idxB = Math.max(top1.idx, top2.idx);
+              let val = PAIRS.findIndex(p => p[0] === idxA && p[1] === idxB);
+              if (val !== -1) {
+                decodedValues[slotIndex] = val;
+                UI_SLOT(slotIndex + 1, val, true);
+              }
             }
+          }
+        } else if (elapsed >= windowEnd) {
+          for (let i = 1; i <= SLOT_COUNT; i++) document.getElementById(`slot${i}`).classList.remove('active');
 
-            if (confirmed) {
-              let targetModalType = null;
-              if (d.peakHz >= 20966) {
-                targetModalType = 3;
-              } else if (d.peakHz >= 20933) {
-                targetModalType = 2;
-              } else if (d.peakHz >= 20900) {
-                targetModalType = 1;
-              }
+          const allDecoded = decodedValues.length === SLOT_COUNT && decodedValues.every(v => v !== undefined);
 
-              if (targetModalType === null) {
-                if (rx.activeModalType !== null) {
-                  closeModal();
-                }
-              } else {
-                if (rx.activeModalType !== targetModalType) {
-                  $("settingsModal").classList.remove("active");
-                  rx.activeModalType = targetModalType;
+          if (allDecoded) {
+            const [v0, v1, v2, v3] = decodedValues;
+            const expectedChecksum = (v0 + v1 + v2) % PAIR_COUNT;
 
-                  const modalEl = $("messageModal");
-                  const titleEl = $("modalTitle");
-                  const textEl = $("modalText");
-                  const buttonsEl = $("modalButtons");
-
-                  modalEl.classList.add("active");
-
-                  if (targetModalType === 1) {
-                    titleEl.textContent = "通知";
-                    textEl.innerHTML = "受信専用レシーバーが同期信号を受信しました。<br><strong>専用メッセージを表示中</strong>";
-                    buttonsEl.innerHTML = `
-                      <button id="closeMsgBtn" class="primary-btn">閉じる</button>
-                      <button id="modalMicStop" class="danger-btn">マイクをオフにする</button>
-                    `;
-                    $("closeMsgBtn").addEventListener("pointerup", closeModal);
-                    $("modalMicStop").addEventListener("pointerup", stopMic);
-                  } else if (targetModalType === 2) {
-                    titleEl.textContent = "情報 B";
-                    textEl.innerHTML = "指定帯域 2 (20933Hz〜)";
-                    buttonsEl.innerHTML = `<button id="closeMsgBtn" class="primary-btn">閉じる</button>`;
-                    $("closeMsgBtn").addEventListener("pointerup", closeModal);
-                  } else if (targetModalType === 3) {
-                    titleEl.textContent = "情報 C";
-                    textEl.innerHTML = "指定帯域 3 (20966Hz〜)";
-                    buttonsEl.innerHTML = `<button id="closeMsgBtn" class="primary-btn">閉じる</button>`;
-                    $("closeMsgBtn").addEventListener("pointerup", closeModal);
-                  }
-                }
-              }
-
-              const color = frequencyToColor(d.peakHz);
-              rx.lastColor = color;
-              rx.lastFrequency = d.peakHz;
-
-              applyBackgroundColor(color);
-              $("centerStatus").textContent = color;
-              $("badgeText").textContent = "受信中";
+            if (v3 === expectedChecksum) {
+              // ✅ チェックサム一致。信頼できるパケットとして実行。
+              const finalId = (v0 * PAIR_COUNT * PAIR_COUNT) + (v1 * PAIR_COUNT) + v2;
+              executeCue(finalId.toString());
+              rxState = "IDLE";
+              UI_STATE("リスニング中", "var(--accent)");
             } else {
-              if (rx.activeModalType !== null) {
-                closeModal();
-              }
-              applyBackgroundColor(rx.lastColor);
-              $("centerStatus").textContent = rx.lastFrequency !== null ? rx.lastColor : "信号待機中...";
-              $("badgeText").textContent = rx.lastFrequency !== null ? "保持中" : "待機中";
+              rejectPacket("チェックサム不一致(破棄)");
             }
-
-            rx.raf = requestAnimationFrame(loop);
-          };
-          rx.raf = requestAnimationFrame(loop);
-        } catch (e) {
-          alert("マイクの利用許可が必要です。ブラウザの設定をご確認ください。");
+          } else {
+            rejectPacket("デコード不完全(破棄)");
+          }
         }
-      });
-    })();
+      }
+      requestAnimationFrame(rxLoop);
+    }
+
+    function rejectPacket(reason) {
+      rxState = "IDLE";
+      UI_STATE(reason, "var(--danger)");
+      setTimeout(() => {
+        if (rxState === "IDLE") UI_STATE("リスニング中", "var(--accent)");
+      }, 900);
+    }
+
+    let isCaching = false;
+
+    // --- 表示エフェクトの統一ハンドラ ---
+    function clearEffects() {
+      if (effectInterval) { clearInterval(effectInterval); effectInterval = null; }
+      if (effectTimeout) { clearTimeout(effectTimeout); effectTimeout = null; }
+    }
+
+    function runEffect(cue, canvas) {
+      clearEffects();
+      const duration = cue.ms || 0;
+
+      if (cue.type === "rainbow") {
+        let hue = 0;
+        canvas.style.transition = "none";
+        effectInterval = setInterval(() => {
+          hue = (hue + 8) % 360;
+          canvas.style.backgroundColor = `hsl(${hue},100%,50%)`;
+        }, 40);
+      } else if (cue.type === "party") {
+        const colors = cue.colors || ["#FF0033", "#00F0FF", "#FFB703", "#39FF14", "#FF00FF", "#0055FF"];
+        canvas.style.transition = "none";
+        effectInterval = setInterval(() => {
+          canvas.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        }, 90);
+      } else if (cue.type === "heartbeat") {
+        let beat = 0;
+        canvas.style.transition = "background-color 90ms ease";
+        effectInterval = setInterval(() => {
+          const phase = beat % 4;
+          canvas.style.backgroundColor = (phase === 0 || phase === 1) ? cue.color : "#050505";
+          beat++;
+        }, 160);
+      } else if (cue.type === "sequence") {
+        const seq = cue.colors || [cue.color];
+        let i = 0;
+        canvas.style.transition = "background-color 120ms linear";
+        effectInterval = setInterval(() => {
+          canvas.style.backgroundColor = seq[i % seq.length];
+          i++;
+        }, cue.stepMs || 200);
+      } else if (cue.strobe) {
+        let on = false;
+        const hz = cue.strobe;
+        canvas.style.transition = "none";
+        effectInterval = setInterval(() => {
+          on = !on;
+          canvas.style.backgroundColor = on ? cue.color : "#000";
+        }, 1000 / (hz * 2));
+      } else {
+        // 通常のソリッド/フェード
+        canvas.style.transition = `background-color ${duration || 300}ms ease`;
+        canvas.style.backgroundColor = cue.color;
+      }
+
+      if (duration > 0) {
+        effectTimeout = setTimeout(() => {
+          clearEffects();
+          canvas.style.transition = "background-color 400ms ease";
+          canvas.style.backgroundColor = "#050505";
+        }, duration);
+      }
+    }
+
+    function executeCue(idStr) {
+      const idNum = parseInt(idStr, 10);
+      const canvas = document.getElementById("rxCanvas");
+      const title = document.getElementById("rxTitle");
+      const sub = document.getElementById("rxSub");
+      const msgEl = document.getElementById("rxMsg");
+
+      // --- キャッシュ関連 ---
+      if (idNum === ID_CMD_CACHE_START) {
+        clearEffects();
+        isCaching = true;
+        rxTextCache = "";
+        title.style.display = "block"; sub.style.display = "block"; msgEl.classList.remove("fired");
+        title.innerText = "データ受信中...";
+        sub.innerText = `ID: ${idNum} (キャッシュ開始)`;
+        msgEl.innerText = "";
+        return;
+      }
+
+      if (idNum === ID_CMD_CACHE_END) {
+        isCaching = false;
+        clearEffects();
+        title.style.display = "block"; sub.style.display = "block"; msgEl.classList.remove("fired");
+        title.innerText = "キャッシュ完了";
+        sub.innerText = `ID: ${idNum} (待機状態)`;
+        msgEl.innerText = `[準備OK] ${rxTextCache}`;
+        msgEl.style.color = "#ddd";
+        canvas.style.transition = "background-color 300ms ease";
+        canvas.style.backgroundColor = "#000000";
+        return;
+      }
+
+      // --- 💥 FIRE (発火) ---
+      if (idNum === ID_CMD_FIRE) {
+        clearEffects();
+        title.style.display = "none";
+        sub.style.display = "none";
+        msgEl.innerText = rxTextCache;
+        msgEl.style.color = "#ddd";
+        msgEl.classList.add("fired");
+        canvas.style.transition = `background-color 200ms ease-out`;
+        canvas.style.backgroundColor = "#000000";
+        return;
+      }
+
+      // --- Unicode文字のダイレクト受信 (絵文字・漢字対応) ---
+      if (idNum >= UNICODE_OFFSET && idNum < UNICODE_OFFSET + 2000000) {
+        clearEffects();
+        let codePoint = idNum - UNICODE_OFFSET;
+        let char = String.fromCodePoint(codePoint);
+
+        if (isCaching) {
+          rxTextCache += char;
+          msgEl.innerText = rxTextCache;
+          msgEl.style.color = "#ddd";
+        }
+        title.style.display = "block"; sub.style.display = "block"; msgEl.classList.remove("fired");
+        title.innerText = "文字受信";
+        sub.innerText = `ID: ${idNum} (${char})`;
+        return;
+      }
+
+      // 毎回UIリセット
+      title.style.display = "block";
+      sub.style.display = "block";
+      msgEl.classList.remove("fired");
+
+      // --- プリセット処理（ソリッド/フェード/ストロボ/レインボー等すべて runEffect に集約） ---
+      if (CUE_DATA[idStr]) {
+        const cue = CUE_DATA[idStr];
+        title.innerText = cue.name;
+        sub.innerText = `ID: ${idNum.toLocaleString()}`;
+
+        if (cue.msg) {
+          msgEl.innerText = cue.msg;
+          msgEl.style.color = "#ddd";
+          clearEffects();
+          canvas.style.transition = `background-color ${cue.ms || 300}ms ease`;
+          canvas.style.backgroundColor = "#000000";
+        } else {
+          msgEl.innerText = "";
+          runEffect(cue, canvas);
+        }
+
+        if (cue.vibrate && navigator.vibrate) navigator.vibrate(cue.vibrate);
+        return;
+      }
+
+      // --- RGBカラー直接同期 ---
+      if (idNum >= 20000000 && idNum <= 36777215) {
+        clearEffects();
+        const rgbNum = idNum - 20000000;
+        const hexColor = "#" + rgbNum.toString(16).padStart(6, '0');
+
+        title.innerText = "RGBカラー直接同期";
+        sub.innerText = `ID: ${idNum.toLocaleString()} (${hexColor.toUpperCase()})`;
+        msgEl.innerText = "";
+
+        canvas.style.transition = `background-color 300ms ease`;
+        canvas.style.backgroundColor = hexColor;
+        return;
+      }
+
+      title.innerText = "UNKNOWN";
+      sub.innerText = `ID: ${idNum}`;
+    }
   </script>
 </body>
 </html>
