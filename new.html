@@ -587,12 +587,12 @@
     const TIME_START = 0.15;
     const TIME_SLOT = 0.12;
     const SLOT_COUNT = 4; // データ3 + チェックサム1（IDの取りうる数=465^3はそのまま。検証専用の追加トーン）
-    const THRESHOLD = -90;               // スロット内ピア判定の絶対フロア（保険）
+    const THRESHOLD = -100;               // スロット内ピア判定の絶対フロア（保険）
     const PAIR_PEAK_MARGIN = 7;          // 1位候補と3位候補のdB差。小さいと「不確実」として棄却
     const TRIGGER_MARGIN_DB = 18;        // 適応ノイズフロアからのマージン
     const TRIGGER_PROMINENCE_DB = 10;    // トリガー周波数とガード周波数のdB差（純音らしさ）
     const TRIGGER_CONFIRM_FRAMES = 3;    // 連続何フレーム条件を満たしたらトリガー確定とするか
-    const TRIGGER_ABS_FLOOR = -85;       // ノイズフロアが異常に低い場合の絶対下限
+    const TRIGGER_ABS_FLOOR = -100;       // ノイズフロアが異常に低い場合の絶対下限
 
     // プロトコル定義 (ダイレクトUnicode通信化)
     const ID_CMD_CACHE_START = 100544501;
@@ -616,7 +616,8 @@
       "1000": { cat: "FADE", name: "オレンジフェード (3秒)", color: "#FF5500", ms: 3000 },
       "1001": { cat: "FADE", name: "ディープオーシャン (5秒)", color: "#001144", ms: 5000 },
       "1002": { cat: "FADE", name: "オーロラ (4秒)", color: "#00FF66", ms: 4000 },
-      "1006": { cat: "FADE", name: "パルススイープ (2秒)", color: "#FF00FF", ms: 2000 },
+      "1003": { cat: "FADE", name: "パルススイープ (2秒)", color: "#FF00FF", ms: 2000 },
+      "1004": { cat: "FADE", name: "fd5 (6秒)", color: "#FFDD55", ms: 6000 },
 
       "50000": { cat: "FLASH", name: "白黒1Hz", color: "#FFFFFF", ms: 0, strobe: 1 },
       "50001": { cat: "FLASH", name: "白黒2Hz", color: "#FFFFFF", ms: 0, strobe: 2 },
