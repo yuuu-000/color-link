@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>CUE-Style Base-15 FSK Protocol</title>
+  <style>
+    * { box-sizing: border-box; }
+    body, html { margin: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #121212; color: #e0e0e0; overflow-x: hidden; }
+    .container { display: flex; flex-direction: column; height: 100%; }
+
+    /* TX (送信側) UI */
+    .tx-panel { flex: 1; padding: 20px; border-bottom: 2px solid #2c3e50; overflow-y: auto; background: #1a1a24; }
+    h2 { margin: 0 0 5px 0; font-size: 18px; color: #00d2ff; letter-spacing: 1px; }
+    .desc { font-size: 12px; color: #8892b0; margin-bottom: 15px; line-height: 1.4; }
+
+    .category { font-size: 13px; font-weight: bold; color: #3a86ff; margin: 20px 0 10px; border-bottom: 1px solid #2c3e50; padding-bottom: 5px; text-transform: uppercase; }
+    .btn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+    button { background: #242933; color: #e0e0e0; border: 1px solid #3a86ff; padding: 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.1s; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+    button:active { background: #00d2ff; color: #000; transform: scale(0.95); }
+    button span.id { font-size: 16px; color: #fff; margin-bottom: 4px; font-family: ui-monospace, monospace; }
+
+    /* RX (受信側) UI */
+    .rx-panel { flex: 1; background: #000; position: relative; transition: background-color 0.1s; display: flex; flex-direction: column; }
+    .status-box { background: rgba(26, 26, 36, 0.9); padding: 15px 20px; border-bottom: 1px solid #2c3e50; z-index: 10; display: flex; justify-content: space-between; align-items: flex-start; backdrop-filter: blur(10px); }
+    .status-left { display: flex; flex-direction: column; gap: 5px; }
+    .status-right { text-align: right; font-size: 11px; color: #8892b0; display: flex; flex-direction: column; gap: 4px; }
+    .val { color: #fff; font-family: ui-monospace, monospace; font-size: 13px; }
+
+    #rxStartBtn { background: #00d2ff; color: #000; border: none; padding: 10px 24px; font-size: 14px; font-weight: 900; border-radius: 20px; cursor: pointer; }
+    .bits-display { font-size: 26px; font-weight: 900; letter-spacing: 6px; color: #00d2ff; margin-top: 5px; font-family: ui-monospace, monospace; }
+
+    #rxTarget { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; font-size: 36px; font-weight: 900; color: rgba(255,255,255,0.95); text-shadow: 0 4px 20px rgba(0,0,0,0.8); z-index: 1; text-align: center; padding: 20px; }
+    .sub-target { font-size: 16px; color: rgba(255,255,255,0.7); font-weight: normal; margin-top: 10px; text-transform: uppercase; letter-spacing: 2px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- 送信側 (TX) -->
+    <div class="tx-panel">
+      <h2>📡 TRANSMITTER (Base-15 FSK)</h2>
+      <div class="desc">
+        周波数帯域: 17.7kHz 〜 19.7kHz (133Hz間隔)<br>
+        15 Data Keys + 1 Triggerで、0〜3374のIDを0.5秒で送信します。
+      </div>
+      <div id="txButtonsContainer"></div>
+    </div>
+
+    <!-- 受信側 (RX) -->
+    <div class="rx-panel" id="rxPanel">
+      <div class="status-box">
+        <div class="status-left">
+          <button id="rxStartBtn">🎤 RX START (マイク接続)</button>
+          <div style="font-size: 12px; margin-top: 5px; color:#8892b0;">STATE: <strong id="rxState" style="color:#666;">OFFLINE</strong></div>
+          <div class="bits-display" id="rxBits">---</div>
+        </div>
+        <div class="status-right">
+          <div>PEAK: <span class="val" id="rxPeakHz">0</span> Hz</div>
+          <div>LEVEL: <span class="val" id="rxPeakDb">-100</span> dB</div>
+          <div>BASE-15: <span class="val" id="rxRaw">N/A</span></div>
+        </div>
+      </div>
+      <div id="rxTarget">STANDBY</div>
+    </div>
+
+  </div>
+
+  <script>
+    // ==========================================
+    // 1. 演出定義 JSON (CUE_DATA)
+    // 最大3374まで登録可能
+    // ==========================================
+    const CUE_DATA = {
+      // 0〜9: ソリッドカラー（フェードなし）
+      "0": { cat: "SOLID", name: "BLACKOUT", color: "#000000", ms: 0 },
+      "1": { cat: "SOLID", name: "PURE RED", color: "#FF0000", ms: 0 },
+      "2": { cat: "SOLID", name: "PURE GREEN", color: "#00FF00", ms: 0 },
+      "3": { cat: "SOLID", name: "PURE BLUE", color: "#0000FF", ms: 0 },
+      "4": { cat: "SOLID", name: "PURE WHITE", color: "#FFFFFF", ms: 0 },
+
+      // 100番台: フェードイン/アウト
+      "100": { cat: "FADE", name: "SLOW RED (3sec)", color: "#FF0000", ms: 3000 },
+      "101": { cat: "FADE", name: "SLOW CYAN (3sec)", color: "#00FFFF", ms: 3000 },
+      "150": { cat: "FADE", name: "SLOW BLACKOUT", color: "#000000", ms: 4000 },
+
+      // 500番台: ストロボ（フラッシュ）
+      "500": { cat: "STROBE", name: "WHITE STROBE (15Hz)", color: "#FFFFFF", ms: 0, strobe: true, hz: 15 },
+      "501": { cat: "STROBE", name: "RED POLICE (10Hz)", color: "#FF0000", ms: 0, strobe: true, hz: 10 },
+      "550": { cat: "STROBE", name: "BLUE PULSE (4Hz)", color: "#0088FF", ms: 300, strobe: true, hz: 4 },
+
+      // 1000番台: ハプティクス（振動）連動・爆発音等
+      "1000": { cat: "HAPTIC", name: "HEAVY KICK", color: "#FF3300", ms: 50, vibrate: [200] },
+      "1001": { cat: "HAPTIC", name: "HEARTBEAT", color: "#8800FF", ms: 300, vibrate: [100, 100, 300, 100] },
+
+      // 3000番台: アリーナ/スタンド分割など特殊用途
+      "3374": { cat: "SYSTEM", name: "MAX ID TEST", color: "#FFFFFF", ms: 0 }
+    };
+
+    // ==========================================
+    // 2. Base-15 + 1 Trigger プロトコル設定
+    // 帯域: 17700Hz 〜 19700Hz (2000Hz幅)
+    // 16分割 = 133.33Hz間隔
+    // ==========================================
+    const FREQ_TRIGGER = 19700;
+
+    // データ用周波数配列 [0〜14] に対応 (15キー)
+    const FREQ_DATA = [];
+    for(let i = 0; i < 15; i++) {
+      // 17700Hzから133.33Hz刻みで配置
+      FREQ_DATA.push(Math.round(17700 + (i * (2000 / 15))));
+    }
+
+    const TIME_START = 0.2; // トリガーの長さ(秒)
+    const TIME_DIGIT = 0.1; // 1桁あたりの長さ(秒)
+    const THRESHOLD = -85;  // 検知閾値(dB)
+
+    // ==========================================
+    // 3. 送信ロジック (TX)
+    // ==========================================
+    let txCtx = null;
+
+    function initTx() {
+      if (!txCtx) txCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function sendTrigger(idStr) {
+      initTx();
+      const now = txCtx.currentTime;
+      const osc = txCtx.createOscillator();
+      const gain = txCtx.createGain();
+
+      osc.type = 'sine';
+      osc.connect(gain);
+      gain.connect(txCtx.destination);
+
+      // ID(10進数)を15進数の文字列に変換 (例: 1000 -> "46a")
+      const base15Str = parseInt(idStr, 10).toString(15);
+      // 必ず3桁(000〜eee)にゼロパディング
+      const paddedStr = base15Str.padStart(3, '0');
+      // 15進数の各文字を数値(0〜14)の配列に変換
+      const digits = paddedStr.split('').map(char => parseInt(char, 15));
+
+      // 1. トリガー (プリアンブル)
+      osc.frequency.setValueAtTime(FREQ_TRIGGER, now);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.5, now + 0.02);
+
+      // 2. データ（3桁）送信
+      let timeOffset = TIME_START;
+      for(let i = 0; i < 3; i++) {
+        const freq = FREQ_DATA[digits[i]];
+
+        osc.frequency.setValueAtTime(freq, now + timeOffset);
+
+        // Return-to-Zero: 音の区切りをハッキリさせるため一瞬だけゲインを絞る
+        gain.gain.setValueAtTime(0.5, now + timeOffset - 0.01);
+        gain.gain.linearRampToValueAtTime(0.1, now + timeOffset);
+        gain.gain.linearRampToValueAtTime(0.5, now + timeOffset + 0.01);
+
+        timeOffset += TIME_DIGIT;
+      }
+
+      // 終了エンベロープ
+      gain.gain.setValueAtTime(0.5, now + timeOffset - 0.02);
+      gain.gain.linearRampToValueAtTime(0, now + timeOffset);
+
+      osc.start(now);
+      osc.stop(now + timeOffset + 0.1);
+
+      console.log(`[TX] Sent ID: ${idStr} -> Base15: [${paddedStr}] -> Digits: [${digits}]`);
+    }
+
+    // UIへボタン生成
+    const txContainer = document.getElementById("txButtonsContainer");
+    const categories = {};
+    Object.keys(CUE_DATA).forEach(id => {
+      const cat = CUE_DATA[id].cat;
+      if(!categories[cat]) categories[cat] = [];
+      categories[cat].push(id);
+    });
+
+    for(const cat in categories) {
+      const catTitle = document.createElement('div');
+      catTitle.className = "category";
+      catTitle.innerText = cat;
+      txContainer.appendChild(catTitle);
+
+      const grid = document.createElement('div');
+      grid.className = "btn-grid";
+      categories[cat].forEach(id => {
+        const btn = document.createElement("button");
+        btn.innerHTML = `<span class="id">${id}</span>${CUE_DATA[id].name}`;
+        btn.onclick = () => sendTrigger(id);
+        grid.appendChild(btn);
+      });
+      txContainer.appendChild(grid);
+    }
+
+    // ==========================================
+    // 4. 受信ロジック (RX)
+    // ==========================================
+    let rxCtx, analyser, dataArray;
+    let rxState = "IDLE";
+    let rxStartTime = 0;
+    let decodedChars = [];
+    let strobeInterval = null;
+
+    // 指定周波数周辺の最大dBを取得 (FFTのビンズレを吸収)
+    function getMagnitude(freq, nyquist, bufferLength) {
+      const bin = Math.round((freq / nyquist) * bufferLength);
+      return Math.max(dataArray[bin-1]||-999, dataArray[bin], dataArray[bin+1]||-999);
+    }
+
+    // デバッグ・モニター用ピーク検出
+    function findPeak() {
+      const nyquist = rxCtx.sampleRate / 2;
+      let maxDb = -Infinity;
+      let maxBin = 0;
+      const startBin = Math.floor(17500 / nyquist * dataArray.length);
+      for (let i = startBin; i < dataArray.length; i++) {
+        if (dataArray[i] > maxDb) { maxDb = dataArray[i]; maxBin = i; }
+      }
+      return { hz: maxBin * nyquist / dataArray.length, db: maxDb };
+    }
+
+    document.getElementById("rxStartBtn").onclick = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+        rxCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (rxCtx.state === "suspended") await rxCtx.resume();
+        const source = rxCtx.createMediaStreamSource(stream);
+        analyser = rxCtx.createAnalyser();
+        analyser.fftSize = 4096;
+        analyser.smoothingTimeConstant = 0.0; // 通信の必須要件(平滑化ゼロ)
+        source.connect(analyser);
+        dataArray = new Float32Array(analyser.frequencyBinCount);
+
+        document.getElementById("rxState").innerText = "WAITING SIGNAL...";
+        document.getElementById("rxState").style.color = "#00d2ff";
+        document.getElementById("rxStartBtn").style.display = "none";
+
+        requestAnimationFrame(rxLoop);
+      } catch(e) { alert("マイクへのアクセスが拒否されました。"); }
+    };
+
+    function rxLoop() {
+      analyser.getFloatFrequencyData(dataArray);
+      const nyquist = rxCtx.sampleRate / 2;
+      const bufferLength = analyser.frequencyBinCount;
+      const now = performance.now();
+
+      // UIモニター更新
+      const peak = findPeak();
+      if(peak.db > -110) {
+        document.getElementById("rxPeakHz").innerText = peak.hz.toFixed(0);
+        document.getElementById("rxPeakDb").innerText = peak.db.toFixed(1);
+      }
+
+      const magTrigger = getMagnitude(FREQ_TRIGGER, nyquist, bufferLength);
+
+      // ステートマシン
+      if (rxState === "IDLE") {
+        if (magTrigger > THRESHOLD) {
+          rxState = "READING";
+          rxStartTime = now;
+          decodedChars = [];
+          document.getElementById("rxState").innerText = "DECODING...";
+          document.getElementById("rxState").style.color = "#ffeb3b";
+          document.getElementById("rxBits").innerText = "___";
+          document.getElementById("rxRaw").innerText = "---";
+        }
+      }
+      else if (rxState === "READING") {
+        const elapsed = (now - rxStartTime) / 1000;
+
+        if (elapsed > TIME_START && elapsed < TIME_START + (TIME_DIGIT * 3)) {
+          const digitIndex = Math.floor((elapsed - TIME_START) / TIME_DIGIT);
+          const timeOffset = (elapsed - TIME_START) % TIME_DIGIT;
+
+          // 0.1秒の「真ん中付近(40ms〜60ms)」で安定した周波数を1度だけサンプリング
+          if (decodedChars.length === digitIndex && timeOffset > (TIME_DIGIT * 0.4) && timeOffset < (TIME_DIGIT * 0.6)) {
+
+            // 0〜14の周波数から最もdBが高いものを探す
+            let bestVal = 0;
+            let bestMag = -Infinity;
+            for(let i=0; i<15; i++) {
+              let mag = getMagnitude(FREQ_DATA[i], nyquist, bufferLength);
+              if(mag > bestMag) { bestMag = mag; bestVal = i; }
+            }
+
+            // 0〜14を15進数文字(0-9, a-e)に変換して保存
+            const hexChar = bestVal.toString(15);
+            decodedChars.push(hexChar);
+
+            // UI表示更新
+            let disp = "";
+            for(let i=0; i<3; i++) disp += (decodedChars[i] !== undefined ? decodedChars[i] : "_");
+            document.getElementById("rxBits").innerText = disp;
+          }
+        }
+        else if (elapsed >= TIME_START + (TIME_DIGIT * 3)) {
+          // 3桁読み取り完了
+          if (decodedChars.length === 3) {
+            const base15Str = decodedChars.join('');
+            // 15進数文字列を10進数のIDに戻す
+            const id = parseInt(base15Str, 15).toString(10);
+
+            document.getElementById("rxRaw").innerText = base15Str;
+            executeCue(id);
+          }
+
+          // リセット待機
+          rxState = "IDLE";
+          document.getElementById("rxState").innerText = "WAITING SIGNAL...";
+          document.getElementById("rxState").style.color = "#00d2ff";
+        }
+      }
+      requestAnimationFrame(rxLoop);
+    }
+
+    // ==========================================
+    // 5. 演出実行 (JSON連動)
+    // ==========================================
+    function executeCue(id) {
+      console.log(`[RX] Cue Triggered: ${id}`);
+      const cue = CUE_DATA[id];
+      const panel = document.getElementById("rxPanel");
+      const targetWrap = document.getElementById("rxTarget");
+
+      if(strobeInterval) { clearInterval(strobeInterval); strobeInterval = null; }
+
+      if (!cue) {
+        targetWrap.innerHTML = `IGNORE ID:<br><span style="color:#ff5555">${id}</span>`;
+        return;
+      }
+
+      targetWrap.innerHTML = `${cue.name}<div class="sub-target">ID: ${id}</div>`;
+
+      // CSSトランジション(フェード時間)の適用
+      panel.style.transition = `background-color ${cue.ms}ms ease`;
+      panel.style.backgroundColor = cue.color;
+
+      // Haptics (バイブレーション)
+      if (cue.vibrate && navigator.vibrate) {
+        navigator.vibrate(cue.vibrate);
+      }
+
+      // ストロボ処理
+      if (cue.strobe) {
+        const intervalMs = 1000 / cue.hz;
+        let toggle = true;
+        strobeInterval = setInterval(() => {
+          panel.style.transition = 'none';
+          panel.style.backgroundColor = toggle ? cue.color : "#000000";
+          toggle = !toggle;
+        }, intervalMs);
+      }
+    }
+  </script>
+</body>
+</html>
