@@ -1,9 +1,10 @@
 <!doctype html>
 <html lang="ja">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>CUE-X | Character Protocol Engine (Optimized v2)</title>
+  <title>CUE-X | Character Protocol Engine (v3 / Robust)</title>
   <style>
     :root {
       --bg: #050507;
@@ -14,76 +15,489 @@
       --accent-glow: rgba(0, 240, 255, 0.25);
       --text-main: #f1f5f9;
       --text-sub: #94a3b8;
+      --danger: #ff5566;
       --radius: 12px;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    body, html { height: 100%; font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text-main); overflow: hidden; }
 
-    .app-container { display: flex; flex-direction: column; height: 100dvh; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
 
-    header { background: rgba(5, 5, 7, 0.9); backdrop-filter: blur(16px); border-bottom: 1px solid var(--panel-border); padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; z-index: 100; }
-    .brand { font-size: 18px; font-weight: 800; letter-spacing: 2px; display: flex; align-items: center; gap: 8px; }
-    .brand span { color: var(--accent); text-shadow: 0 0 12px var(--accent-glow); }
-    .badge { background: rgba(0, 240, 255, 0.08); color: var(--accent); border: 1px solid rgba(0, 240, 255, 0.3); padding: 5px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+    body,
+    html {
+      height: 100%;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      overflow: hidden;
+    }
 
-    .split-layout { display: flex; flex: 1; flex-direction: column; overflow: hidden; }
-    @media (min-width: 900px) { .split-layout { flex-direction: row; } }
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+    }
 
-    .tx-area { flex: 1.3; padding: 20px; overflow-y: auto; border-right: 1px solid var(--panel-border); background: var(--panel); scrollbar-width: thin; scrollbar-color: var(--panel-border) transparent; display: flex; flex-direction: column; gap: 20px; }
-    .tx-area h2 { font-size: 12px; color: var(--text-sub); text-transform: uppercase; letter-spacing: 2px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+    header {
+      background: rgba(5, 5, 7, 0.9);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--panel-border);
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+    }
 
-    .control-box { background: #1a1a22; border: 1px solid var(--panel-border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-    .control-box h3 { font-size: 11px; color: var(--accent); letter-spacing: 1px; font-weight: 800; text-transform: uppercase; }
-    .control-row { display: flex; gap: 10px; align-items: center; }
+    .brand {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
 
-    input[type="color"] { -webkit-appearance: none; border: none; width: 44px; height: 44px; border-radius: 8px; cursor: pointer; background: none; }
-    input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
-    input[type="color"]::-webkit-color-swatch { border: 1px solid var(--panel-border); border-radius: 8px; }
+    .brand span {
+      color: var(--accent);
+      text-shadow: 0 0 12px var(--accent-glow);
+    }
 
-    input[type="text"] { flex: 1; background: #0f0f13; border: 1px solid var(--panel-border); border-radius: 8px; padding: 10px 14px; color: #fff; font-size: 13px; font-family: inherit; outline: none; transition: 0.2s; }
-    input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+    .badge {
+      background: rgba(0, 240, 255, 0.08);
+      color: var(--accent);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
 
-    .action-btn { background: var(--accent); color: #000; border: none; font-weight: 800; padding: 10px 18px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 12px; box-shadow: 0 0 15px var(--accent-glow); white-space: nowrap; }
-    .action-btn:hover { background: var(--accent-hover); box-shadow: 0 0 25px var(--accent-glow); }
+    .split-layout {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      overflow: hidden;
+    }
 
-    .preset-group { margin-bottom: 10px; }
-    .preset-group-title { font-size: 11px; color: var(--accent); margin-bottom: 12px; font-weight: 800; letter-spacing: 1.5px; display: flex; align-items: center; gap: 8px; }
-    .preset-group-title::after { content: ""; flex: 1; height: 1px; background: var(--panel-border); }
-    .btn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+    @media (min-width: 900px) {
+      .split-layout {
+        flex-direction: row;
+      }
+    }
 
-    .tx-btn { background: #1a1a22; border: 1px solid var(--panel-border); color: var(--text-main); padding: 14px 12px; border-radius: var(--radius); cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; align-items: flex-start; text-align: left; position: relative; overflow: hidden; }
-    .tx-btn:hover { border-color: var(--accent); background: #22222f; box-shadow: 0 4px 20px var(--accent-glow); transform: translateY(-2px); }
-    .tx-btn:active { transform: translateY(0); filter: brightness(0.9); }
-    .tx-btn .id-label { font-family: ui-monospace, monospace; font-size: 9px; color: var(--text-sub); margin-bottom: 6px; font-weight: 700; z-index: 2; background: rgba(0,0,0,0.4); padding: 2px 6px; border-radius: 4px; }
-    .tx-btn .name-label { font-size: 13px; font-weight: 700; line-height: 1.35; z-index: 2; color: #ffffff; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+    .tx-area {
+      flex: 1.3;
+      padding: 20px;
+      overflow-y: auto;
+      border-right: 1px solid var(--panel-border);
+      background: var(--panel);
+      scrollbar-width: thin;
+      scrollbar-color: var(--panel-border) transparent;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
 
-    .rx-area { flex: 1; display: flex; flex-direction: column; background: #000; position: relative; }
-    .rx-hud { position: absolute; top: 0; left: 0; right: 0; padding: 16px; z-index: 10; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
-    .rx-card { background: rgba(12, 12, 16, 0.88); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 16px; padding: 16px; pointer-events: auto; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
-    .rx-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap; }
-    .btn-group { display: flex; gap: 8px; }
+    .tx-area h2 {
+      font-size: 12px;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
 
-    #rxStartBtn, #rxFullscreenBtn { padding: 10px 18px; border-radius: 24px; font-weight: 800; font-size: 11px; cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px; border: none; }
-    #rxStartBtn { background: var(--accent); color: #000; box-shadow: 0 0 15px var(--accent-glow); }
-    #rxStartBtn:hover { background: var(--accent-hover); box-shadow: 0 0 25px var(--accent-glow); }
-    #rxFullscreenBtn { background: #272730; color: #f1f5f9; border: 1px solid rgba(255, 255, 255, 0.1); }
-    #rxFullscreenBtn:hover { background: #353542; color: #fff; border-color: rgba(255, 255, 255, 0.3); }
+    .control-box {
+      background: #1a1a22;
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
 
-    .rx-status { font-family: ui-monospace, monospace; font-size: 11px; color: var(--text-sub); display: flex; flex-direction: column; gap: 4px; text-align: right;}
-    .rx-status span { color: #fff; font-weight: bold; }
-    .slot-monitor { display: flex; gap: 8px; margin-top: 10px; }
-    .slot { flex: 1; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 8px 0; text-align: center; font-family: ui-monospace, monospace; font-size: 11px; font-weight: bold; color: var(--text-sub); transition: 0.2s; }
-    .slot.active { background: rgba(0, 240, 255, 0.2); color: #fff; border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+    .control-box h3 {
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 1px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
 
-    #rxCanvas { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; transition: background-color 0.15s ease; position: relative; overflow: hidden; z-index: 1; }
-    .target-title { font-size: clamp(24px, 5vw, 40px); font-weight: 900; color: #fff; text-shadow: 0 4px 24px rgba(0, 0, 0, 0.9); z-index: 2; text-align: center; line-height: 1.15; padding: 0 20px; transition: opacity 0.2s; }
-    .target-id { font-family: ui-monospace, monospace; font-size: 13px; color: rgba(255, 255, 255, 0.8); margin-top: 10px; letter-spacing: 2px; z-index: 2; background: rgba(0, 0, 0, 0.5); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.15); transition: opacity 0.2s; }
+    .control-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
 
-    .target-msg { font-size: clamp(20px, 4vw, 32px); color: #ddd; margin-top: 16px; font-weight: 800; z-index: 2; text-align: center; max-width: 90%; text-shadow: none; letter-spacing: 1px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-    .target-msg.fired { font-size: clamp(36px, 8vw, 72px); text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5); margin-top: 0; }
+    input[type="color"] {
+      -webkit-appearance: none;
+      border: none;
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      cursor: pointer;
+      background: none;
+    }
 
-    #spectrumCanvas { position: absolute; bottom: 0; left: 0; width: 100%; height: 110px; z-index: 3; pointer-events: none; opacity: 0.85; }
-    #txProgress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); width: 0%; z-index: 1000; box-shadow: 0 0 10px var(--accent); transition: width 0.1s linear; }
+    input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    input[type="color"]::-webkit-color-swatch {
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: #0f0f13;
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #fff;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      transition: 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    input[type="text"]:disabled {
+      opacity: 0.5;
+    }
+
+    .action-btn {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      font-weight: 800;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.2s;
+      font-size: 12px;
+      box-shadow: 0 0 15px var(--accent-glow);
+      white-space: nowrap;
+    }
+
+    .action-btn:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 0 25px var(--accent-glow);
+    }
+
+    .action-btn:disabled {
+      background: #3a3a44;
+      color: #888;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    .tx-status-line {
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      color: var(--text-sub);
+      min-height: 14px;
+    }
+
+    .tx-status-line.busy {
+      color: var(--accent);
+    }
+
+    .preset-group {
+      margin-bottom: 10px;
+    }
+
+    .preset-group-title {
+      font-size: 11px;
+      color: var(--accent);
+      margin-bottom: 12px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .preset-group-title::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--panel-border);
+    }
+
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px;
+    }
+
+    .tx-btn {
+      background: #1a1a22;
+      border: 1px solid var(--panel-border);
+      color: var(--text-main);
+      padding: 14px 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      text-align: left;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tx-btn:hover {
+      border-color: var(--accent);
+      background: #22222f;
+      box-shadow: 0 4px 20px var(--accent-glow);
+      transform: translateY(-2px);
+    }
+
+    .tx-btn:active {
+      transform: translateY(0);
+      filter: brightness(0.9);
+    }
+
+    .tx-btn .id-label {
+      font-family: ui-monospace, monospace;
+      font-size: 9px;
+      color: var(--text-sub);
+      margin-bottom: 6px;
+      font-weight: 700;
+      z-index: 2;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .tx-btn .name-label {
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.35;
+      z-index: 2;
+      color: #ffffff;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    }
+
+    .rx-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #000;
+      position: relative;
+    }
+
+    .rx-hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 16px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .rx-card {
+      background: rgba(12, 12, 16, 0.88);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 16px;
+      pointer-events: auto;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .rx-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    #rxStartBtn,
+    #rxFullscreenBtn {
+      padding: 10px 18px;
+      border-radius: 24px;
+      font-weight: 800;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.5px;
+      border: none;
+    }
+
+    #rxStartBtn {
+      background: var(--accent);
+      color: #000;
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+
+    #rxStartBtn:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 0 25px var(--accent-glow);
+    }
+
+    #rxFullscreenBtn {
+      background: #272730;
+      color: #f1f5f9;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    #rxFullscreenBtn:hover {
+      background: #353542;
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .rx-status {
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      color: var(--text-sub);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      text-align: right;
+    }
+
+    .rx-status span {
+      color: #fff;
+      font-weight: bold;
+    }
+
+    .slot-monitor {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .slot {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 8px 0;
+      text-align: center;
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      font-weight: bold;
+      color: var(--text-sub);
+      transition: 0.2s;
+    }
+
+    .slot.active {
+      background: rgba(0, 240, 255, 0.2);
+      color: #fff;
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    .slot.checksum {
+      border-style: dashed;
+    }
+
+    #rxCanvas {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      transition: background-color 0.15s ease;
+      position: relative;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .target-title {
+      font-size: clamp(24px, 5vw, 40px);
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 0 4px 24px rgba(0, 0, 0, 0.9);
+      z-index: 2;
+      text-align: center;
+      line-height: 1.15;
+      padding: 0 20px;
+      transition: opacity 0.2s;
+    }
+
+    .target-id {
+      font-family: ui-monospace, monospace;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.8);
+      margin-top: 10px;
+      letter-spacing: 2px;
+      z-index: 2;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      transition: opacity 0.2s;
+    }
+
+    .target-msg {
+      font-size: clamp(20px, 4vw, 32px);
+      color: #ddd;
+      margin-top: 16px;
+      font-weight: 800;
+      z-index: 2;
+      text-align: center;
+      max-width: 90%;
+      text-shadow: none;
+      letter-spacing: 1px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .target-msg.fired {
+      font-size: clamp(36px, 8vw, 72px);
+      text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      margin-top: 0;
+    }
+
+    #spectrumCanvas {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 110px;
+      z-index: 3;
+      pointer-events: none;
+      opacity: 0.85;
+    }
+
+    #txProgress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: var(--accent);
+      width: 0%;
+      z-index: 1000;
+      box-shadow: 0 0 10px var(--accent);
+      transition: width 0.1s linear;
+    }
   </style>
 </head>
 
@@ -92,7 +506,7 @@
   <div class="app-container">
     <header>
       <div class="brand">CUE-X <span>PROTOCOL ENGINE</span></div>
-      <div class="badge">CHAR & CUE SYNC</div>
+      <div class="badge">v3 · CHECKSUM VERIFIED</div>
     </header>
 
     <div class="split-layout">
@@ -102,14 +516,15 @@
         <div class="control-box">
           <h3>カスタム文字列ビルダー & キャッシュ送信</h3>
           <div class="control-row">
-            <input type="text" id="customInputText" placeholder="文字を入力" value="こんにちは ライブへようこそ！🎉">
+            <input type="text" id="customInputText" placeholder="文字を入力" value="こんにちは!">
             <button class="action-btn" id="sendCharCacheBtn">キャッシュ送信</button>
             <button class="action-btn" id="sendFireBtn" style="background:#ffb703; color:#000;">発火(FIRE)</button>
           </div>
+          <div class="tx-status-line" id="txStatusLine">各文字にチェックサムが付与されます。誤受信時は自動的に破棄されます。</div>
         </div>
 
         <div class="control-box">
-          <h3>RGBカラー直接送信 (ID被り回避済)</h3>
+          <h3>RGBカラー直接送信</h3>
           <div class="control-row">
             <input type="color" id="colorPicker" value="#00d0ff">
             <button class="action-btn" id="sendColorBtn" style="flex:1;">カラー送信</button>
@@ -129,14 +544,16 @@
               </div>
               <div class="rx-status">
                 <div>状態: <span id="rxState" style="color: var(--text-sub);">待機中</span></div>
-                <div>感度: <span id="rxPeak">--</span> dB</div>
+                <div>感度: <span id="rxPeak">--</span> dB / 閾: <span id="rxThresh">--</span> dB</div>
               </div>
             </div>
-            <div style="font-size: 10px; color: var(--text-sub); margin-bottom: 4px; font-weight: 700;">受信スロットモニター</div>
+            <div style="font-size: 10px; color: var(--text-sub); margin-bottom: 4px; font-weight: 700;">
+              受信スロットモニター（S4=検証用チェックサム）</div>
             <div class="slot-monitor">
               <div class="slot" id="slot1">S1: ---</div>
               <div class="slot" id="slot2">S2: ---</div>
               <div class="slot" id="slot3">S3: ---</div>
+              <div class="slot checksum" id="slot4">CS: ---</div>
             </div>
           </div>
         </div>
@@ -153,6 +570,7 @@
 
   <script>
     const FREQ_TRIGGER = 20500;
+    const GUARD_FREQ = 19000; // トリガー音の「鋭さ」判定用の参照周波数（広帯域ノイズ検出）
     const FREQ_DATA = [];
     for (let i = 0; i < 31; i++) {
       FREQ_DATA.push(17300 + (i * 100));
@@ -164,10 +582,17 @@
         PAIRS.push([i, j]);
       }
     }
+    const PAIR_COUNT = PAIRS.length; // 465
 
     const TIME_START = 0.15;
     const TIME_SLOT = 0.12;
-    const THRESHOLD = -90;
+    const SLOT_COUNT = 4; // データ3 + チェックサム1（IDの取りうる数=465^3はそのまま。検証専用の追加トーン）
+    const THRESHOLD = -90;               // スロット内ピア判定の絶対フロア（保険）
+    const PAIR_PEAK_MARGIN = 7;          // 1位候補と3位候補のdB差。小さいと「不確実」として棄却
+    const TRIGGER_MARGIN_DB = 18;        // 適応ノイズフロアからのマージン
+    const TRIGGER_PROMINENCE_DB = 10;    // トリガー周波数とガード周波数のdB差（純音らしさ）
+    const TRIGGER_CONFIRM_FRAMES = 3;    // 連続何フレーム条件を満たしたらトリガー確定とするか
+    const TRIGGER_ABS_FLOOR = -85;       // ノイズフロアが異常に低い場合の絶対下限
 
     // プロトコル定義 (ダイレクトUnicode通信化)
     const ID_CMD_CACHE_START = 100544501;
@@ -193,37 +618,79 @@
       "1002": { cat: "FADE", name: "オーロラ (4秒)", color: "#00FF66", ms: 4000 },
       "1006": { cat: "FADE", name: "パルススイープ (2秒)", color: "#FF00FF", ms: 2000 },
 
-      "50000": { cat: "FLASH", name: "高速ストロボ (20Hz)", color: "#FFFFFF", ms: 0, strobe: 20 },
-      "50001": { cat: "FLASH", name: "警告フラッシュ (赤)", color: "#FF0000", ms: 0, strobe: 8 },
+      "50000": { cat: "FLASH", name: "白黒1Hz", color: "#FFFFFF", ms: 0, strobe: 1 },
+      "50001": { cat: "FLASH", name: "白黒2Hz", color: "#FFFFFF", ms: 0, strobe: 2 },
+      "50002": { cat: "FLASH", name: "白黒3Hz", color: "#FFFFFF", ms: 0, strobe: 3 },
+      "50003": { cat: "FLASH", name: "白黒4Hz", color: "#FFFFFF", ms: 0, strobe: 4 },
+      "50004": { cat: "FLASH", name: "白黒5Hz", color: "#FFFFFF", ms: 0, strobe: 5 },
+      "50005": { cat: "FLASH", name: "白黒6Hz", color: "#FFFFFF", ms: 0, strobe: 6 },
+      "50006": { cat: "FLASH", name: "白黒7Hz", color: "#FFFFFF", ms: 0, strobe: 7 },
+      "50007": { cat: "FLASH", name: "白黒8Hz", color: "#FFFFFF", ms: 0, strobe: 8 },
+      "50008": { cat: "FLASH", name: "白黒9Hz", color: "#FFFFFF", ms: 0, strobe: 9 },
+      "50009": { cat: "FLASH", name: "白黒10Hz", color: "#FFFFFF", ms: 0, strobe: 10 },
+      "50010": { cat: "FLASH", name: "白黒11Hz", color: "#FFFFFF", ms: 0, strobe: 11 },
+      "50011": { cat: "FLASH", name: "白黒12Hz", color: "#FFFFFF", ms: 0, strobe: 12 },
+      "50012": { cat: "FLASH", name: "白黒13Hz", color: "#FFFFFF", ms: 0, strobe: 13 },
+      "50013": { cat: "FLASH", name: "白黒14Hz", color: "#FFFFFF", ms: 0, strobe: 14 },
+      "50014": { cat: "FLASH", name: "白黒15Hz", color: "#FFFFFF", ms: 0, strobe: 15 },
+      "50015": { cat: "FLASH", name: "白黒16Hz", color: "#FFFFFF", ms: 0, strobe: 16 },
+      "50016": { cat: "FLASH", name: "白黒17Hz", color: "#FFFFFF", ms: 0, strobe: 17 },
+      "50017": { cat: "FLASH", name: "白黒18Hz", color: "#FFFFFF", ms: 0, strobe: 18 },
+      "50018": { cat: "FLASH", name: "白黒19Hz", color: "#FFFFFF", ms: 0, strobe: 19 },
+      "50019": { cat: "FLASH", name: "白黒20Hz", color: "#FFFFFF", ms: 0, strobe: 20 },
+      "50020": { cat: "FLASH", name: "白黒21Hz", color: "#FFFFFF", ms: 0, strobe: 21 },
+      "50021": { cat: "FLASH", name: "白黒22Hz", color: "#FFFFFF", ms: 0, strobe: 22 },
+      "50022": { cat: "FLASH", name: "白黒23Hz", color: "#FFFFFF", ms: 0, strobe: 23 },
+      "50023": { cat: "FLASH", name: "白黒24Hz", color: "#FFFFFF", ms: 0, strobe: 24 },
+      "50024": { cat: "FLASH", name: "白黒25Hz", color: "#FFFFFF", ms: 0, strobe: 25 },
+      "50025": { cat: "FLASH", name: "白黒26Hz", color: "#FFFFFF", ms: 0, strobe: 26 },
+      "50026": { cat: "FLASH", name: "白黒27Hz", color: "#FFFFFF", ms: 0, strobe: 27 },
+      "50027": { cat: "FLASH", name: "白黒28Hz", color: "#FFFFFF", ms: 0, strobe: 28 },
+      "50028": { cat: "FLASH", name: "白黒29Hz", color: "#FFFFFF", ms: 0, strobe: 29 },
+      "50029": { cat: "FLASH", name: "白黒30Hz", color: "#FFFFFF", ms: 0, strobe: 30 },
 
-      "70000": { cat: "LASER", name: "サイバービーム", color: "#00FFFF", ms: 100, strobe: 10 },
+      "50100": { cat: "FLASH", name: "警告フラッシュ (赤)", color: "#FF0000", ms: 0, strobe: 6 },
+
+      "70000": { cat: "LASER", name: "サイバービーム", color: "#00FFFF", ms: 3000, strobe: 10 },
+
+      // --- 🎉 新規追加：楽しいエフェクト系プリセット ---
+      "80000": { cat: "EFFECT", name: "レインボーサイクル", type: "rainbow", ms: 6000 },
+      "80001": { cat: "EFFECT", name: "パーティーモード", type: "party", ms: 5000 },
+      "80002": { cat: "EFFECT", name: "ハートビート", type: "heartbeat", color: "#FF0033", ms: 4800 },
+      "80003": { cat: "EFFECT", name: "カラーチェイス", type: "sequence", colors: ["#FF0033", "#FFB703", "#39FF14", "#00f0ff", "#FF00FF"], stepMs: 180, ms: 4500 },
+      "80004": { cat: "EFFECT", name: "スパークル", type: "party", colors: ["#FFFFFF", "#F8FAFC", "#00f0ff"], ms: 3000 },
+      "80005": { cat: "EFFECT", name: "カウントダウン導光", type: "sequence", colors: ["#0055FF", "#39FF14", "#FFB703", "#FF0033", "#FFFFFF"], stepMs: 700, ms: 3500 },
 
       "1000000": { cat: "HAPTIC", name: "ヘビードロップ", color: "#FFFFFF", ms: 50, vibrate: [300, 100, 300] },
 
       "100544576": { cat: "MESSAGE", name: "ウェルカム通知", color: "#000", msg: "ようこそ、ライブ会場へ！", ms: 300 },
-      "100544577": { cat: "MESSAGE", name: "緊急避難アナウンス", color: "#000", msg: "⚠️ 緊急避難指示：係員の誘導に従ってください", ms: 200, strobe: 15 },
-      "100544578": { cat: "MESSAGE", name: "サプライズ発表", color: "#000", msg: "🎉 スペシャルゲスト登場！", ms: 400, strobe: 10 },
-      "100544579": { cat: "MESSAGE", name: "休憩アナウンス", color: "#000", msg: "☕ 15分間の休憩時間です", ms: 0 }
+      "100544577": { cat: "MESSAGE", name: "緊急避難アナウンス", color: "#000", msg: "緊急避難指示：係員の誘導に従ってください", ms: 200, strobe: 15 },
+      "100544578": { cat: "MESSAGE", name: "サプライズ発表", color: "#000", msg: "ゲスト登場！", ms: 400, strobe: 10 },
+      "100544579": { cat: "MESSAGE", name: "休憩アナウンス", color: "#000", msg: "15分間の休憩時間です", ms: 0 }
     };
 
     let txCtx = null;
     function initTx() { if (!txCtx) txCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+
+    // idから3つのペアインデックス(0-464)を導出し、検証用チェックサムペアも計算する
+    function decomposeId(id) {
+      const base1 = PAIR_COUNT * PAIR_COUNT;
+      const base2 = PAIR_COUNT;
+      const val1 = Math.floor(id / base1);
+      const rem1 = id % base1;
+      const val2 = Math.floor(rem1 / base2);
+      const val3 = rem1 % base2;
+      const checksumVal = (val1 + val2 + val3) % PAIR_COUNT;
+      return [val1, val2, val3, checksumVal];
+    }
 
     function sendTrigger(idStr) {
       initTx();
       const now = txCtx.currentTime;
       const id = parseInt(idStr, 10);
 
-      const base1 = 465 * 465;
-      const base2 = 465;
-      const val1 = Math.floor(id / base1);
-      const rem1 = id % base1;
-      const val2 = Math.floor(rem1 / base2);
-      const val3 = rem1 % base2;
-
-      const p1 = PAIRS[val1];
-      const p2 = PAIRS[val2];
-      const p3 = PAIRS[val3];
+      const [val1, val2, val3, checksumVal] = decomposeId(id);
+      const slots = [PAIRS[val1], PAIRS[val2], PAIRS[val3], PAIRS[checksumVal]];
 
       const oscA = txCtx.createOscillator();
       const oscB = txCtx.createOscillator();
@@ -260,8 +727,7 @@
       gainB.gain.setValueAtTime(0, t);
 
       t += TIME_START;
-      const slots = [p1, p2, p3];
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < SLOT_COUNT; i++) {
         scheduleSlot(slots[i], t);
         applyEnvelope(t, TIME_SLOT);
         t += TIME_SLOT;
@@ -281,33 +747,55 @@
       return (t - now) * 1000 + 30; // 実行時間 + 安全マージン
     }
 
-    // 文字列のシーケンシャル送信 (完全Unicode対応版)
+    // 文字列のシーケンシャル送信 (完全Unicode対応 + 進捗表示 + 二重送信防止)
+    const txStatusLine = document.getElementById("txStatusLine");
+    const sendCharCacheBtn = document.getElementById("sendCharCacheBtn");
+    const sendFireBtn = document.getElementById("sendFireBtn");
+    let isSending = false;
+
     async function sendStringSequence(str) {
+      if (isSending) return;
+      isSending = true;
+      sendCharCacheBtn.disabled = true;
+      customInputText.disabled = true;
+      txStatusLine.classList.add("busy");
+
       // 絵文字等のサロゲートペア対応のため Array.from を使用
       const charArray = Array.from(str);
 
+      txStatusLine.innerText = `キャッシュ開始信号を送信中...`;
       let waitMs = sendTrigger(ID_CMD_CACHE_START.toString());
       // エコーを断ち切るために長めのマージンを取る
       await new Promise(r => setTimeout(r, waitMs + 80));
 
-      for (const ch of charArray) {
-        // UnicodeポイントをそのままID化 (漢字も絵文字も送れる)
+      for (let i = 0; i < charArray.length; i++) {
+        const ch = charArray[i];
+        txStatusLine.innerText = `送信中: ${i + 1} / ${charArray.length} 文字目「${ch}」`;
+        // UnicodeポイントをそのままID化 (漢字も絵文字も送れる。各文字にチェックサムが自動付与される)
         const charId = UNICODE_OFFSET + ch.codePointAt(0);
         waitMs = sendTrigger(charId.toString());
         await new Promise(r => setTimeout(r, waitMs + 80));
       }
 
-      sendTrigger(ID_CMD_CACHE_END.toString());
+      txStatusLine.innerText = `キャッシュ終了信号を送信中...`;
+      waitMs = sendTrigger(ID_CMD_CACHE_END.toString());
+      await new Promise(r => setTimeout(r, waitMs + 80));
+
+      txStatusLine.innerText = `送信完了（${charArray.length}文字）。受信側の画面を確認してから「発火」してください。`;
+      txStatusLine.classList.remove("busy");
+      sendCharCacheBtn.disabled = false;
+      customInputText.disabled = false;
+      isSending = false;
     }
 
     const customInputText = document.getElementById("customInputText");
 
-    document.getElementById("sendCharCacheBtn").onclick = () => {
+    sendCharCacheBtn.onclick = () => {
       const text = customInputText.value;
       if (text) sendStringSequence(text);
     };
 
-    document.getElementById("sendFireBtn").onclick = () => {
+    sendFireBtn.onclick = () => {
       sendTrigger(ID_CMD_FIRE.toString());
     };
 
@@ -336,10 +824,11 @@
 
       categories[cat].forEach(id => {
         const cue = CUE_DATA[id];
+        const swatch = cue.color || (cue.colors ? cue.colors[0] : "#00f0ff");
         const btn = document.createElement("button");
         btn.className = "tx-btn";
-        btn.style.background = `linear-gradient(135deg, ${cue.color}33 0%, #16161c 70%)`;
-        btn.style.borderLeft = `3px solid ${cue.color}`;
+        btn.style.background = `linear-gradient(135deg, ${swatch}33 0%, #16161c 70%)`;
+        btn.style.borderLeft = `3px solid ${swatch}`;
         btn.innerHTML = `<div class="id-label">ID: ${parseInt(id).toLocaleString()}</div><div class="name-label">${cue.name}</div>`;
         btn.onclick = () => sendTrigger(id);
         grid.appendChild(btn);
@@ -353,7 +842,14 @@
     let rxState = "IDLE";
     let rxStartTime = 0;
     let decodedValues = [];
-    let strobeInterval = null;
+
+    // --- ノイズ耐性用の状態 ---
+    let triggerNoiseFloor = null;   // 適応型ノイズフロア（EMA）
+    let triggerConfirmCount = 0;    // 連続フレームでの確認カウンタ
+
+    // --- 表示エフェクト管理 ---
+    let effectInterval = null;
+    let effectTimeout = null;
 
     const spectrumCanvas = document.getElementById("spectrumCanvas");
     const specCtx = spectrumCanvas.getContext("2d");
@@ -370,9 +866,14 @@
 
     const UI_SLOT = (idx, val, active = false) => {
       const el = document.getElementById(`slot${idx}`);
-      if (val !== null) el.innerText = `S${idx}: ${val.toString().padStart(3, '0')}`;
+      const prefix = idx === 4 ? "CS" : `S${idx}`;
+      if (val !== null) el.innerText = `${prefix}: ${typeof val === 'number' ? val.toString().padStart(3, '0') : val}`;
       if (active) el.classList.add('active'); else el.classList.remove('active');
     };
+
+    function resetSlotUI() {
+      UI_SLOT(1, "---"); UI_SLOT(2, "---"); UI_SLOT(3, "---"); UI_SLOT(4, "---");
+    }
 
     document.getElementById("rxStartBtn").onclick = async () => {
       try {
@@ -382,14 +883,17 @@
         const source = rxCtx.createMediaStreamSource(stream);
         analyser = rxCtx.createAnalyser();
 
-        // 🚀 FFTサイズを縮小し、スムージングを無効化 (残響混入バグの撃退)
+        // FFTサイズを縮小し、スムージングを無効化 (残響混入バグの撃退)
         analyser.fftSize = 2048;
         analyser.smoothingTimeConstant = 0.0;
 
         source.connect(analyser);
         dataArray = new Float32Array(analyser.frequencyBinCount);
 
-        UI_STATE("リスニング中", "var(--accent)");
+        triggerNoiseFloor = null;
+        triggerConfirmCount = 0;
+
+        UI_STATE("キャリブレーション中...", "#ffb703");
         document.getElementById("rxStartBtn").style.display = "none";
         requestAnimationFrame(rxLoop);
       } catch (e) { alert("マイクアクセスが拒否されました。"); }
@@ -443,28 +947,56 @@
       const now = performance.now();
 
       const magTrigger = getMagnitude(FREQ_TRIGGER, nyquist, bufferLength);
+      const guardMag = getMagnitude(GUARD_FREQ, nyquist, bufferLength);
       document.getElementById("rxPeak").innerText = magTrigger > -100 ? magTrigger.toFixed(0) : "--";
       drawSpectrum();
 
       if (rxState === "IDLE") {
-        if (magTrigger > THRESHOLD) {
+        // --- 適応型ノイズフロア（待機中のみ、ゆっくり環境音レベルに追従） ---
+        if (triggerNoiseFloor === null) {
+          triggerNoiseFloor = magTrigger;
+        } else {
+          triggerNoiseFloor = triggerNoiseFloor * 0.985 + magTrigger * 0.015;
+        }
+        const dynThreshold = Math.max(TRIGGER_ABS_FLOOR, triggerNoiseFloor + TRIGGER_MARGIN_DB);
+        document.getElementById("rxThresh").innerText = dynThreshold.toFixed(0);
+
+        // --- ピークの鋭さ判定（純音か、広帯域の生活音かを判別） ---
+        const isPeakSharp = (magTrigger - guardMag) > TRIGGER_PROMINENCE_DB;
+
+        if (magTrigger > dynThreshold && isPeakSharp) {
+          triggerConfirmCount++;
+        } else {
+          triggerConfirmCount = 0;
+        }
+
+        // --- 連続フレームで確認できて初めてトリガー確定（単発ノイズスパイクを無視） ---
+        if (triggerConfirmCount >= TRIGGER_CONFIRM_FRAMES) {
+          triggerConfirmCount = 0;
           rxState = "READING";
           rxStartTime = now;
           decodedValues = [];
           UI_STATE("デコード中...", "#ffeb3b");
-          UI_SLOT(1, "---"); UI_SLOT(2, "---"); UI_SLOT(3, "---");
+          resetSlotUI();
+        } else if (UI_STATE) {
+          // キャリブレーション完了後の通常表示
+          const stateEl = document.getElementById("rxState");
+          if (stateEl.innerText !== "リスニング中" && stateEl.innerText !== "デコード中...") {
+            UI_STATE("リスニング中", "var(--accent)");
+          }
         }
       } else if (rxState === "READING") {
         const elapsed = (now - rxStartTime) / 1000;
+        const windowEnd = TIME_START + (TIME_SLOT * SLOT_COUNT);
 
-        if (elapsed > TIME_START && elapsed < TIME_START + (TIME_SLOT * 3)) {
+        if (elapsed > TIME_START && elapsed < windowEnd) {
           const slotIndex = Math.floor((elapsed - TIME_START) / TIME_SLOT);
           const timeOffset = (elapsed - TIME_START) % TIME_SLOT;
 
-          [1, 2, 3].forEach(i => document.getElementById(`slot${i}`).classList.remove('active'));
+          for (let i = 1; i <= SLOT_COUNT; i++) document.getElementById(`slot${i}`).classList.remove('active');
           document.getElementById(`slot${slotIndex + 1}`).classList.add('active');
 
-          // 🚀 安定期判定をスロット後半（50%〜80%）にずらし、残響混入を防止
+          // 安定期判定をスロット後半（50%〜80%）にずらし、残響混入を防止
           if (decodedValues[slotIndex] === undefined && timeOffset > (TIME_SLOT * 0.5) && timeOffset < (TIME_SLOT * 0.8)) {
             let results = [];
             for (let i = 0; i < 31; i++) {
@@ -474,32 +1006,123 @@
 
             const top1 = results[0];
             const top2 = results[1];
+            const top3 = results[2];
 
-            if (top1.mag > THRESHOLD && top2.mag > -95) {
+            // 1位・2位が十分明瞭で、かつ3位候補と明確な差(PAIR_PEAK_MARGIN)がある場合のみ採用。
+            // これにより「たまたま2つの周波数が少し盛り上がった」だけのノイズを弾く。
+            const isClearPair = top1.mag > THRESHOLD
+              && top2.mag > -95
+              && (top1.mag - top3.mag) > PAIR_PEAK_MARGIN;
+
+            if (isClearPair) {
               const idxA = Math.min(top1.idx, top2.idx);
               const idxB = Math.max(top1.idx, top2.idx);
               let val = PAIRS.findIndex(p => p[0] === idxA && p[1] === idxB);
               if (val !== -1) {
                 decodedValues[slotIndex] = val;
-                UI_SLOT(slotIndex + 1, val);
+                UI_SLOT(slotIndex + 1, val, true);
               }
             }
           }
-        } else if (elapsed >= TIME_START + (TIME_SLOT * 3)) {
-          [1, 2, 3].forEach(i => document.getElementById(`slot${i}`).classList.remove('active'));
+        } else if (elapsed >= windowEnd) {
+          for (let i = 1; i <= SLOT_COUNT; i++) document.getElementById(`slot${i}`).classList.remove('active');
 
-          if (decodedValues[0] !== undefined && decodedValues[1] !== undefined && decodedValues[2] !== undefined) {
-            const finalId = (decodedValues[0] * 465 * 465) + (decodedValues[1] * 465) + decodedValues[2];
-            executeCue(finalId.toString());
+          const allDecoded = decodedValues.length === SLOT_COUNT && decodedValues.every(v => v !== undefined);
+
+          if (allDecoded) {
+            const [v0, v1, v2, v3] = decodedValues;
+            const expectedChecksum = (v0 + v1 + v2) % PAIR_COUNT;
+
+            if (v3 === expectedChecksum) {
+              // ✅ チェックサム一致。信頼できるパケットとして実行。
+              const finalId = (v0 * PAIR_COUNT * PAIR_COUNT) + (v1 * PAIR_COUNT) + v2;
+              executeCue(finalId.toString());
+              rxState = "IDLE";
+              UI_STATE("リスニング中", "var(--accent)");
+            } else {
+              rejectPacket("チェックサム不一致(破棄)");
+            }
+          } else {
+            rejectPacket("デコード不完全(破棄)");
           }
-          rxState = "IDLE";
-          UI_STATE("リスニング中", "var(--accent)");
         }
       }
       requestAnimationFrame(rxLoop);
     }
 
+    function rejectPacket(reason) {
+      rxState = "IDLE";
+      UI_STATE(reason, "var(--danger)");
+      setTimeout(() => {
+        if (rxState === "IDLE") UI_STATE("リスニング中", "var(--accent)");
+      }, 900);
+    }
+
     let isCaching = false;
+
+    // --- 表示エフェクトの統一ハンドラ ---
+    function clearEffects() {
+      if (effectInterval) { clearInterval(effectInterval); effectInterval = null; }
+      if (effectTimeout) { clearTimeout(effectTimeout); effectTimeout = null; }
+    }
+
+    function runEffect(cue, canvas) {
+      clearEffects();
+      const duration = cue.ms || 0;
+
+      if (cue.type === "rainbow") {
+        let hue = 0;
+        canvas.style.transition = "none";
+        effectInterval = setInterval(() => {
+          hue = (hue + 8) % 360;
+          canvas.style.backgroundColor = `hsl(${hue},100%,50%)`;
+        }, 40);
+      } else if (cue.type === "party") {
+        const colors = cue.colors || ["#FF0033", "#00F0FF", "#FFB703", "#39FF14", "#FF00FF", "#0055FF"];
+        canvas.style.transition = "none";
+        effectInterval = setInterval(() => {
+          canvas.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        }, 90);
+      } else if (cue.type === "heartbeat") {
+        let beat = 0;
+        canvas.style.transition = "background-color 90ms ease";
+        effectInterval = setInterval(() => {
+          const phase = beat % 4;
+          canvas.style.backgroundColor = (phase === 0 || phase === 1) ? cue.color : "#050505";
+          beat++;
+        }, 160);
+      } else if (cue.type === "sequence") {
+        const seq = cue.colors || [cue.color];
+        let i = 0;
+        canvas.style.transition = "background-color 120ms linear";
+        effectInterval = setInterval(() => {
+          canvas.style.backgroundColor = seq[i % seq.length];
+          i++;
+        }, cue.stepMs || 200);
+      } else if (cue.strobe) {
+        let on = false;
+        const hz = cue.strobe;
+        canvas.style.transition = "none";
+        effectInterval = setInterval(() => {
+          on = !on;
+          canvas.style.backgroundColor = on ? cue.color : "#000";
+        }, 1000 / (hz * 2));
+      } else {
+        // 通常のソリッド/フェード
+        canvas.style.transition = `background-color ${duration || 300}ms ease`;
+        canvas.style.backgroundColor = cue.color;
+      }
+
+      // ms(継続時間)が指定されている場合は自動的にブラックアウトへ復帰。
+      // ms=0 (ストロボ等) は次のキューが来るまで継続。
+      if (duration > 0) {
+        effectTimeout = setTimeout(() => {
+          clearEffects();
+          canvas.style.transition = "background-color 400ms ease";
+          canvas.style.backgroundColor = "#050505";
+        }, duration);
+      }
+    }
 
     function executeCue(idStr) {
       const idNum = parseInt(idStr, 10);
@@ -508,10 +1131,9 @@
       const sub = document.getElementById("rxSub");
       const msgEl = document.getElementById("rxMsg");
 
-      if (strobeInterval) { clearInterval(strobeInterval); strobeInterval = null; }
-
       // --- キャッシュ関連 ---
       if (idNum === ID_CMD_CACHE_START) {
+        clearEffects();
         isCaching = true;
         rxTextCache = "";
         title.style.display = "block"; sub.style.display = "block"; msgEl.classList.remove("fired");
@@ -523,17 +1145,20 @@
 
       if (idNum === ID_CMD_CACHE_END) {
         isCaching = false;
+        clearEffects();
         title.style.display = "block"; sub.style.display = "block"; msgEl.classList.remove("fired");
         title.innerText = "キャッシュ完了";
         sub.innerText = `ID: ${idNum} (待機状態)`;
         msgEl.innerText = `[準備OK] ${rxTextCache}`;
         msgEl.style.color = "#ddd";
+        canvas.style.transition = "background-color 300ms ease";
         canvas.style.backgroundColor = "#000000";
         return;
       }
 
       // --- 💥 FIRE (発火) ---
       if (idNum === ID_CMD_FIRE) {
+        clearEffects();
         title.style.display = "none";
         sub.style.display = "none";
         msgEl.innerText = rxTextCache;
@@ -546,6 +1171,7 @@
 
       // --- Unicode文字のダイレクト受信 (絵文字・漢字対応) ---
       if (idNum >= UNICODE_OFFSET && idNum < UNICODE_OFFSET + 2000000) {
+        clearEffects();
         let codePoint = idNum - UNICODE_OFFSET;
         let char = String.fromCodePoint(codePoint);
 
@@ -565,7 +1191,7 @@
       sub.style.display = "block";
       msgEl.classList.remove("fired");
 
-      // --- プリセット処理 ---
+      // --- プリセット処理（ソリッド/フェード/ストロボ/レインボー等すべて runEffect に集約） ---
       if (CUE_DATA[idStr]) {
         const cue = CUE_DATA[idStr];
         title.innerText = cue.name;
@@ -574,12 +1200,13 @@
         if (cue.msg) {
           msgEl.innerText = cue.msg;
           msgEl.style.color = "#ddd";
+          clearEffects();
+          canvas.style.transition = `background-color ${cue.ms || 300}ms ease`;
+          canvas.style.backgroundColor = "#000000";
         } else {
           msgEl.innerText = "";
+          runEffect(cue, canvas);
         }
-
-        canvas.style.transition = `background-color ${cue.ms || 300}ms ease`;
-        canvas.style.backgroundColor = cue.cat === "MESSAGE" ? "#000000" : cue.color;
 
         if (cue.vibrate && navigator.vibrate) navigator.vibrate(cue.vibrate);
         return;
@@ -587,6 +1214,7 @@
 
       // --- RGBカラー直接同期 ---
       if (idNum >= 20000000 && idNum <= 36777215) {
+        clearEffects();
         const rgbNum = idNum - 20000000;
         const hexColor = "#" + rgbNum.toString(16).padStart(6, '0');
 
@@ -604,4 +1232,5 @@
     }
   </script>
 </body>
+
 </html>
