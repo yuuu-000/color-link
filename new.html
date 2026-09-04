@@ -498,6 +498,22 @@
       box-shadow: 0 0 10px var(--accent);
       transition: width 0.1s linear;
     }
+
+    .debug-console {
+      background: #090a0f;
+      border: 1px solid #1c222d;
+      border-radius: 8px;
+      padding: 10px;
+      color: #71bfff;
+      font-family: ui-monospace, monospace;
+      font-size: 10px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      max-height: 140px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      margin-top: 6px;
+    }
   </style>
 </head>
 
@@ -521,6 +537,7 @@
             <button class="action-btn" id="sendFireBtn" style="background:#ffb703; color:#000;">発火(FIRE)</button>
           </div>
           <div class="tx-status-line" id="txStatusLine">各文字にチェックサムが付与されます。誤受信時は自動的に破棄されます。</div>
+          <div class="debug-console" id="txDebugLog">[TX DEBUG] 待機中...</div>
         </div>
 
         <div class="control-box">
@@ -555,6 +572,7 @@
               <div class="slot" id="slot3">S3: ---</div>
               <div class="slot checksum" id="slot4">CS: ---</div>
             </div>
+            <div class="debug-console" id="rxDebugLog">[RX DEBUG] マイク未接続</div>
           </div>
         </div>
 
@@ -569,6 +587,14 @@
   </div>
 
   <script>
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get('d') === 'n') {
+      document.querySelectorAll('.tx-area').forEach(el => {
+        el.style.display = 'none';
+      });
+    }
+
     const FREQ_TRIGGER = 20500;
     const GUARD_FREQ = 19000; // トリガー音の「鋭さ」判定用の参照周波数（広帯域ノイズ検出）
     const FREQ_DATA = [];
@@ -673,6 +699,21 @@
     let txCtx = null;
     function initTx() { if (!txCtx) txCtx = new (window.AudioContext || window.webkitAudioContext)(); }
 
+    const txDebugLog = document.getElementById("txDebugLog");
+    const rxDebugLog = document.getElementById("rxDebugLog");
+
+    function logTX(msg) {
+      if (!txDebugLog) return;
+      const t = new Date().toLocaleTimeString('ja-JP', { hour12: false });
+      txDebugLog.textContent = `[${t}] ${msg}\n` + txDebugLog.textContent.slice(0, 1500);
+    }
+
+    function logRX(msg) {
+      if (!rxDebugLog) return;
+      const t = new Date().toLocaleTimeString('ja-JP', { hour12: false });
+      rxDebugLog.textContent = `[${t}] ${msg}\n` + rxDebugLog.textContent.slice(0, 1800);
+    }
+
     // idから3つのペアインデックス(0-464)を導出し、検証用チェックサムペアも計算する
     function decomposeId(id) {
       const base1 = PAIR_COUNT * PAIR_COUNT;
@@ -745,6 +786,12 @@
         setTimeout(() => { bar.style.opacity = 0; setTimeout(() => { bar.style.width = "0%"; bar.style.opacity = 1; }, 200); }, (t - now) * 1000);
       }, 10);
 
+      const sInfo = slots.map((p, idx) => {
+        const label = idx === 3 ? "CS" : `S${idx + 1}`;
+        return `${label}[${p[0]},${p[1]}]=(${FREQ_DATA[p[0]]}Hz,${FREQ_DATA[p[1]]}Hz)`;
+      }).join("\n  ");
+      logTX(`送信開始 ID:${id} (465進:[${val1},${val2},${val3}] CS:${checksumVal})\n  Trig:${FREQ_TRIGGER}Hz\n  ${sInfo}`);
+
       return (t - now) * 1000 + 30; // 実行時間 + 安全マージン
     }
 
@@ -752,6 +799,7 @@
     const txStatusLine = document.getElementById("txStatusLine");
     const sendCharCacheBtn = document.getElementById("sendCharCacheBtn");
     const sendFireBtn = document.getElementById("sendFireBtn");
+    const customInputText = document.getElementById("customInputText");
     let isSending = false;
 
     async function sendStringSequence(str) {
@@ -788,8 +836,6 @@
       customInputText.disabled = false;
       isSending = false;
     }
-
-    const customInputText = document.getElementById("customInputText");
 
     sendCharCacheBtn.onclick = () => {
       const text = customInputText.value;
@@ -843,6 +889,7 @@
     let rxState = "IDLE";
     let rxStartTime = 0;
     let decodedValues = [];
+    let slotDebugDetails = [];
 
     // --- ノイズ耐性用の状態 ---
     let triggerNoiseFloor = null;   // 適応型ノイズフロア（EMA）
@@ -896,6 +943,7 @@
 
         UI_STATE("キャリブレーション中...", "#ffb703");
         document.getElementById("rxStartBtn").style.display = "none";
+        logRX(`マイク接続完了 サンプルレート:${rxCtx.sampleRate}Hz FFT:2048`);
         requestAnimationFrame(rxLoop);
       } catch (e) { alert("マイクアクセスが拒否されました。"); }
     };
@@ -977,8 +1025,10 @@
           rxState = "READING";
           rxStartTime = now;
           decodedValues = [];
+          slotDebugDetails = [];
           UI_STATE("デコード中...", "#ffeb3b");
           resetSlotUI();
+          logRX(`トリガー捕捉: Trig=${magTrigger.toFixed(1)}dB (閾値=${dynThreshold.toFixed(1)}dB, ガード差=${(magTrigger - guardMag).toFixed(1)}dB)`);
         } else if (UI_STATE) {
           // キャリブレーション完了後の通常表示
           const stateEl = document.getElementById("rxState");
@@ -1001,7 +1051,7 @@
           if (decodedValues[slotIndex] === undefined && timeOffset > (TIME_SLOT * 0.5) && timeOffset < (TIME_SLOT * 0.8)) {
             let results = [];
             for (let i = 0; i < 31; i++) {
-              results.push({ idx: i, mag: getMagnitude(FREQ_DATA[i], nyquist, bufferLength) });
+              results.push({ idx: i, hz: FREQ_DATA[i], mag: getMagnitude(FREQ_DATA[i], nyquist, bufferLength) });
             }
             results.sort((a, b) => b.mag - a.mag);
 
@@ -1015,6 +1065,7 @@
               && top2.mag > -95
               && (top1.mag - top3.mag) > PAIR_PEAK_MARGIN;
 
+            const slotLabel = slotIndex === 3 ? "CS" : `S${slotIndex + 1}`;
             if (isClearPair) {
               const idxA = Math.min(top1.idx, top2.idx);
               const idxB = Math.max(top1.idx, top2.idx);
@@ -1022,7 +1073,18 @@
               if (val !== -1) {
                 decodedValues[slotIndex] = val;
                 UI_SLOT(slotIndex + 1, val, true);
+                const info = `${slotLabel}: 一致[${val}] (${top1.hz}Hz=${top1.mag.toFixed(1)}dB, ${top2.hz}Hz=${top2.mag.toFixed(1)}dB, 差=${(top1.mag - top3.mag).toFixed(1)}dB)`;
+                slotDebugDetails[slotIndex] = info;
+                logRX(`  ${info}`);
+              } else {
+                const info = `${slotLabel}: ペア未定義 (1位:${top1.hz}Hz, 2位:${top2.hz}Hz)`;
+                slotDebugDetails[slotIndex] = info;
+                logRX(`  ${info}`);
               }
+            } else {
+              const info = `${slotLabel}: 閾値未達 (1位:${top1.hz}Hz=${top1.mag.toFixed(1)}dB, 2位:${top2.hz}Hz=${top2.mag.toFixed(1)}dB, 差=${(top1.mag - top3.mag).toFixed(1)}dB)`;
+              slotDebugDetails[slotIndex] = info;
+              logRX(`  ${info}`);
             }
           }
         } else if (elapsed >= windowEnd) {
@@ -1037,13 +1099,20 @@
             if (v3 === expectedChecksum) {
               // ✅ チェックサム一致。信頼できるパケットとして実行。
               const finalId = (v0 * PAIR_COUNT * PAIR_COUNT) + (v1 * PAIR_COUNT) + v2;
+              logRX(`受信成功 ID:${finalId} (復元[${v0},${v1},${v2}] CS:${v3}==${expectedChecksum})`);
               executeCue(finalId.toString());
               rxState = "IDLE";
               UI_STATE("リスニング中", "var(--accent)");
             } else {
+              logRX(`破棄: チェックサム不一致 受信CS:${v3} != 期待CS:${expectedChecksum} (S1-S3:[${v0},${v1},${v2}])`);
               rejectPacket("チェックサム不一致(破棄)");
             }
           } else {
+            const missing = [];
+            for (let k = 0; k < SLOT_COUNT; k++) {
+              if (decodedValues[k] === undefined) missing.push(k === 3 ? "CS" : `S${k + 1}`);
+            }
+            logRX(`破棄: デコード欠落 未検知=[${missing.join(',')}]`);
             rejectPacket("デコード不完全(破棄)");
           }
         }
