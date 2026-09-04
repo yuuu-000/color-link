@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Color Receiver - クライアント受信用</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #121620;
+      color: #fff;
+      overflow: hidden;
+      overscroll-behavior: none;
+      transition: background 0.15s ease;
+    }
+
+    .fullscreen-bg {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+      z-index: 10;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      touch-action: manipulation;
+    }
+
+    .top-bar {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .status-badge {
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background-color: #34d399;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #34d399;
+      animation: pulse-dot 2s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 12px #34d399; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    .icon-btn {
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      touch-action: manipulation;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .icon-btn:hover {
+      background: rgba(0, 0, 0, 0.6);
+    }
+
+    .icon-btn:active {
+      transform: scale(0.95);
+    }
+
+    .center-display {
+      text-align: center;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .center-status {
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(12px);
+      padding: 10px 22px;
+      border-radius: 24px;
+      font: 600 14px ui-monospace, monospace;
+      letter-spacing: 0.08em;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.95);
+    }
+
+    .helper-tip {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      background: rgba(0, 0, 0, 0.25);
+      backdrop-filter: blur(8px);
+      padding: 6px 14px;
+      border-radius: 14px;
+    }
+
+    .setup-screen,
+    .settings-modal,
+    .message-modal {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100dvh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+      background: rgba(10, 13, 20, 0.92);
+      backdrop-filter: blur(20px);
+      z-index: 20;
+      overflow-y: auto;
+      overscroll-behavior: none;
+    }
+
+    .settings-modal,
+    .message-modal {
+      display: none;
+      z-index: 30;
+      cursor: pointer;
+      background: rgba(0, 0, 0, 0.7);
+    }
+
+    .settings-modal.active,
+    .message-modal.active {
+      display: flex;
+    }
+
+    .panel {
+      width: min(400px, 100%);
+      background: #161b26;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      padding: 28px;
+      text-align: left;
+      cursor: default;
+      color: #f3f4f6;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #fff;
+      text-align: center;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 13px;
+      color: #9ca3af;
+      margin-bottom: 24px;
+    }
+
+    .guide-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 24px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #d1d5db;
+    }
+
+    .guide-box ol {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .guide-box li {
+      margin-bottom: 6px;
+    }
+
+    .guide-box li:last-child {
+      margin-bottom: 0;
+    }
+
+    .guide-box strong {
+      color: #fff;
+    }
+
+    button.primary-btn {
+      width: 100%;
+      border: none;
+      border-radius: 14px;
+      padding: 16px;
+      background: #3b82f6;
+      color: #fff;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      touch-action: manipulation;
+      transition: background 0.2s, transform 0.1s;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    button.primary-btn:hover {
+      background: #2563eb;
+    }
+
+    button.danger-btn {
+      width: 100%;
+      border: none;
+      border-radius: 14px;
+      padding: 14px;
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      touch-action: manipulation;
+      transition: background 0.2s, transform 0.1s;
+      margin-top: 10px;
+    }
+
+    button.danger-btn:hover {
+      background: rgba(239, 68, 68, 0.25);
+    }
+
+    button.secondary-btn {
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
+      padding: 14px;
+      background: transparent;
+      color: #d1d5db;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      touch-action: manipulation;
+      transition: background 0.2s;
+      margin-top: 10px;
+    }
+
+    button.secondary-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    button.primary-btn:active,
+    button.danger-btn:active,
+    button.secondary-btn:active {
+      transform: scale(0.98);
+    }
+
+    .modal-text {
+      text-align: center;
+      font-size: 14px;
+      color: #d1d5db;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="setupScreen" class="setup-screen">
+    <div class="panel">
+      <h1>カラーレシーバー</h1>
+      <div class="subtitle">音声ビジュアル同期システム</div>
+      <div class="guide-box">
+        <ol>
+          <li>下のボタンを押して<strong>マイクへのアクセス</strong>を許可します。</li>
+          <li>自動的にフルスクリーンモードに切り替わります。</li>
+          <li>周囲の音響信号に合わせて画面の色が変化します。</li>
+          <li>画面をタップするといつでも設定メニューを開けます。</li>
+        </ol>
+      </div>
+      <button id="rxStart" class="primary-btn">受信を開始する</button>
+    </div>
+  </div>
+
+  <div id="settingsModal" class="settings-modal">
+    <div class="panel" onclick="event.stopPropagation()">
+      <h1>設定メニュー</h1>
+      <div class="subtitle">レシーバーの管理</div>
+      <button id="micStopBtn" class="danger-btn">マイク接続を解除する</button>
+      <button id="closeSettingsBtn" class="secondary-btn">キャンセル</button>
+    </div>
+  </div>
+
+  <div id="messageModal" class="message-modal">
+    <div class="panel" onclick="event.stopPropagation()">
+      <h1 id="modalTitle">通知</h1>
+      <div id="modalText" class="modal-text">-</div>
+      <div id="modalButtons">
+        <button id="closeMsgBtn" class="primary-btn">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="fullscreenBg" class="fullscreen-bg">
+    <div class="top-bar">
+      <div class="status-badge">
+        <div class="status-dot"></div>
+        <span id="badgeText">受信中</span>
+      </div>
+      <button id="fullscreenBtn" class="icon-btn" title="フルスクリーン切替">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+      </button>
+    </div>
+
+    <div class="center-display">
+      <div class="center-status" id="centerStatus">待機中...</div>
+      <div class="helper-tip">タップしてメニューを表示</div>
+    </div>
+
+    <div style="height: 44px;"></div>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const MIN_FREQ = 18000;
+      const MAX_FREQ = 21000;
+      const TX_GRAY_END = 18500;
+      const TX_COLOR_START = 18600;
+      const RX_WHITE_BOUNDARY = 18550;
+
+      const FFT_SIZE = 4096;
+      const RX_THRESHOLD_DB = -110;
+
+      let rx = {
+        ctx: null,
+        stream: null,
+        source: null,
+        analyser: null,
+        bins: null,
+        raf: null,
+        running: false,
+        lastColor: "#121620",
+        lastFrequency: null,
+        wakeLock: null,
+        isStable: false,
+        activeModalType: null
+      };
+
+      const $ = id => document.getElementById(id);
+
+      function rgbToHex(r, g, b) {
+        return "#" + [r, g, b].map(v =>
+          Math.round(Math.max(0, Math.min(255, v)))
+            .toString(16)
+            .padStart(2, "0")
+        ).join("").toUpperCase();
+      }
+
+      function hslToHex(h, s, l) {
+        s /= 100; l /= 100;
+        const c = (1 - Math.abs(2 * l - 1)) * s;
+        const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+        const m = l - c / 2;
+        let r = 0, g = 0, b = 0;
+        if (h < 60) { r = c; g = x; }
+        else if (h < 120) { r = x; g = c; }
+        else if (h < 180) { g = c; b = x; }
+        else if (h < 240) { g = x; b = c; }
+        else if (h < 300) { r = x; b = c; }
+        else { r = c; b = x; }
+        return rgbToHex((r + m) * 255, (g + m) * 255, (b + m) * 255);
+      }
+
+      function frequencyToColor(freq) {
+        const f = Math.max(MIN_FREQ, Math.min(MAX_FREQ, freq));
+        if (f <= RX_WHITE_BOUNDARY) {
+          if (f <= TX_GRAY_END) {
+            const t = (f - MIN_FREQ) / (TX_GRAY_END - MIN_FREQ);
+            const v = Math.round(t * 255);
+            return rgbToHex(v, v, v);
+          }
+          return "#FFFFFF";
+        }
+        const t = (f - TX_COLOR_START) / (MAX_FREQ - TX_COLOR_START);
+        const clampedT = Math.max(0, Math.min(1, t));
+        return hslToHex(clampedT * 360, 100, 50);
+      }
+
+      function findUltrasonicPeak() {
+        const sr = rx.ctx.sampleRate;
+        const nyquist = sr / 2;
+        const minBin = Math.max(0, Math.floor(MIN_FREQ / nyquist * rx.bins.length));
+        const maxBin = Math.min(rx.bins.length - 1, Math.ceil(MAX_FREQ / nyquist * rx.bins.length));
+
+        let maxDb = -Infinity;
+        let maxBinIndex = minBin;
+
+        for (let i = minBin; i <= maxBin; i++) {
+          const db = rx.bins[i];
+          if (db > maxDb) {
+            maxDb = db;
+            maxBinIndex = i;
+          }
+        }
+        const peakHz = maxBinIndex * nyquist / rx.bins.length;
+        return { peakHz, maxDb };
+      }
+
+      async function requestWakeLock() {
+        if ('wakeLock' in navigator) {
+          try {
+            rx.wakeLock = await navigator.wakeLock.request('screen');
+          } catch (err) {}
+        }
+      }
+
+      async function releaseWakeLock() {
+        if (rx.wakeLock) {
+          try {
+            await rx.wakeLock.release();
+          } catch (err) {}
+          rx.wakeLock = null;
+        }
+      }
+
+      function getFullscreenElement() {
+        return document.fullscreenElement ?? document.webkitFullscreenElement ?? null;
+      }
+
+      async function enterFullscreen() {
+        try {
+          if (document.documentElement.requestFullscreen) {
+            await document.documentElement.requestFullscreen();
+            return true;
+          }
+          if (document.documentElement.webkitRequestFullscreen) {
+            document.documentElement.webkitRequestFullscreen();
+            return true;
+          }
+        } catch (error) {}
+        return false;
+      }
+
+      async function exitFullscreen() {
+        try {
+          if (document.exitFullscreen) {
+            await document.exitFullscreen();
+            return true;
+          }
+          if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+            return true;
+          }
+        } catch (error) {}
+        return false;
+      }
+
+      async function toggleFullscreen() {
+        if (getFullscreenElement()) {
+          await exitFullscreen();
+        } else {
+          await enterFullscreen();
+        }
+      }
+
+      function applyBackgroundColor(color) {
+        document.documentElement.style.background = color;
+        document.body.style.background = color;
+        $("fullscreenBg").style.background = color;
+      }
+
+      $("fullscreenBtn").addEventListener("pointerup", (e) => {
+        e.stopPropagation();
+        toggleFullscreen();
+      });
+
+      $("fullscreenBg").addEventListener("pointerup", (e) => {
+        if (e.target.closest("#fullscreenBtn")) return;
+        if ($("messageModal").classList.contains("active")) return;
+        $("settingsModal").classList.add("active");
+      });
+
+      $("settingsModal").addEventListener("pointerup", (e) => {
+        if (e.target === $("settingsModal")) {
+          $("settingsModal").classList.remove("active");
+        }
+      });
+
+      $("closeSettingsBtn").addEventListener("pointerup", () => {
+        $("settingsModal").classList.remove("active");
+      });
+
+      function closeModal() {
+        $("messageModal").classList.remove("active");
+        rx.activeModalType = null;
+      }
+
+      $("closeMsgBtn")?.addEventListener("pointerup", closeModal);
+      $("messageModal").addEventListener("pointerup", (e) => {
+        if (e.target === $("messageModal")) {
+          closeModal();
+        }
+      });
+
+      async function stopMic() {
+        rx.running = false;
+        if (rx.raf) cancelAnimationFrame(rx.raf);
+
+        if (rx.stream) {
+          rx.stream.getTracks().forEach(track => track.stop());
+          rx.stream = null;
+        }
+
+        if (rx.ctx && rx.ctx.state !== "closed") {
+          await rx.ctx.close();
+          rx.ctx = null;
+        }
+
+        await releaseWakeLock();
+
+        if (getFullscreenElement()) {
+          await exitFullscreen();
+        }
+
+        $("settingsModal").classList.remove("active");
+        closeModal();
+        $("setupScreen").style.display = "flex";
+        $("centerStatus").textContent = "待機中...";
+        rx.lastColor = "#121620";
+        rx.lastFrequency = null;
+        rx.isStable = false;
+        applyBackgroundColor(rx.lastColor);
+      }
+
+      $("micStopBtn").addEventListener("pointerup", stopMic);
+
+      $("rxStart").addEventListener("pointerup", async () => {
+        if (rx.running) return;
+        try {
+          rx.stream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
+            video: false
+          });
+          rx.ctx = new (window.AudioContext || window.webkitAudioContext)();
+          if (rx.ctx.state === "suspended") await rx.ctx.resume();
+
+          rx.source = rx.ctx.createMediaStreamSource(rx.stream);
+          rx.analyser = rx.ctx.createAnalyser();
+          rx.analyser.fftSize = FFT_SIZE;
+          rx.analyser.smoothingTimeConstant = 0.03;
+          rx.source.connect(rx.analyser);
+          rx.bins = new Float32Array(rx.analyser.frequencyBinCount);
+          rx.running = true;
+          rx.isStable = false;
+          rx.activeModalType = null;
+
+          await requestWakeLock();
+          await enterFullscreen();
+
+          $("setupScreen").style.display = "none";
+
+          setTimeout(() => {
+            if (rx.running) {
+              rx.isStable = true;
+            }
+          }, 1000);
+
+          const loop = () => {
+            if (!rx.running) return;
+
+            rx.analyser.getFloatFrequencyData(rx.bins);
+            const d = findUltrasonicPeak();
+            const confirmed = d.maxDb >= RX_THRESHOLD_DB;
+
+            if (!rx.isStable) {
+              applyBackgroundColor("#121620");
+              $("centerStatus").textContent = "準備中...";
+              rx.raf = requestAnimationFrame(loop);
+              return;
+            }
+
+            if (confirmed) {
+              let targetModalType = null;
+              if (d.peakHz >= 20966) {
+                targetModalType = 3;
+              } else if (d.peakHz >= 20933) {
+                targetModalType = 2;
+              } else if (d.peakHz >= 20900) {
+                targetModalType = 1;
+              }
+
+              if (targetModalType === null) {
+                if (rx.activeModalType !== null) {
+                  closeModal();
+                }
+              } else {
+                if (rx.activeModalType !== targetModalType) {
+                  $("settingsModal").classList.remove("active");
+                  rx.activeModalType = targetModalType;
+
+                  const modalEl = $("messageModal");
+                  const titleEl = $("modalTitle");
+                  const textEl = $("modalText");
+                  const buttonsEl = $("modalButtons");
+
+                  modalEl.classList.add("active");
+
+                  if (targetModalType === 1) {
+                    titleEl.textContent = "通知";
+                    textEl.innerHTML = "受信専用レシーバーが同期信号を受信しました。<br><strong>専用メッセージを表示中</strong>";
+                    buttonsEl.innerHTML = `
+                      <button id="closeMsgBtn" class="primary-btn">閉じる</button>
+                      <button id="modalMicStop" class="danger-btn">マイクをオフにする</button>
+                    `;
+                    $("closeMsgBtn").addEventListener("pointerup", closeModal);
+                    $("modalMicStop").addEventListener("pointerup", stopMic);
+                  } else if (targetModalType === 2) {
+                    titleEl.textContent = "情報 B";
+                    textEl.innerHTML = "指定帯域 2 (20933Hz〜)";
+                    buttonsEl.innerHTML = `<button id="closeMsgBtn" class="primary-btn">閉じる</button>`;
+                    $("closeMsgBtn").addEventListener("pointerup", closeModal);
+                  } else if (targetModalType === 3) {
+                    titleEl.textContent = "情報 C";
+                    textEl.innerHTML = "指定帯域 3 (20966Hz〜)";
+                    buttonsEl.innerHTML = `<button id="closeMsgBtn" class="primary-btn">閉じる</button>`;
+                    $("closeMsgBtn").addEventListener("pointerup", closeModal);
+                  }
+                }
+              }
+
+              const color = frequencyToColor(d.peakHz);
+              rx.lastColor = color;
+              rx.lastFrequency = d.peakHz;
+
+              applyBackgroundColor(color);
+              $("centerStatus").textContent = color;
+              $("badgeText").textContent = "受信中";
+            } else {
+              if (rx.activeModalType !== null) {
+                closeModal();
+              }
+              applyBackgroundColor(rx.lastColor);
+              $("centerStatus").textContent = rx.lastFrequency !== null ? rx.lastColor : "信号待機中...";
+              $("badgeText").textContent = rx.lastFrequency !== null ? "保持中" : "待機中";
+            }
+
+            rx.raf = requestAnimationFrame(loop);
+          };
+          rx.raf = requestAnimationFrame(loop);
+        } catch (e) {
+          alert("マイクの利用許可が必要です。ブラウザの設定をご確認ください。");
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
