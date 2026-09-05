@@ -3,17 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>アコースティック・レシーバー</title>
+  <title>CUE-X Receiver</title>
   <style>
     :root {
-      --bg: #090a0f;
-      --card-bg: #141721;
+      --bg: #050507;
       --accent: #00f0ff;
-      --accent-glow: rgba(0, 240, 255, 0.3);
+      --accent-glow: rgba(0, 240, 255, 0.35);
       --text: #f8fafc;
-      --text-sub: #94a3b8;
-      --danger: #ff3366;
-      --success: #39ff14;
+      --text-sub: #64748b;
     }
 
     * {
@@ -21,275 +18,186 @@
       margin: 0;
       padding: 0;
       -webkit-tap-highlight-color: transparent;
+      user-select: none;
     }
 
-    body {
+    body, html {
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
       background-color: var(--bg);
       color: var(--text);
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      height: 100vh;
-      height: 100dvh;
-      display: flex;
-      flex-direction: column;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       overflow: hidden;
+      position: fixed;
     }
 
-    /* 受信エリア（フルスクリーン対応コンテナ） */
-    #rxAreaContainer {
-      position: relative;
-      flex: 1;
-      width: 100%;
-      background-color: #000000;
+    /* 演出メインステージ（全画面発光） */
+    #rxStage {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      background-color: #050507;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      overflow: hidden;
-    }
-
-    #rxCanvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: #050505;
-      z-index: 1;
-      transition: background-color 0.3s ease;
-    }
-
-    /* 受信時のUIオーバーレイ */
-    .rx-overlay {
-      position: relative;
-      z-index: 2;
-      text-align: center;
       padding: 24px;
-      pointer-events: none;
-      width: 100%;
-      max-width: 600px;
+      text-align: center;
+      transition: background-color 0.2s ease;
+      z-index: 1;
     }
 
     #rxTitle {
-      font-size: clamp(1.8rem, 5vw, 3rem);
-      font-weight: 800;
+      font-size: clamp(1.8rem, 6vw, 3.2rem);
+      font-weight: 900;
       letter-spacing: 0.05em;
       margin-bottom: 8px;
-      text-shadow: 0 4px 20px rgba(0,0,0,0.8);
+      text-shadow: 0 4px 24px rgba(0, 0, 0, 0.9);
+      transition: opacity 0.2s;
     }
 
     #rxSub {
-      font-size: clamp(0.9rem, 2vw, 1.1rem);
+      font-size: clamp(0.9rem, 2.5vw, 1.1rem);
       color: var(--text-sub);
-      font-family: monospace;
+      font-family: ui-monospace, monospace;
       margin-bottom: 16px;
+      letter-spacing: 0.08em;
+      transition: opacity 0.2s;
     }
 
     #rxMsg {
-      font-size: clamp(1.2rem, 3.5vw, 2rem);
-      font-weight: 600;
+      font-size: clamp(1.3rem, 4vw, 2.4rem);
+      font-weight: 700;
       line-height: 1.5;
       word-break: break-all;
-      text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
     }
 
-    /* 発火時のモーダルメッセージ演出 */
     #rxMsg.fired {
-      font-size: clamp(2rem, 7vw, 4.5rem);
+      font-size: clamp(2.2rem, 8vw, 4.5rem);
       font-weight: 900;
       color: #fff;
       animation: pulse-glow 2s infinite alternate;
     }
 
     @keyframes pulse-glow {
-      0% { text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+      0% { text-shadow: 0 0 10px rgba(255, 255, 255, 0.6); }
       100% { text-shadow: 0 0 30px var(--accent), 0 0 60px var(--accent-glow); }
     }
 
-    /* コントロールパネル（下部ダッシュボード） */
-    .control-panel {
-      background: var(--card-bg);
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-      padding: 16px 20px calc(16px + env(safe-area-inset-bottom)) 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      z-index: 10;
-      box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
-    }
-
-    .panel-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .status-group {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 0.85rem;
-    }
-
-    .status-badge {
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-weight: 700;
-      background: rgba(0, 240, 255, 0.1);
-      color: var(--accent);
-      border: 1px solid rgba(0, 240, 255, 0.3);
-      letter-spacing: 0.03em;
-    }
-
-    .metrics {
-      font-family: monospace;
-      color: var(--text-sub);
-      font-size: 0.8rem;
-    }
-
-    /* スロットインジケーター */
-    .slots-container {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 6px;
-    }
-
-    .slot-box {
-      background: rgba(0,0,0,0.3);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 6px;
-      padding: 6px 4px;
-      text-align: center;
-      font-family: monospace;
-      font-size: 0.75rem;
-      color: var(--text-sub);
-      transition: all 0.15s ease;
-    }
-
-    .slot-box.active {
-      border-color: var(--accent);
-      background: var(--accent-glow);
-      color: #fff;
-      box-shadow: 0 0 10px var(--accent-glow);
-    }
-
-    /* ボタン・キャンバス類 */
-    .btn-action {
-      background: linear-gradient(135deg, var(--accent) 0%, #0088ff 100%);
-      color: #000;
-      border: none;
-      padding: 12px 20px;
-      border-radius: 10px;
-      font-weight: 700;
-      font-size: 0.95rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      box-shadow: 0 4px 15px var(--accent-glow);
-      transition: transform 0.1s ease, opacity 0.2s;
-      width: 100%;
-    }
-
-    .btn-action:active {
-      transform: scale(0.97);
-    }
-
-    .btn-sub {
-      background: rgba(255,255,255,0.08);
-      color: var(--text);
-      border: 1px solid rgba(255,255,255,0.15);
-      padding: 10px 16px;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 0.85rem;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .btn-sub:hover {
-      background: rgba(255,255,255,0.15);
-    }
-
-    #spectrumCanvas {
-      width: 100%;
-      height: 35px;
-      background: rgba(0,0,0,0.2);
-      border-radius: 4px;
-    }
-
-    /* 初期スタート画面オーバーレイ */
+    /* 開始オーバーレイ（1タップで全権限を取得） */
     #startOverlay {
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: var(--bg);
+      height: 100dvh;
+      background: rgba(5, 5, 7, 0.96);
+      backdrop-filter: blur(20px);
       z-index: 100;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 24px;
+      padding: 32px 24px;
       text-align: center;
     }
 
     #startOverlay h1 {
-      font-size: 1.8rem;
+      font-size: 2rem;
+      font-weight: 900;
+      letter-spacing: 0.05em;
       margin-bottom: 12px;
       color: #fff;
     }
 
     #startOverlay p {
-      color: var(--text-sub);
+      color: #94a3b8;
       font-size: 0.95rem;
-      max-width: 400px;
+      max-width: 360px;
       line-height: 1.6;
-      margin-bottom: 24px;
+      margin-bottom: 32px;
+    }
+
+    .btn-start {
+      background: linear-gradient(135deg, var(--accent) 0%, #0088ff 100%);
+      color: #000;
+      border: none;
+      padding: 16px 36px;
+      border-radius: 30px;
+      font-weight: 800;
+      font-size: 1.05rem;
+      cursor: pointer;
+      box-shadow: 0 4px 25px var(--accent-glow);
+      transition: transform 0.1s ease, box-shadow 0.2s;
+    }
+
+    .btn-start:active {
+      transform: scale(0.96);
     }
   </style>
 </head>
 <body>
 
   <div id="startOverlay">
-    <h1>Acoustic Receiver</h1>
-    <p>ライブやイベントの音響同期を受信するため、マイクへのアクセスと画面のフルスクリーン化を許可してください。</p>
-    <button class="btn-action" id="rxStartBtn" style="max-width: 280px;">受信を開始する</button>
+    <h1>LIVE INTERACTION</h1>
+    <p>音響連動演出に参加します。<br>ボタンを押してマイクを許可してください。</p>
+    <button class="btn-start" id="startBtn">演出に参加する</button>
   </div>
 
-  <div id="rxAreaContainer">
-    <div id="rxCanvas"></div>
-    <div class="rx-overlay">
-      <div id="rxTitle">スタンバイ中</div>
-      <div id="rxSub">音響同期を待っています...</div>
-      <div id="rxMsg"></div>
-    </div>
-  </div>
-
-  <div class="control-panel">
-    <div class="panel-row">
-      <div class="status-group">
-        <div class="status-badge" id="rxState">初期化待ち</div>
-        <div class="metrics">Peak: <span id="rxPeak">--</span>dB / Thresh: <span id="rxThresh">--</span>dB</div>
-      </div>
-      <button class="btn-sub" id="rxFullscreenBtn">⛶ フルスクリーン</button>
-    </div>
-
-    <div class="slots-container">
-      <div class="slot-box" id="slot1">S1: ---</div>
-      <div class="slot-box" id="slot2">S2: ---</div>
-      <div class="slot-box" id="slot3">S3: ---</div>
-      <div class="slot-box" id="slot4">CS: ---</div>
-    </div>
-
-    <canvas id="spectrumCanvas"></canvas>
+  <div id="rxStage">
+    <div id="rxTitle">スタンバイ中</div>
+    <div id="rxSub">音響シグナルを待機しています</div>
+    <div id="rxMsg"></div>
   </div>
 
   <script>
+    // =========================================================================
+    // 1. NICT 高精度時刻同期（バックグラウンド動作）
+    // =========================================================================
+    let averageOffset = 0;
+
+    async function fetchTime() {
+      try {
+        const t0 = Date.now();
+        const urls = [
+          "https://3fe5a5f690efc790d4764f1c528a4ebb89fa4168.nict.go.jp/cgi-bin/json?" + (t0 / 1000),
+          "https://67495dde3b39c2991829589f0101ab7a035eecf5.nict.go.jp/cgi-bin/json?" + (t0 / 1000),
+          "https://08a08e3a6edef4ba7a0c055a42d8e1ba2597f2b5.nict.go.jp/cgi-bin/json?" + (t0 / 1000)
+        ];
+
+        const responses = await Promise.all(urls.map(u => fetch(u).then(r => r.json())));
+        const t1 = Date.now();
+
+        const timeOffset1 = (responses[0].st - responses[0].it) * 1000;
+        const timeOffset2 = (responses[1].st - responses[1].it) * 1000;
+        const timeOffset3 = (responses[2].st - responses[2].it) * 1000;
+
+        const latency = (t1 - (((responses[0].it + responses[1].it + responses[2].it) * 1000) / 3));
+        const latencOneWay = latency / 2;
+
+        averageOffset = Math.round(((timeOffset1 + timeOffset2 + timeOffset3) / 3) - latencOneWay);
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+    fetchTime();
+    setInterval(fetchTime, 600000);
+
+    function getSyncedNow() {
+      return Date.now() + averageOffset;
+    }
+
+    // =========================================================================
+    // 2. 超音波プロトコル定義・定数設定
+    // =========================================================================
     const FREQ_TRIGGER = 20500;
-    const GUARD_FREQ = 19000; // トリガー音の「鋭さ」判定用の参照周波数（広帯域ノイズ検出）
+    const GUARD_FREQ = 19000;
     const FREQ_DATA = [];
     for (let i = 0; i < 31; i++) {
       FREQ_DATA.push(17300 + (i * 100));
@@ -303,24 +211,29 @@
     }
     const PAIR_COUNT = PAIRS.length; // 465
 
-    const TIME_START = 0.15;
+    const TIME_START = 0.2;
     const TIME_SLOT = 0.12;
-    const SLOT_COUNT = 4; // データ3 + チェックサム1（IDの取りうる数=465^3はそのまま。検証専用の追加トーン）
-    const THRESHOLD = -110;             // スロット内ピア判定の絶対フロア（保険）
-    const PAIR_PEAK_MARGIN = 7;         // 1位候補と3位候補のdB差。小さいと「不確実」として棄却
-    const TRIGGER_MARGIN_DB = 18;        // 適応ノイズフロアからのマージン
-    const TRIGGER_PROMINENCE_DB = 10;    // トリガー周波数とガード周波数のdB差（純音らしさ）
-    const TRIGGER_CONFIRM_FRAMES = 3;    // 連続何フレーム条件を満たしたらトリガー確定とするか
-    const TRIGGER_ABS_FLOOR = -115;       // ノイズフロアが異常に低い場合の絶対下限
+    const SLOT_COUNT = 4;
 
-    // プロトコル定義 (ダイレクトUnicode通信化)
+    const THRESHOLD = -100;
+    const TOP2_FLOOR = -105;
+    const PAIR_PEAK_MARGIN = 5;
+
+    const TRIGGER_MARGIN_DB = 18;
+    const TRIGGER_PROMINENCE_DB = 10;
+    const TRIGGER_CONFIRM_FRAMES = 3;
+    const TRIGGER_ABS_FLOOR = -100;
+
     const ID_CMD_CACHE_START = 100544501;
     const ID_CMD_CACHE_END = 100544502;
     const ID_CMD_FIRE = 100544503;
-    const UNICODE_OFFSET = 1000000; // ID 100万〜をUnicodeに割り当て
+    const UNICODE_OFFSET = 1000000;
 
     let rxTextCache = "";
 
+    // =========================================================================
+    // 3. プリセットデータ
+    // =========================================================================
     const CUE_DATA = {
       "0": { cat: "SOLID", name: "ブラックアウト", color: "#050505", ms: 0 },
       "3": { cat: "SOLID", name: "ピュアレッド", color: "#FF0033", ms: 0 },
@@ -348,38 +261,173 @@
       "50007": { cat: "FLASH", name: "白黒8Hz", color: "#FFFFFF", ms: 0, strobe: 8 },
       "50008": { cat: "FLASH", name: "白黒9Hz", color: "#FFFFFF", ms: 0, strobe: 9 },
       "50009": { cat: "FLASH", name: "白黒10Hz", color: "#FFFFFF", ms: 0, strobe: 10 },
-      "50010": { cat: "FLASH", name: "白黒11Hz", color: "#FFFFFF", ms: 0, strobe: 11 },
-      "50011": { cat: "FLASH", name: "白黒12Hz", color: "#FFFFFF", ms: 0, strobe: 12 },
-      "50012": { cat: "FLASH", name: "白黒13Hz", color: "#FFFFFF", ms: 0, strobe: 13 },
-      "50013": { cat: "FLASH", name: "白黒14Hz", color: "#FFFFFF", ms: 0, strobe: 14 },
       "50014": { cat: "FLASH", name: "白黒15Hz", color: "#FFFFFF", ms: 0, strobe: 15 },
-      "50015": { cat: "FLASH", name: "白黒16Hz", color: "#FFFFFF", ms: 0, strobe: 16 },
-      "50016": { cat: "FLASH", name: "白黒17Hz", color: "#FFFFFF", ms: 0, strobe: 17 },
-      "50017": { cat: "FLASH", name: "白黒18Hz", color: "#FFFFFF", ms: 0, strobe: 18 },
-      "50018": { cat: "FLASH", name: "白黒19Hz", color: "#FFFFFF", ms: 0, strobe: 19 },
       "50019": { cat: "FLASH", name: "白黒20Hz", color: "#FFFFFF", ms: 0, strobe: 20 },
-      "50020": { cat: "FLASH", name: "白黒21Hz", color: "#FFFFFF", ms: 0, strobe: 21 },
-      "50021": { cat: "FLASH", name: "白黒22Hz", color: "#FFFFFF", ms: 0, strobe: 22 },
-      "50022": { cat: "FLASH", name: "白黒23Hz", color: "#FFFFFF", ms: 0, strobe: 23 },
-      "50023": { cat: "FLASH", name: "白黒24Hz", color: "#FFFFFF", ms: 0, strobe: 24 },
       "50024": { cat: "FLASH", name: "白黒25Hz", color: "#FFFFFF", ms: 0, strobe: 25 },
-      "50025": { cat: "FLASH", name: "白黒26Hz", color: "#FFFFFF", ms: 0, strobe: 26 },
-      "50026": { cat: "FLASH", name: "白黒27Hz", color: "#FFFFFF", ms: 0, strobe: 27 },
-      "50027": { cat: "FLASH", name: "白黒28Hz", color: "#FFFFFF", ms: 0, strobe: 28 },
-      "50028": { cat: "FLASH", name: "白黒29Hz", color: "#FFFFFF", ms: 0, strobe: 29 },
       "50029": { cat: "FLASH", name: "白黒30Hz", color: "#FFFFFF", ms: 0, strobe: 30 },
 
       "50100": { cat: "FLASH", name: "警告フラッシュ (赤)", color: "#FF0000", ms: 0, strobe: 6 },
 
       "70000": { cat: "LASER", name: "サイバービーム", color: "#00FFFF", ms: 3000, strobe: 10 },
 
-      // --- 🎉 新規追加：楽しいエフェクト系プリセット ---
       "80000": { cat: "EFFECT", name: "レインボーサイクル", type: "rainbow", ms: 6000 },
       "80001": { cat: "EFFECT", name: "パーティーモード", type: "party", ms: 5000 },
       "80002": { cat: "EFFECT", name: "ハートビート", type: "heartbeat", color: "#FF0033", ms: 4800 },
       "80003": { cat: "EFFECT", name: "カラーチェイス", type: "sequence", colors: ["#FF0033", "#FFB703", "#39FF14", "#00f0ff", "#FF00FF"], stepMs: 180, ms: 4500 },
       "80004": { cat: "EFFECT", name: "スパークル", type: "party", colors: ["#FFFFFF", "#F8FAFC", "#00f0ff"], ms: 3000 },
       "80005": { cat: "EFFECT", name: "カウントダウン導光", type: "sequence", colors: ["#0055FF", "#39FF14", "#FFB703", "#FF0033", "#FFFFFF"], stepMs: 700, ms: 3500 },
+
+      "90001": {
+        cat: "TIMELINE", name: "EDM 4つ打ち同期 (BPM128)", type: "timeline", start: 5,
+        timeline: [
+          { timeMs: 0, action: { color: "#FF0033", ms: 60, vibrate: [120] } },
+          { timeMs: 468, action: { color: "#050507", ms: 60 } },
+          { timeMs: 937, action: { color: "#FFB703", ms: 60, vibrate: [80] } },
+          { timeMs: 1406, action: { color: "#050507", ms: 60 } },
+          { timeMs: 1875, action: { color: "#00f0ff", ms: 60, vibrate: [120] } },
+          { timeMs: 2343, action: { color: "#050507", ms: 60 } },
+          { timeMs: 2812, action: { color: "#FF00FF", ms: 60, vibrate: [80] } },
+          { timeMs: 3281, action: { color: "#050507", ms: 60 } },
+          { timeMs: 3750, action: { color: "#FFFFFF", ms: 0, strobe: 15 } },
+          { timeMs: 5625, action: { color: "#FF0033", ms: 2000, vibrate: [300, 100, 300] } }
+        ]
+      },
+
+      "90002": {
+        cat: "TIMELINE", name: "EDM Evolution Drop (BPM130 Extended)", type: "timeline", start: 10,
+        timeline: [
+          { timeMs: 0, action: { color: "#050507", ms: 80, vibrate: [40] } },
+          { timeMs: 462, action: { color: "#16213E", ms: 80 } },
+          { timeMs: 923, action: { color: "#050507", ms: 80 } },
+          { timeMs: 1385, action: { color: "#16213E", ms: 80 } },
+          { timeMs: 1846, action: { color: "#00F0FF", ms: 100, vibrate: [80] } },
+          { timeMs: 2308, action: { color: "#050507", ms: 80 } },
+          { timeMs: 2769, action: { color: "#00F0FF", ms: 100, vibrate: [80] } },
+          { timeMs: 3231, action: { color: "#050507", ms: 80 } },
+          { timeMs: 3692, action: { color: "#FF0033", ms: 100, vibrate: [100] } },
+          { timeMs: 3923, action: { color: "#FF006E", ms: 50 } },
+          { timeMs: 4154, action: { color: "#FF0033", ms: 100, vibrate: [100] } },
+          { timeMs: 4385, action: { color: "#FF006E", ms: 50 } },
+          { timeMs: 4615, action: { color: "#FFB703", ms: 120, vibrate: [140] } },
+          { timeMs: 4846, action: { color: "#FF006E", ms: 50 } },
+          { timeMs: 5077, action: { color: "#FFB703", ms: 120, vibrate: [140] } },
+          { timeMs: 5308, action: { color: "#FF006E", ms: 50 } },
+          { timeMs: 5538, action: { color: "#020204", ms: 300 } },
+          { timeMs: 6000, action: { color: "#081018", ms: 80 } },
+          { timeMs: 6462, action: { color: "#020204", ms: 80 } },
+          { timeMs: 6923, action: { color: "#081018", ms: 80 } },
+          { timeMs: 7385, action: { color: "#020204", ms: 80 } },
+          { timeMs: 7846, action: { color: "#FFFFFF", ms: 70, vibrate: [50] } },
+          { timeMs: 8077, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 8308, action: { color: "#FFFFFF", ms: 70, vibrate: [50] } },
+          { timeMs: 8538, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 8769, action: { color: "#FFFFFF", ms: 70, vibrate: [60] } },
+          { timeMs: 9000, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 9231, action: { color: "#FFFFFF", ms: 70, vibrate: [70] } },
+          { timeMs: 9462, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 9692, action: { color: "#FFFFFF", ms: 0, strobe: 12, vibrate: [80] } },
+          { timeMs: 11538, action: { color: "#000000", ms: 0 } },
+          { timeMs: 11800, action: { color: "#FFFFFF", ms: 40 } },
+          { timeMs: 11900, action: { color: "#000000", ms: 0 } },
+          { timeMs: 12000, action: { color: "#FF0033", ms: 2500, vibrate: [300, 100, 300, 100, 500] } },
+          { timeMs: 12462, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
+          { timeMs: 12923, action: { color: "#FF00FF", ms: 100, vibrate: [100] } },
+          { timeMs: 13385, action: { color: "#FFB703", ms: 120, vibrate: [140] } },
+          { timeMs: 13846, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
+          { timeMs: 14308, action: { color: "#FF0033", ms: 100, vibrate: [100] } },
+          { timeMs: 14769, action: { color: "#FF00FF", ms: 100, vibrate: [100] } },
+          { timeMs: 15231, action: { color: "#FFB703", ms: 120, vibrate: [140] } },
+          { timeMs: 15692, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
+          { timeMs: 16154, action: { color: "#FFFFFF", ms: 0, strobe: 8, vibrate: [500, 100, 500] } },
+          { timeMs: 18000, action: { color: "#000000", ms: 500 } },
+          { timeMs: 18462, action: { color: "#081018", ms: 100 } },
+          { timeMs: 18923, action: { color: "#000000", ms: 100 } },
+          { timeMs: 19385, action: { color: "#081018", ms: 100 } },
+          { timeMs: 19846, action: { color: "#000000", ms: 100 } },
+          { timeMs: 20308, action: { color: "#16213E", ms: 120 } },
+          { timeMs: 20769, action: { color: "#00F0FF", ms: 100 } },
+          { timeMs: 21231, action: { color: "#16213E", ms: 120 } },
+          { timeMs: 21692, action: { color: "#00F0FF", ms: 100 } },
+          { timeMs: 22154, action: { color: "#FF006E", ms: 80, vibrate: [60] } },
+          { timeMs: 22385, action: { color: "#FF0033", ms: 80 } },
+          { timeMs: 22615, action: { color: "#FF006E", ms: 80, vibrate: [70] } },
+          { timeMs: 22846, action: { color: "#FF0033", ms: 80 } },
+          { timeMs: 23077, action: { color: "#FFB703", ms: 90, vibrate: [80] } },
+          { timeMs: 23308, action: { color: "#FF006E", ms: 60 } },
+          { timeMs: 23538, action: { color: "#FFB703", ms: 90, vibrate: [90] } },
+          { timeMs: 23769, action: { color: "#FF006E", ms: 60 } },
+          { timeMs: 24000, action: { color: "#FFFFFF", ms: 60, vibrate: [50] } },
+          { timeMs: 24231, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 24462, action: { color: "#FFFFFF", ms: 60, vibrate: [60] } },
+          { timeMs: 24692, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 24923, action: { color: "#FFFFFF", ms: 60, vibrate: [70] } },
+          { timeMs: 25154, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 25385, action: { color: "#FFFFFF", ms: 60, vibrate: [80] } },
+          { timeMs: 25615, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 25846, action: { color: "#FFFFFF", ms: 0, strobe: 16, vibrate: [100] } },
+          { timeMs: 27700, action: { color: "#000000", ms: 0 } },
+          { timeMs: 28000, action: { color: "#FFFFFF", ms: 30 } },
+          { timeMs: 28100, action: { color: "#000000", ms: 0 } },
+          { timeMs: 28200, action: { color: "#FFFFFF", ms: 30 } },
+          { timeMs: 28300, action: { color: "#000000", ms: 0 } },
+          { timeMs: 28615, action: { color: "#FF0033", ms: 3000, vibrate: [700] } },
+          { timeMs: 29077, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
+          { timeMs: 29538, action: { color: "#FF00FF", ms: 100, vibrate: [120] } },
+          { timeMs: 30000, action: { color: "#FFB703", ms: 120, vibrate: [150] } },
+          { timeMs: 30462, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
+          { timeMs: 30923, action: { color: "#FF0033", ms: 100, vibrate: [130] } },
+          { timeMs: 31385, action: { color: "#FF00FF", ms: 100, vibrate: [130] } },
+          { timeMs: 31846, action: { color: "#FFB703", ms: 120, vibrate: [160] } },
+          { timeMs: 32308, action: { color: "#00F0FF", ms: 100, vibrate: [130] } },
+          { timeMs: 32769, action: { color: "#FFFFFF", ms: 0, strobe: 12, vibrate: [500, 100, 500] } },
+          { timeMs: 33231, action: { color: "#FF0033", ms: 100, vibrate: [120] } },
+          { timeMs: 33692, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
+          { timeMs: 34154, action: { color: "#FF00FF", ms: 100, vibrate: [120] } },
+          { timeMs: 34615, action: { color: "#FFB703", ms: 120, vibrate: [160] } },
+          { timeMs: 35077, action: { color: "#FF0033", ms: 100, vibrate: [130] } },
+          { timeMs: 35538, action: { color: "#00F0FF", ms: 100, vibrate: [130] } },
+          { timeMs: 36000, action: { color: "#FF00FF", ms: 100, vibrate: [130] } },
+          { timeMs: 36462, action: { color: "#FFB703", ms: 120, vibrate: [170] } },
+          { timeMs: 36923, action: { color: "#FFFFFF", ms: 70, vibrate: [80] } },
+          { timeMs: 37154, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 37385, action: { color: "#FFFFFF", ms: 70, vibrate: [90] } },
+          { timeMs: 37615, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 37846, action: { color: "#FF0033", ms: 80, vibrate: [70] } },
+          { timeMs: 38077, action: { color: "#FF006E", ms: 60 } },
+          { timeMs: 38308, action: { color: "#FF0033", ms: 80, vibrate: [80] } },
+          { timeMs: 38538, action: { color: "#FF006E", ms: 60 } },
+          { timeMs: 38769, action: { color: "#FFB703", ms: 100, vibrate: [100] } },
+          { timeMs: 39000, action: { color: "#FF006E", ms: 60 } },
+          { timeMs: 39231, action: { color: "#FFB703", ms: 100, vibrate: [110] } },
+          { timeMs: 39462, action: { color: "#FF006E", ms: 60 } },
+          { timeMs: 39692, action: { color: "#FFFFFF", ms: 70, vibrate: [100] } },
+          { timeMs: 39923, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 40154, action: { color: "#FFFFFF", ms: 70, vibrate: [110] } },
+          { timeMs: 40385, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 40615, action: { color: "#FFFFFF", ms: 70, vibrate: [120] } },
+          { timeMs: 40846, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 41077, action: { color: "#FFFFFF", ms: 0, strobe: 20, vibrate: [300, 80, 300, 80, 500] } },
+          { timeMs: 43077, action: { color: "#FF0033", ms: 3500, vibrate: [700, 100, 700] } },
+          { timeMs: 43538, action: { color: "#00F0FF", ms: 100, vibrate: [140] } },
+          { timeMs: 44000, action: { color: "#FF00FF", ms: 100, vibrate: [140] } },
+          { timeMs: 44462, action: { color: "#FFB703", ms: 120, vibrate: [180] } },
+          { timeMs: 44923, action: { color: "#00F0FF", ms: 100, vibrate: [140] } },
+          { timeMs: 45385, action: { color: "#FF0033", ms: 100, vibrate: [150] } },
+          { timeMs: 45846, action: { color: "#FF00FF", ms: 100, vibrate: [150] } },
+          { timeMs: 46308, action: { color: "#FFB703", ms: 120, vibrate: [190] } },
+          { timeMs: 46769, action: { color: "#00F0FF", ms: 100, vibrate: [150] } },
+          { timeMs: 47231, action: { color: "#FFFFFF", ms: 0, strobe: 16, vibrate: [600, 100, 600] } },
+          { timeMs: 49077, action: { color: "#020204", ms: 500 } },
+          { timeMs: 49538, action: { color: "#081018", ms: 100 } },
+          { timeMs: 50000, action: { color: "#020204", ms: 100 } },
+          { timeMs: 50462, action: { color: "#081018", ms: 100 } },
+          { timeMs: 50923, action: { color: "#00F0FF", ms: 120, vibrate: [150] } },
+          { timeMs: 51385, action: { color: "#FF00FF", ms: 120, vibrate: [150] } },
+          { timeMs: 51846, action: { color: "#FFB703", ms: 150, vibrate: [180] } },
+          { timeMs: 52308, action: { color: "#FFFFFF", ms: 0, strobe: 24, vibrate: [800, 100, 800, 100, 1000] } },
+          { timeMs: 54500, action: { color: "#000000", ms: 0 } }
+        ]
+      },
 
       "1000000": { cat: "HAPTIC", name: "ヘビードロップ", color: "#FFFFFF", ms: 50, vibrate: [300, 100, 300] },
 
@@ -388,140 +436,63 @@
       "100544578": { cat: "MESSAGE", name: "サプライズ発表", color: "#000", msg: "ゲスト登場！", ms: 400, strobe: 10 },
       "100544579": { cat: "MESSAGE", name: "休憩アナウンス", color: "#000", msg: "15分間の休憩時間です", ms: 0 }
     };
-    
-    let txCtx = null;
-    function initTx() { if (!txCtx) txCtx = new (window.AudioContext || window.webkitAudioContext)(); }
 
-    // idから3つのペアインデックス(0-464)を導出し、検証用チェックサムペアも計算する
-    function decomposeId(id) {
-      const base1 = PAIR_COUNT * PAIR_COUNT;
-      const base2 = PAIR_COUNT;
-      const val1 = Math.floor(id / base1);
-      const rem1 = id % base1;
-      const val2 = Math.floor(rem1 / base2);
-      const val3 = rem1 % base2;
-      const checksumVal = (val1 + val2 + val3) % PAIR_COUNT;
-      return [val1, val2, val3, checksumVal];
-    }
-
-    function sendTrigger(idStr) {
-      initTx();
-      const now = txCtx.currentTime;
-      const id = parseInt(idStr, 10);
-
-      const [val1, val2, val3, checksumVal] = decomposeId(id);
-      const slots = [PAIRS[val1], PAIRS[val2], PAIRS[val3], PAIRS[checksumVal]];
-
-      const oscA = txCtx.createOscillator();
-      const oscB = txCtx.createOscillator();
-      const gainA = txCtx.createGain();
-      const gainB = txCtx.createGain();
-      oscA.connect(gainA).connect(txCtx.destination);
-      oscB.connect(gainB).connect(txCtx.destination);
-
-      const MAX_GAIN = 0.25;
-
-      const scheduleSlot = (pair, startTime) => {
-        if (!pair) return;
-        oscA.frequency.setValueAtTime(FREQ_DATA[pair[0]], startTime);
-        oscB.frequency.setValueAtTime(FREQ_DATA[pair[1]], startTime);
-      };
-
-      const applyEnvelope = (start, duration) => {
-        gainA.gain.setValueAtTime(0, start);
-        gainB.gain.setValueAtTime(0, start);
-        gainA.gain.linearRampToValueAtTime(MAX_GAIN, start + 0.015);
-        gainB.gain.linearRampToValueAtTime(MAX_GAIN, start + 0.015);
-        gainA.gain.setValueAtTime(MAX_GAIN, start + duration - 0.015);
-        gainB.gain.setValueAtTime(MAX_GAIN, start + duration - 0.015);
-        gainA.gain.linearRampToValueAtTime(0, start + duration);
-        gainB.gain.linearRampToValueAtTime(0, start + duration);
-      };
-
-      let t = now;
-      oscA.frequency.setValueAtTime(FREQ_TRIGGER, t);
-      gainA.gain.setValueAtTime(0, t);
-      gainA.gain.linearRampToValueAtTime(MAX_GAIN, t + 0.02);
-      gainA.gain.setValueAtTime(MAX_GAIN, t + TIME_START - 0.02);
-      gainA.gain.linearRampToValueAtTime(0, t + TIME_START);
-      gainB.gain.setValueAtTime(0, t);
-
-      t += TIME_START;
-      for (let i = 0; i < SLOT_COUNT; i++) {
-        scheduleSlot(slots[i], t);
-        applyEnvelope(t, TIME_SLOT);
-        t += TIME_SLOT;
-      }
-
-      oscA.start(now); oscA.stop(t + 0.1);
-      oscB.start(now); oscB.stop(t + 0.1);
-
-      return (t - now) * 1000 + 30; // 実行時間 + 安全マージン
-    }
-
-    // 受信機ロジック
+    // =========================================================================
+    // 4. 受信機エンジン & 画面制御（初心者向け完全自動化）
+    // =========================================================================
     let rxCtx, analyser, dataArray;
     let rxState = "IDLE";
     let rxStartTime = 0;
+    let potentialStartTime = 0;
     let decodedValues = [];
 
-    // --- ノイズ耐性用の状態 ---
-    let triggerNoiseFloor = null;    // 適応型ノイズフロア（EMA）
-    let triggerConfirmCount = 0;     // 連続フレームでの確認カウンタ
-
-    // --- 表示エフェクト管理 ---
+    let triggerNoiseFloor = null;
+    let triggerConfirmCount = 0;
     let effectInterval = null;
     let effectTimeout = null;
+    let timelineAnimFrame = null;
+    let timelineScheduledTimeout = null;
 
-    const spectrumCanvas = document.getElementById("spectrumCanvas");
-    const specCtx = spectrumCanvas.getContext("2d");
-
-    function getMagnitude(freq, nyquist, bufferLength) {
-      const bin = Math.round((freq / nyquist) * bufferLength);
-      return Math.max(dataArray[bin - 1] || -999, dataArray[bin], dataArray[bin + 1] || -999);
-    }
-
-    const UI_STATE = (msg, color) => {
-      const el = document.getElementById("rxState");
-      el.innerText = msg; el.style.color = color;
-    };
-
-    const UI_SLOT = (idx, val, active = false) => {
-      const el = document.getElementById(`slot${idx}`);
-      const prefix = idx === 4 ? "CS" : `S${idx}`;
-      if (val !== null) el.innerText = `${prefix}: ${typeof val === 'number' ? val.toString().padStart(3, '0') : val}`;
-      if (active) el.classList.add('active'); else el.classList.remove('active');
-    };
-
-    function resetSlotUI() {
-      UI_SLOT(1, "---"); UI_SLOT(2, "---"); UI_SLOT(3, "---"); UI_SLOT(4, "---");
-    }
-
-    // --- Screen Wake Lock API (画面消灯防止) ---
     let wakeLock = null;
+
     async function requestWakeLock() {
       if ('wakeLock' in navigator) {
         try {
           wakeLock = await navigator.wakeLock.request('screen');
           wakeLock.addEventListener('release', () => { wakeLock = null; });
-        } catch (err) { console.error(err); }
+        } catch (err) {
+          console.warn(err);
+        }
       }
     }
-    document.addEventListener('visibilitychange', async () => {
-      if (wakeLock !== null && document.visibilityState === 'visible') {
-        await requestWakeLock();
-      }
-    });
 
-    document.getElementById("rxStartBtn").onclick = async () => {
+    // 画面タップでマイク・全画面・画面スリープ防止を一括起動
+    document.getElementById("startBtn").onclick = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+        await requestWakeLock();
+
+        // フルスクリーン化の試行
+        const elem = document.documentElement;
+        if (elem.requestFullscreen) {
+          elem.requestFullscreen().catch(() => {});
+        } else if (elem.webkitRequestFullscreen) {
+          elem.webkitRequestFullscreen();
+        }
+
+        // マイクストリーム取得
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false
+          }
+        });
+
         rxCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (rxCtx.state === "suspended") await rxCtx.resume();
         const source = rxCtx.createMediaStreamSource(stream);
         analyser = rxCtx.createAnalyser();
 
-        // FFTサイズを縮小し、スムージングを無効化 (残響混入バグの撃退)
         analyser.fftSize = 2048;
         analyser.smoothingTimeConstant = 0.0;
 
@@ -532,55 +503,22 @@
         triggerConfirmCount = 0;
 
         document.getElementById("startOverlay").style.display = "none";
-        const elem = document.getElementById("rxAreaContainer");
-        if (elem.requestFullscreen) elem.requestFullscreen().catch(() => {});
-
-        await requestWakeLock();
-
-        UI_STATE("キャリブレーション中...", "#ffb703");
         requestAnimationFrame(rxLoop);
-      } catch (e) { alert("マイクアクセスが拒否されました。"); }
-    };
-
-    document.getElementById("rxFullscreenBtn").onclick = () => {
-      const elem = document.getElementById("rxAreaContainer");
-      if (!document.fullscreenElement) {
-        if (elem.requestFullscreen) elem.requestFullscreen();
-      } else {
-        if (document.exitFullscreen) document.exitFullscreen();
+      } catch (e) {
+        alert("マイクの使用が許可されませんでした。ブラウザの設定をご確認ください。");
       }
     };
 
-    function drawSpectrum() {
-      if (!analyser || !rxCtx) return;
-      if (spectrumCanvas.width !== spectrumCanvas.clientWidth || spectrumCanvas.height !== spectrumCanvas.clientHeight) {
-        spectrumCanvas.width = spectrumCanvas.clientWidth;
-        spectrumCanvas.height = spectrumCanvas.clientHeight;
+    // バックグラウンド復帰時にスリープ防止を再バインド
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'visible') {
+        await requestWakeLock();
       }
-      const width = spectrumCanvas.width;
-      const height = spectrumCanvas.height;
-      specCtx.clearRect(0, 0, width, height);
+    });
 
-      const nyquist = rxCtx.sampleRate / 2;
-      const bufferLength = analyser.frequencyBinCount;
-      const minBin = Math.floor((17000 / nyquist) * bufferLength);
-      const maxBin = Math.floor((20600 / nyquist) * bufferLength);
-      const totalBins = maxBin - minBin;
-
-      if (totalBins <= 0) return;
-      const barWidth = width / totalBins;
-
-      for (let i = 0; i < totalBins; i++) {
-        const binIdx = minBin + i;
-        const db = dataArray[binIdx];
-        let normHeight = Math.max(0, Math.min(1, (db + 100) / 70));
-        let barHeight = normHeight * height;
-        let grad = specCtx.createLinearGradient(0, height, 0, 0);
-        grad.addColorStop(0, "rgba(0, 240, 255, 0.1)");
-        grad.addColorStop(1, "rgba(0, 240, 255, 0.8)");
-        specCtx.fillStyle = grad;
-        specCtx.fillRect(i * barWidth, height - barHeight, Math.max(1, barWidth - 0.5), barHeight);
-      }
+    function getMagnitude(freq, nyquist, bufferLength) {
+      const bin = Math.round((freq / nyquist) * bufferLength);
+      return Math.max(dataArray[bin - 1] || -999, dataArray[bin], dataArray[bin + 1] || -999);
     }
 
     function rxLoop() {
@@ -591,42 +529,30 @@
 
       const magTrigger = getMagnitude(FREQ_TRIGGER, nyquist, bufferLength);
       const guardMag = getMagnitude(GUARD_FREQ, nyquist, bufferLength);
-      document.getElementById("rxPeak").innerText = magTrigger > -100 ? magTrigger.toFixed(0) : "--";
-      drawSpectrum();
 
       if (rxState === "IDLE") {
-        // --- 適応型ノイズフロア（待機中のみ、ゆっくり環境音レベルに追従） ---
         if (triggerNoiseFloor === null) {
           triggerNoiseFloor = magTrigger;
         } else {
           triggerNoiseFloor = triggerNoiseFloor * 0.985 + magTrigger * 0.015;
         }
         const dynThreshold = Math.max(TRIGGER_ABS_FLOOR, triggerNoiseFloor + TRIGGER_MARGIN_DB);
-        document.getElementById("rxThresh").innerText = dynThreshold.toFixed(0);
-
-        // --- ピークの鋭さ判定（純音か、広帯域の生活音かを判別） ---
         const isPeakSharp = (magTrigger - guardMag) > TRIGGER_PROMINENCE_DB;
 
         if (magTrigger > dynThreshold && isPeakSharp) {
+          if (triggerConfirmCount === 0) {
+            potentialStartTime = now;
+          }
           triggerConfirmCount++;
         } else {
           triggerConfirmCount = 0;
         }
 
-        // --- 連続フレームで確認できて初めてトリガー確定（単発ノイズスパイクを無視） ---
         if (triggerConfirmCount >= TRIGGER_CONFIRM_FRAMES) {
           triggerConfirmCount = 0;
           rxState = "READING";
-          rxStartTime = now;
+          rxStartTime = potentialStartTime;
           decodedValues = [];
-          UI_STATE("デコード中...", "#ffeb3b");
-          resetSlotUI();
-        } else if (UI_STATE) {
-          // キャリブレーション完了後の通常表示
-          const stateEl = document.getElementById("rxState");
-          if (stateEl.innerText !== "リスニング中" && stateEl.innerText !== "デコード中...") {
-            UI_STATE("リスニング中", "var(--accent)");
-          }
         }
       } else if (rxState === "READING") {
         const elapsed = (now - rxStartTime) / 1000;
@@ -636,14 +562,10 @@
           const slotIndex = Math.floor((elapsed - TIME_START) / TIME_SLOT);
           const timeOffset = (elapsed - TIME_START) % TIME_SLOT;
 
-          for (let i = 1; i <= SLOT_COUNT; i++) document.getElementById(`slot${i}`).classList.remove('active');
-          document.getElementById(`slot${slotIndex + 1}`).classList.add('active');
-
-          // 安定期判定をスロット後半（50%〜80%）にずらし、残響混入を防止
-          if (decodedValues[slotIndex] === undefined && timeOffset > (TIME_SLOT * 0.5) && timeOffset < (TIME_SLOT * 0.8)) {
+          if (slotIndex >= 0 && slotIndex < SLOT_COUNT && decodedValues[slotIndex] === undefined && timeOffset > (TIME_SLOT * 0.25) && timeOffset < (TIME_SLOT * 0.75)) {
             let results = [];
             for (let i = 0; i < 31; i++) {
-              results.push({ idx: i, mag: getMagnitude(FREQ_DATA[i], nyquist, bufferLength) });
+              results.push({ idx: i, hz: FREQ_DATA[i], mag: getMagnitude(FREQ_DATA[i], nyquist, bufferLength) });
             }
             results.sort((a, b) => b.mag - a.mag);
 
@@ -651,24 +573,21 @@
             const top2 = results[1];
             const top3 = results[2];
 
-            // 1位・2位が十分明瞭で、かつ3位候補と明確な差(PAIR_PEAK_MARGIN)がある場合のみ採用。
             const isClearPair = top1.mag > THRESHOLD
-              && top2.mag > -95
+              && top2.mag > TOP2_FLOOR
               && (top1.mag - top3.mag) > PAIR_PEAK_MARGIN;
 
             if (isClearPair) {
               const idxA = Math.min(top1.idx, top2.idx);
               const idxB = Math.max(top1.idx, top2.idx);
               let val = PAIRS.findIndex(p => p[0] === idxA && p[1] === idxB);
+
               if (val !== -1) {
                 decodedValues[slotIndex] = val;
-                UI_SLOT(slotIndex + 1, val, true);
               }
             }
           }
         } else if (elapsed >= windowEnd) {
-          for (let i = 1; i <= SLOT_COUNT; i++) document.getElementById(`slot${i}`).classList.remove('active');
-
           const allDecoded = decodedValues.length === SLOT_COUNT && decodedValues.every(v => v !== undefined);
 
           if (allDecoded) {
@@ -676,109 +595,186 @@
             const expectedChecksum = (v0 + v1 + v2) % PAIR_COUNT;
 
             if (v3 === expectedChecksum) {
-              // ✅ チェックサム一致。信頼できるパケットとして実行。
               const finalId = (v0 * PAIR_COUNT * PAIR_COUNT) + (v1 * PAIR_COUNT) + v2;
               executeCue(finalId.toString());
               rxState = "IDLE";
-              UI_STATE("リスニング中", "var(--accent)");
             } else {
-              rejectPacket("チェックサム不一致(破棄)");
+              rxState = "IDLE";
             }
           } else {
-            rejectPacket("デコード不完全(破棄)");
+            rxState = "IDLE";
           }
         }
       }
       requestAnimationFrame(rxLoop);
     }
 
-    function rejectPacket(reason) {
-      rxState = "IDLE";
-      UI_STATE(reason, "var(--danger)");
-      setTimeout(() => {
-        if (rxState === "IDLE") UI_STATE("リスニング中", "var(--accent)");
-      }, 900);
-    }
-
     let isCaching = false;
 
-    // --- 表示エフェクトの統一ハンドラ ---
+    // =========================================================================
+    // 5. 演出実行エンジン (グリッド同期・タイムライン・メッセージ対応)
+    // =========================================================================
     function clearEffects() {
       if (effectInterval) { clearInterval(effectInterval); effectInterval = null; }
       if (effectTimeout) { clearTimeout(effectTimeout); effectTimeout = null; }
+      if (timelineAnimFrame) { cancelAnimationFrame(timelineAnimFrame); timelineAnimFrame = null; }
+      if (timelineScheduledTimeout) { clearTimeout(timelineScheduledTimeout); timelineScheduledTimeout = null; }
     }
 
-    function runEffect(cue, canvas) {
+    function startMusicTimeline(cue, startSeekMs = 0) {
+      const stage = document.getElementById("rxStage");
+      const title = document.getElementById("rxTitle");
+      const sub = document.getElementById("rxSub");
+      const timeline = cue.timeline;
+      if (!timeline || timeline.length === 0) return;
+
+      title.innerText = cue.name;
+      const originPerf = performance.now() - startSeekMs;
+      let actionIndex = 0;
+
+      while (actionIndex < timeline.length && startSeekMs > timeline[actionIndex].timeMs) {
+        actionIndex++;
+      }
+
+      function step() {
+        const currentElapsed = performance.now() - originPerf;
+        sub.innerText = `タイムライン同期中: ${(currentElapsed / 1000).toFixed(1)}s`;
+
+        while (actionIndex < timeline.length && currentElapsed >= timeline[actionIndex].timeMs) {
+          const item = timeline[actionIndex];
+          const act = item.action;
+
+          if (act.strobe) {
+            clearEffects();
+            let on = false;
+            effectInterval = setInterval(() => {
+              on = !on;
+              stage.style.transition = "none";
+              stage.style.backgroundColor = on ? act.color : "#050507";
+            }, 1000 / (act.strobe * 2));
+          } else {
+            clearEffects();
+            stage.style.transition = `background-color ${act.ms || 100}ms ease`;
+            stage.style.backgroundColor = act.color;
+          }
+
+          if (act.vibrate && navigator.vibrate) {
+            navigator.vibrate(act.vibrate);
+          }
+          actionIndex++;
+        }
+
+        if (actionIndex < timeline.length) {
+          timelineAnimFrame = requestAnimationFrame(step);
+        } else {
+          sub.innerText = "音響シグナルを待機しています";
+          clearEffects();
+          stage.style.transition = "background-color 500ms ease";
+          stage.style.backgroundColor = "#050507";
+        }
+      }
+
+      timelineAnimFrame = requestAnimationFrame(step);
+    }
+
+    function scheduleMusicTimeline(cue) {
+      const gridSeconds = cue.start || 5;
+      const gridMs = gridSeconds * 1000;
+      const nowSynced = getSyncedNow();
+
+      let targetUnix = Math.ceil(nowSynced / gridMs) * gridMs;
+
+      // 判定完了からターゲットまで1秒未満の場合は次周へ
+      if ((targetUnix - nowSynced) < 1000) {
+        targetUnix += gridMs;
+      }
+
+      const delay = targetUnix - nowSynced;
+      const sub = document.getElementById("rxSub");
+      sub.innerText = `準備中: あと ${(delay / 1000).toFixed(1)}秒でスタート`;
+
+      if (delay > 0) {
+        timelineScheduledTimeout = setTimeout(() => {
+          startMusicTimeline(cue, 0);
+        }, delay);
+      } else {
+        const seek = Math.abs(delay);
+        startMusicTimeline(cue, seek);
+      }
+    }
+
+    function runEffect(cue) {
       clearEffects();
+      const stage = document.getElementById("rxStage");
       const duration = cue.ms || 0;
 
       if (cue.type === "rainbow") {
         let hue = 0;
-        canvas.style.transition = "none";
+        stage.style.transition = "none";
         effectInterval = setInterval(() => {
           hue = (hue + 8) % 360;
-          canvas.style.backgroundColor = `hsl(${hue},100%,50%)`;
+          stage.style.backgroundColor = `hsl(${hue},100%,50%)`;
         }, 40);
       } else if (cue.type === "party") {
         const colors = cue.colors || ["#FF0033", "#00F0FF", "#FFB703", "#39FF14", "#FF00FF", "#0055FF"];
-        canvas.style.transition = "none";
+        stage.style.transition = "none";
         effectInterval = setInterval(() => {
-          canvas.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+          stage.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
         }, 90);
       } else if (cue.type === "heartbeat") {
         let beat = 0;
-        canvas.style.transition = "background-color 90ms ease";
+        stage.style.transition = "background-color 90ms ease";
         effectInterval = setInterval(() => {
           const phase = beat % 4;
-          canvas.style.backgroundColor = (phase === 0 || phase === 1) ? cue.color : "#050505";
+          stage.style.backgroundColor = (phase === 0 || phase === 1) ? cue.color : "#050507";
           beat++;
         }, 160);
       } else if (cue.type === "sequence") {
         const seq = cue.colors || [cue.color];
         let i = 0;
-        canvas.style.transition = "background-color 120ms linear";
+        stage.style.transition = "background-color 120ms linear";
         effectInterval = setInterval(() => {
-          canvas.style.backgroundColor = seq[i % seq.length];
+          stage.style.backgroundColor = seq[i % seq.length];
           i++;
         }, cue.stepMs || 200);
       } else if (cue.strobe) {
         let on = false;
         const hz = cue.strobe;
-        canvas.style.transition = "none";
+        stage.style.transition = "none";
         effectInterval = setInterval(() => {
           on = !on;
-          canvas.style.backgroundColor = on ? cue.color : "#000";
+          stage.style.backgroundColor = on ? cue.color : "#000";
         }, 1000 / (hz * 2));
       } else {
-        // 通常のソリッド/フェード
-        canvas.style.transition = `background-color ${duration || 300}ms ease`;
-        canvas.style.backgroundColor = cue.color;
+        stage.style.transition = `background-color ${duration || 300}ms ease`;
+        stage.style.backgroundColor = cue.color;
       }
 
       if (duration > 0) {
         effectTimeout = setTimeout(() => {
           clearEffects();
-          canvas.style.transition = "background-color 400ms ease";
-          canvas.style.backgroundColor = "#050505";
+          stage.style.transition = "background-color 400ms ease";
+          stage.style.backgroundColor = "#050507";
         }, duration);
       }
     }
 
     function executeCue(idStr) {
       const idNum = parseInt(idStr, 10);
-      const canvas = document.getElementById("rxCanvas");
+      const stage = document.getElementById("rxStage");
       const title = document.getElementById("rxTitle");
       const sub = document.getElementById("rxSub");
       const msgEl = document.getElementById("rxMsg");
 
-      // --- キャッシュ関連 ---
       if (idNum === ID_CMD_CACHE_START) {
         clearEffects();
         isCaching = true;
         rxTextCache = "";
-        title.style.display = "block"; sub.style.display = "block"; msgEl.classList.remove("fired");
-        title.innerText = "データ受信中...";
-        sub.innerText = `ID: ${idNum} (キャッシュ開始)`;
+        title.style.display = "block";
+        sub.style.display = "block";
+        msgEl.classList.remove("fired");
+        title.innerText = "メッセージ受信中...";
+        sub.innerText = "しばらくお待ちください";
         msgEl.innerText = "";
         return;
       }
@@ -786,17 +782,17 @@
       if (idNum === ID_CMD_CACHE_END) {
         isCaching = false;
         clearEffects();
-        title.style.display = "block"; sub.style.display = "block"; msgEl.classList.remove("fired");
-        title.innerText = "キャッシュ完了";
-        sub.innerText = `ID: ${idNum} (待機状態)`;
-        msgEl.innerText = `[準備OK] ${rxTextCache}`;
-        msgEl.style.color = "#ddd";
-        canvas.style.transition = "background-color 300ms ease";
-        canvas.style.backgroundColor = "#000000";
+        title.style.display = "block";
+        sub.style.display = "block";
+        msgEl.classList.remove("fired");
+        title.innerText = "受信完了";
+        sub.innerText = "発火を待機しています";
+        msgEl.innerText = "";
+        stage.style.transition = "background-color 300ms ease";
+        stage.style.backgroundColor = "#050507";
         return;
       }
 
-      // --- 💥 FIRE (発火) ---
       if (idNum === ID_CMD_FIRE) {
         clearEffects();
         title.style.display = "none";
@@ -804,12 +800,11 @@
         msgEl.innerText = rxTextCache;
         msgEl.style.color = "#ddd";
         msgEl.classList.add("fired");
-        canvas.style.transition = `background-color 200ms ease-out`;
-        canvas.style.backgroundColor = "#000000";
+        stage.style.transition = "background-color 200ms ease-out";
+        stage.style.backgroundColor = "#000000";
         return;
       }
 
-      // --- Unicode文字のダイレクト受信 (絵文字・漢字対応) ---
       if (idNum >= UNICODE_OFFSET && idNum < UNICODE_OFFSET + 2000000) {
         clearEffects();
         let codePoint = idNum - UNICODE_OFFSET;
@@ -817,58 +812,58 @@
 
         if (isCaching) {
           rxTextCache += char;
-          msgEl.innerText = rxTextCache;
-          msgEl.style.color = "#ddd";
         }
-        title.style.display = "block"; sub.style.display = "block"; msgEl.classList.remove("fired");
-        title.innerText = "文字受信";
-        sub.innerText = `ID: ${idNum} (${char})`;
+        title.style.display = "block";
+        sub.style.display = "block";
+        msgEl.classList.remove("fired");
+        title.innerText = "メッセージ受信中...";
+        sub.innerText = "しばらくお待ちください";
         return;
       }
 
-      // 毎回UIリセット
       title.style.display = "block";
       sub.style.display = "block";
       msgEl.classList.remove("fired");
 
-      // --- プリセット処理（ソリッド/フェード/ストロボ/レインボー等すべて runEffect に集約） ---
       if (CUE_DATA[idStr]) {
         const cue = CUE_DATA[idStr];
         title.innerText = cue.name;
-        sub.innerText = `ID: ${idNum.toLocaleString()}`;
 
+        if (cue.type === "timeline") {
+          msgEl.innerText = "";
+          scheduleMusicTimeline(cue);
+          return;
+        }
+
+        sub.innerText = "演出再生中";
         if (cue.msg) {
           msgEl.innerText = cue.msg;
           msgEl.style.color = "#ddd";
           clearEffects();
-          canvas.style.transition = `background-color ${cue.ms || 300}ms ease`;
-          canvas.style.backgroundColor = "#000000";
+          stage.style.transition = `background-color ${cue.ms || 300}ms ease`;
+          stage.style.backgroundColor = "#000000";
         } else {
           msgEl.innerText = "";
-          runEffect(cue, canvas);
+          runEffect(cue);
         }
 
         if (cue.vibrate && navigator.vibrate) navigator.vibrate(cue.vibrate);
         return;
       }
 
-      // --- RGBカラー直接同期 ---
       if (idNum >= 20000000 && idNum <= 36777215) {
         clearEffects();
         const rgbNum = idNum - 20000000;
         const hexColor = "#" + rgbNum.toString(16).padStart(6, '0');
 
-        title.innerText = "RGBカラー直接同期";
-        sub.innerText = `ID: ${idNum.toLocaleString()} (${hexColor.toUpperCase()})`;
+        title.innerText = "COLOR SYNC";
+        sub.innerText = "カラー同期中";
         msgEl.innerText = "";
 
-        canvas.style.transition = `background-color 300ms ease`;
-        canvas.style.backgroundColor = hexColor;
+        stage.style.transition = "background-color 300ms ease";
+        stage.style.backgroundColor = hexColor;
         return;
       }
-
-      title.innerText = "UNKNOWN";
-      sub.innerText = `ID: ${idNum}`;
     }
   </script>
 </body>
