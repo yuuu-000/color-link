@@ -522,7 +522,7 @@
   <div class="app-container">
     <header>
       <div class="brand">CUE-X <span>PROTOCOL ENGINE</span></div>
-      <div class="badge">v4.1 · PERFECT SYNC</div>
+      <div class="badge">v4.1 · 5s GRID SYNC</div>
     </header>
 
     <div class="split-layout">
@@ -588,7 +588,7 @@
 
   <script>
     // =========================================================================
-    // ★ NICT NTP 時刻同期システム (追加)
+    // ★ NICT NTP 時刻同期システム
     // =========================================================================
     let averageOffset = 0;
     let ntpSyncCompleted = false;
@@ -623,7 +623,7 @@
       }
     }
     fetchTime();
-    setInterval(fetchTime, 30000);
+    setInterval(fetchTime, 600_000);
 
     function getSyncedNow() {
       return Date.now() + averageOffset;
@@ -691,21 +691,18 @@
     }
     const PAIR_COUNT = PAIRS.length; // 465
 
-    // ★ 同期遅延解消のため、トリガー送信時間を大幅に延長
-    const TIME_START = 0.2; // (旧:0.15) 確実に検知させる
+    const TIME_START = 0.2;
     const TIME_SLOT = 0.12;
     const SLOT_COUNT = 4;
 
-    // ★ スロットのデータデコード（読み取り）条件は「緩め」を維持
-    const THRESHOLD = -100;               // スロットの1位ピークの絶対下限
-    const TOP2_FLOOR = -105;              // スロットの2位ピークの絶対下限（高音減衰対策で緩め）
-    const PAIR_PEAK_MARGIN = 5;           // 3位ノイズとの差分マージン
+    const THRESHOLD = -100;
+    const TOP2_FLOOR = -105;
+    const PAIR_PEAK_MARGIN = 5;
 
-    // ★ トリガー（開始合図）条件は「厳格（以前の安定版）」に戻す！環境音での誤発火をブロック
-    const TRIGGER_MARGIN_DB = 18;         // 環境ノイズフロアから18dB以上突き出ていること
-    const TRIGGER_PROMINENCE_DB = 10;     // ガード周波数(19kHz)より10dB以上大きいこと（純音判定）
-    const TRIGGER_CONFIRM_FRAMES = 3;     // 3フレーム連続で鳴っていること（突発ノイズの排除）
-    const TRIGGER_ABS_FLOOR = -100;       // トリガーの絶対的な下限
+    const TRIGGER_MARGIN_DB = 18;
+    const TRIGGER_PROMINENCE_DB = 10;
+    const TRIGGER_CONFIRM_FRAMES = 3;
+    const TRIGGER_ABS_FLOOR = -100;
 
     const ID_CMD_CACHE_START = 100544501;
     const ID_CMD_CACHE_END = 100544502;
@@ -744,6 +741,7 @@
       "50019": { cat: "FLASH", name: "白黒20Hz", color: "#FFFFFF", ms: 0, strobe: 20 },
       "50024": { cat: "FLASH", name: "白黒25Hz", color: "#FFFFFF", ms: 0, strobe: 25 },
       "50029": { cat: "FLASH", name: "白黒30Hz", color: "#FFFFFF", ms: 0, strobe: 30 },
+
       "50100": { cat: "FLASH", name: "警告フラッシュ (赤)", color: "#FF0000", ms: 0, strobe: 6 },
 
       "70000": { cat: "LASER", name: "サイバービーム", color: "#00FFFF", ms: 3000, strobe: 10 },
@@ -755,9 +753,9 @@
       "80004": { cat: "EFFECT", name: "スパークル", type: "party", colors: ["#FFFFFF", "#F8FAFC", "#00f0ff"], ms: 3000 },
       "80005": { cat: "EFFECT", name: "カウントダウン導光", type: "sequence", colors: ["#0055FF", "#39FF14", "#FFB703", "#FF0033", "#FFFFFF"], stepMs: 700, ms: 3500 },
 
-      // 🎵 EDM
+      // 🎵 EDM (5秒グリッド同期対応: "start": 5)
       "90001": {
-        cat: "TIMELINE", name: "EDM 4つ打ち同期 (BPM128)", type: "timeline", preRollMs: 2000,
+        cat: "TIMELINE", name: "EDM 4つ打ち同期 (BPM128)", type: "timeline", start: 5,
         timeline: [
           { timeMs: 0, action: { color: "#FF0033", ms: 60, vibrate: [120] } },
           { timeMs: 468, action: { color: "#050507", ms: 60 } },
@@ -772,51 +770,143 @@
         ]
       },
 
-      // 🎵 EDM Evolution
+      // 🎵 EDM Evolution (5秒グリッド同期対応: "start": 5)
       "90002": {
-        cat: "TIMELINE", name: "EDM Evolution Drop (BPM128)", type: "timeline", preRollMs: 5000,
+        cat: "TIMELINE", name: "EDM Evolution Drop (BPM130 Extended)", type: "timeline", start: 10,
         timeline: [
           { timeMs: 0, action: { color: "#050507", ms: 80, vibrate: [40] } },
-          { timeMs: 469, action: { color: "#16213E", ms: 80 } },
-          { timeMs: 938, action: { color: "#050507", ms: 80 } },
-          { timeMs: 1406, action: { color: "#16213E", ms: 80 } },
-          { timeMs: 1875, action: { color: "#00F0FF", ms: 100, vibrate: [80] } },
-          { timeMs: 2344, action: { color: "#050507", ms: 80 } },
-          { timeMs: 2813, action: { color: "#00F0FF", ms: 100, vibrate: [80] } },
-          { timeMs: 3281, action: { color: "#050507", ms: 80 } },
-          { timeMs: 3750, action: { color: "#FF0033", ms: 100, vibrate: [100] } },
-          { timeMs: 3984, action: { color: "#FF006E", ms: 50 } },
-          { timeMs: 4219, action: { color: "#FF0033", ms: 100, vibrate: [100] } },
-          { timeMs: 4453, action: { color: "#FF006E", ms: 50 } },
-          { timeMs: 4688, action: { color: "#FFB703", ms: 120, vibrate: [140] } },
-          { timeMs: 4922, action: { color: "#FF006E", ms: 50 } },
-          { timeMs: 5156, action: { color: "#FFB703", ms: 120, vibrate: [140] } },
-          { timeMs: 5391, action: { color: "#FF006E", ms: 50 } },
-          { timeMs: 5625, action: { color: "#020204", ms: 300 } },
-          { timeMs: 6094, action: { color: "#081018", ms: 80 } },
-          { timeMs: 6563, action: { color: "#020204", ms: 80 } },
-          { timeMs: 7031, action: { color: "#081018", ms: 80 } },
-          { timeMs: 7500, action: { color: "#FFFFFF", ms: 70, vibrate: [50] } },
-          { timeMs: 7734, action: { color: "#00F0FF", ms: 60 } },
-          { timeMs: 7969, action: { color: "#FFFFFF", ms: 70, vibrate: [50] } },
-          { timeMs: 8203, action: { color: "#00F0FF", ms: 60 } },
-          { timeMs: 8438, action: { color: "#FFFFFF", ms: 70, vibrate: [60] } },
-          { timeMs: 8672, action: { color: "#00F0FF", ms: 60 } },
-          { timeMs: 8906, action: { color: "#FFFFFF", ms: 70, vibrate: [70] } },
-          { timeMs: 9141, action: { color: "#00F0FF", ms: 60 } },
-          { timeMs: 9375, action: { color: "#FFFFFF", ms: 0, strobe: 12, vibrate: [80] } },
-          { timeMs: 11250, action: { color: "#000000", ms: 0 } },
-          { timeMs: 11600, action: { color: "#FFFFFF", ms: 40 } },
-          { timeMs: 11700, action: { color: "#000000", ms: 0 } },
-          { timeMs: 11800, action: { color: "#FF0033", ms: 2500, vibrate: [300, 100, 300, 100, 500] } },
-          { timeMs: 12375, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
-          { timeMs: 12844, action: { color: "#FF00FF", ms: 100, vibrate: [100] } },
-          { timeMs: 13313, action: { color: "#FFB703", ms: 120, vibrate: [140] } },
-          { timeMs: 13781, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
-          { timeMs: 15000, action: { color: "#FFFFFF", ms: 0, strobe: 8, vibrate: [500, 100, 500] } },
-          { timeMs: 16875, action: { color: "#FF0033", ms: 3000, vibrate: [700] } }
+          { timeMs: 462, action: { color: "#16213E", ms: 80 } },
+          { timeMs: 923, action: { color: "#050507", ms: 80 } },
+          { timeMs: 1385, action: { color: "#16213E", ms: 80 } },
+          { timeMs: 1846, action: { color: "#00F0FF", ms: 100, vibrate: [80] } },
+          { timeMs: 2308, action: { color: "#050507", ms: 80 } },
+          { timeMs: 2769, action: { color: "#00F0FF", ms: 100, vibrate: [80] } },
+          { timeMs: 3231, action: { color: "#050507", ms: 80 } },
+          { timeMs: 3692, action: { color: "#FF0033", ms: 100, vibrate: [100] } },
+          { timeMs: 3923, action: { color: "#FF006E", ms: 50 } },
+          { timeMs: 4154, action: { color: "#FF0033", ms: 100, vibrate: [100] } },
+          { timeMs: 4385, action: { color: "#FF006E", ms: 50 } },
+          { timeMs: 4615, action: { color: "#FFB703", ms: 120, vibrate: [140] } },
+          { timeMs: 4846, action: { color: "#FF006E", ms: 50 } },
+          { timeMs: 5077, action: { color: "#FFB703", ms: 120, vibrate: [140] } },
+          { timeMs: 5308, action: { color: "#FF006E", ms: 50 } },
+          { timeMs: 5538, action: { color: "#020204", ms: 300 } },
+          { timeMs: 6000, action: { color: "#081018", ms: 80 } },
+          { timeMs: 6462, action: { color: "#020204", ms: 80 } },
+          { timeMs: 6923, action: { color: "#081018", ms: 80 } },
+          { timeMs: 7385, action: { color: "#020204", ms: 80 } },
+          { timeMs: 7846, action: { color: "#FFFFFF", ms: 70, vibrate: [50] } },
+          { timeMs: 8077, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 8308, action: { color: "#FFFFFF", ms: 70, vibrate: [50] } },
+          { timeMs: 8538, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 8769, action: { color: "#FFFFFF", ms: 70, vibrate: [60] } },
+          { timeMs: 9000, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 9231, action: { color: "#FFFFFF", ms: 70, vibrate: [70] } },
+          { timeMs: 9462, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 9692, action: { color: "#FFFFFF", ms: 0, strobe: 12, vibrate: [80] } },
+          { timeMs: 11538, action: { color: "#000000", ms: 0 } },
+          { timeMs: 11800, action: { color: "#FFFFFF", ms: 40 } },
+          { timeMs: 11900, action: { color: "#000000", ms: 0 } },
+          { timeMs: 12000, action: { color: "#FF0033", ms: 2500, vibrate: [300, 100, 300, 100, 500] } },
+          { timeMs: 12462, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
+          { timeMs: 12923, action: { color: "#FF00FF", ms: 100, vibrate: [100] } },
+          { timeMs: 13385, action: { color: "#FFB703", ms: 120, vibrate: [140] } },
+          { timeMs: 13846, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
+          { timeMs: 14308, action: { color: "#FF0033", ms: 100, vibrate: [100] } },
+          { timeMs: 14769, action: { color: "#FF00FF", ms: 100, vibrate: [100] } },
+          { timeMs: 15231, action: { color: "#FFB703", ms: 120, vibrate: [140] } },
+          { timeMs: 15692, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
+          { timeMs: 16154, action: { color: "#FFFFFF", ms: 0, strobe: 8, vibrate: [500, 100, 500] } },
+          { timeMs: 18000, action: { color: "#000000", ms: 500 } },
+          { timeMs: 18462, action: { color: "#081018", ms: 100 } },
+          { timeMs: 18923, action: { color: "#000000", ms: 100 } },
+          { timeMs: 19385, action: { color: "#081018", ms: 100 } },
+          { timeMs: 19846, action: { color: "#000000", ms: 100 } },
+          { timeMs: 20308, action: { color: "#16213E", ms: 120 } },
+          { timeMs: 20769, action: { color: "#00F0FF", ms: 100 } },
+          { timeMs: 21231, action: { color: "#16213E", ms: 120 } },
+          { timeMs: 21692, action: { color: "#00F0FF", ms: 100 } },
+          { timeMs: 22154, action: { color: "#FF006E", ms: 80, vibrate: [60] } },
+          { timeMs: 22385, action: { color: "#FF0033", ms: 80 } },
+          { timeMs: 22615, action: { color: "#FF006E", ms: 80, vibrate: [70] } },
+          { timeMs: 22846, action: { color: "#FF0033", ms: 80 } },
+          { timeMs: 23077, action: { color: "#FFB703", ms: 90, vibrate: [80] } },
+          { timeMs: 23308, action: { color: "#FF006E", ms: 60 } },
+          { timeMs: 23538, action: { color: "#FFB703", ms: 90, vibrate: [90] } },
+          { timeMs: 23769, action: { color: "#FF006E", ms: 60 } },
+          { timeMs: 24000, action: { color: "#FFFFFF", ms: 60, vibrate: [50] } },
+          { timeMs: 24231, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 24462, action: { color: "#FFFFFF", ms: 60, vibrate: [60] } },
+          { timeMs: 24692, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 24923, action: { color: "#FFFFFF", ms: 60, vibrate: [70] } },
+          { timeMs: 25154, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 25385, action: { color: "#FFFFFF", ms: 60, vibrate: [80] } },
+          { timeMs: 25615, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 25846, action: { color: "#FFFFFF", ms: 0, strobe: 16, vibrate: [100] } },
+          { timeMs: 27700, action: { color: "#000000", ms: 0 } },
+          { timeMs: 28000, action: { color: "#FFFFFF", ms: 30 } },
+          { timeMs: 28100, action: { color: "#000000", ms: 0 } },
+          { timeMs: 28200, action: { color: "#FFFFFF", ms: 30 } },
+          { timeMs: 28300, action: { color: "#000000", ms: 0 } },
+          { timeMs: 28615, action: { color: "#FF0033", ms: 3000, vibrate: [700] } },
+          { timeMs: 29077, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
+          { timeMs: 29538, action: { color: "#FF00FF", ms: 100, vibrate: [120] } },
+          { timeMs: 30000, action: { color: "#FFB703", ms: 120, vibrate: [150] } },
+          { timeMs: 30462, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
+          { timeMs: 30923, action: { color: "#FF0033", ms: 100, vibrate: [130] } },
+          { timeMs: 31385, action: { color: "#FF00FF", ms: 100, vibrate: [130] } },
+          { timeMs: 31846, action: { color: "#FFB703", ms: 120, vibrate: [160] } },
+          { timeMs: 32308, action: { color: "#00F0FF", ms: 100, vibrate: [130] } },
+          { timeMs: 32769, action: { color: "#FFFFFF", ms: 0, strobe: 12, vibrate: [500, 100, 500] } },
+          { timeMs: 33231, action: { color: "#FF0033", ms: 100, vibrate: [120] } },
+          { timeMs: 33692, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
+          { timeMs: 34154, action: { color: "#FF00FF", ms: 100, vibrate: [120] } },
+          { timeMs: 34615, action: { color: "#FFB703", ms: 120, vibrate: [160] } },
+          { timeMs: 35077, action: { color: "#FF0033", ms: 100, vibrate: [130] } },
+          { timeMs: 35538, action: { color: "#00F0FF", ms: 100, vibrate: [130] } },
+          { timeMs: 36000, action: { color: "#FF00FF", ms: 100, vibrate: [130] } },
+          { timeMs: 36462, action: { color: "#FFB703", ms: 120, vibrate: [170] } },
+          { timeMs: 36923, action: { color: "#FFFFFF", ms: 70, vibrate: [80] } },
+          { timeMs: 37154, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 37385, action: { color: "#FFFFFF", ms: 70, vibrate: [90] } },
+          { timeMs: 37615, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 37846, action: { color: "#FF0033", ms: 80, vibrate: [70] } },
+          { timeMs: 38077, action: { color: "#FF006E", ms: 60 } },
+          { timeMs: 38308, action: { color: "#FF0033", ms: 80, vibrate: [80] } },
+          { timeMs: 38538, action: { color: "#FF006E", ms: 60 } },
+          { timeMs: 38769, action: { color: "#FFB703", ms: 100, vibrate: [100] } },
+          { timeMs: 39000, action: { color: "#FF006E", ms: 60 } },
+          { timeMs: 39231, action: { color: "#FFB703", ms: 100, vibrate: [110] } },
+          { timeMs: 39462, action: { color: "#FF006E", ms: 60 } },
+          { timeMs: 39692, action: { color: "#FFFFFF", ms: 70, vibrate: [100] } },
+          { timeMs: 39923, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 40154, action: { color: "#FFFFFF", ms: 70, vibrate: [110] } },
+          { timeMs: 40385, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 40615, action: { color: "#FFFFFF", ms: 70, vibrate: [120] } },
+          { timeMs: 40846, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 41077, action: { color: "#FFFFFF", ms: 0, strobe: 20, vibrate: [300, 80, 300, 80, 500] } },
+          { timeMs: 43077, action: { color: "#FF0033", ms: 3500, vibrate: [700, 100, 700] } },
+          { timeMs: 43538, action: { color: "#00F0FF", ms: 100, vibrate: [140] } },
+          { timeMs: 44000, action: { color: "#FF00FF", ms: 100, vibrate: [140] } },
+          { timeMs: 44462, action: { color: "#FFB703", ms: 120, vibrate: [180] } },
+          { timeMs: 44923, action: { color: "#00F0FF", ms: 100, vibrate: [140] } },
+          { timeMs: 45385, action: { color: "#FF0033", ms: 100, vibrate: [150] } },
+          { timeMs: 45846, action: { color: "#FF00FF", ms: 100, vibrate: [150] } },
+          { timeMs: 46308, action: { color: "#FFB703", ms: 120, vibrate: [190] } },
+          { timeMs: 46769, action: { color: "#00F0FF", ms: 100, vibrate: [150] } },
+          { timeMs: 47231, action: { color: "#FFFFFF", ms: 0, strobe: 16, vibrate: [600, 100, 600] } },
+          { timeMs: 49077, action: { color: "#020204", ms: 500 } },
+          { timeMs: 49538, action: { color: "#081018", ms: 100 } },
+          { timeMs: 50000, action: { color: "#020204", ms: 100 } },
+          { timeMs: 50462, action: { color: "#081018", ms: 100 } },
+          { timeMs: 50923, action: { color: "#00F0FF", ms: 120, vibrate: [150] } },
+          { timeMs: 51385, action: { color: "#FF00FF", ms: 120, vibrate: [150] } },
+          { timeMs: 51846, action: { color: "#FFB703", ms: 150, vibrate: [180] } },
+          { timeMs: 52308, action: { color: "#FFFFFF", ms: 0, strobe: 24, vibrate: [800, 100, 800, 100, 1000] } },
+          { timeMs: 54500, action: { color: "#000000", ms: 0 } }
         ]
       },
+
 
       "1000000": { cat: "HAPTIC", name: "ヘビードロップ", color: "#FFFFFF", ms: 50, vibrate: [300, 100, 300] },
 
@@ -921,7 +1011,7 @@
       }).join("\n  ");
       logTX(`送信 ID:${id} \n  Trig:${FREQ_TRIGGER}Hz\n  ${sInfo}`);
 
-      return (t - now) * 1000 + 30; // 実行時間 + 安全マージン
+      return (t - now) * 1000 + 30;
     }
 
     const txStatusLine = document.getElementById("txStatusLine");
@@ -1009,11 +1099,10 @@
       txContainer.appendChild(grp);
     }
 
-    // 受信機ロジック
     let rxCtx, analyser, dataArray;
     let rxState = "IDLE";
     let rxStartTime = 0;
-    let potentialStartTime = 0; // ★ 追加：トリガー初検知の時刻を保持
+    let potentialStartTime = 0;
     let decodedValues = [];
 
     let triggerNoiseFloor = null;
@@ -1021,7 +1110,6 @@
     let effectInterval = null;
     let effectTimeout = null;
 
-    // ★ タイムライン管理用変数 (追加)
     let timelineAnimFrame = null;
     let timelineScheduledTimeout = null;
 
@@ -1138,7 +1226,7 @@
 
         if (magTrigger > dynThreshold && isPeakSharp) {
           if (triggerConfirmCount === 0) {
-            potentialStartTime = now; // ★ 最初にトリガーを超えた瞬間の正確な時刻を記録
+            potentialStartTime = now;
           }
           triggerConfirmCount++;
         } else {
@@ -1149,7 +1237,6 @@
           triggerConfirmCount = 0;
           rxState = "READING";
 
-          // ★ 固定の -80ms ではなく、最初にトリガーを検知した正確な瞬間を起点にする
           rxStartTime = potentialStartTime;
 
           decodedValues = [];
@@ -1175,7 +1262,6 @@
             document.getElementById(`slot${slotIndex + 1}`).classList.add('active');
           }
 
-          // ★ スロットの中央付近（0.25〜0.75）を安定してサンプリング
           if (slotIndex >= 0 && slotIndex < SLOT_COUNT && decodedValues[slotIndex] === undefined && timeOffset > (TIME_SLOT * 0.25) && timeOffset < (TIME_SLOT * 0.75)) {
             let results = [];
             for (let i = 0; i < 31; i++) {
@@ -1249,7 +1335,7 @@
     let isCaching = false;
 
     // =========================================================================
-    // ★ 高精度ミリ秒同期 楽曲タイムライン再生エンジン (追加)
+    // ★ 高精度ミリ秒同期 楽曲タイムライン再生エンジン (5秒グリッド同期)
     // =========================================================================
     function startMusicTimeline(cue, startSeekMs = 0) {
       const canvas = document.getElementById("rxCanvas");
@@ -1307,12 +1393,24 @@
     }
 
     function scheduleMusicTimeline(cue) {
-      const preRoll = cue.preRollMs || 2000;
-      const targetUnix = getSyncedNow() + preRoll;
-      logRX(`[タイムライン同期予約] 発火予定まで: ${preRoll}ms (NICT同期時刻基準)`);
+      // 5秒グリッド同期 (start: 5)
+      const gridSeconds = cue.start || 5;
+      const gridMs = gridSeconds * 1000;
+      const nowSynced = getSyncedNow();
 
-      const currentSynced = getSyncedNow();
-      const delay = targetUnix - currentSynced;
+      // 現在時刻を上回る直近の 5秒グリッド (00s, 05s, 10s, 15s...) のジャスト000ms
+      let targetUnix = Math.ceil(nowSynced / gridMs) * gridMs;
+
+      // 受信完了から発火まで 1.0秒未満しかない場合は次のグリッドへ送る
+      if ((targetUnix - nowSynced) < 1000) {
+        targetUnix += gridMs;
+      }
+
+      const delay = targetUnix - nowSynced;
+      const targetDate = new Date(targetUnix);
+      const targetTimeStr = targetDate.toTimeString().split(' ')[0] + '.' + String(targetDate.getMilliseconds()).padStart(3, '0');
+
+      logRX(`[5sグリッド同期] 目標時刻: ${targetTimeStr} (残り待機: ${delay}ms)`);
 
       if (delay > 0) {
         timelineScheduledTimeout = setTimeout(() => {
@@ -1455,7 +1553,6 @@
         title.innerText = cue.name;
         sub.innerText = `ID: ${idNum.toLocaleString()}`;
 
-        // ★ TIMELINE 型演出の分岐 (追加)
         if (cue.type === "timeline") {
           msgEl.innerText = "";
           scheduleMusicTimeline(cue);
