@@ -587,6 +587,48 @@
   </div>
 
   <script>
+    // =========================================================================
+    // ★ NICT NTP 時刻同期システム (追加)
+    // =========================================================================
+    let averageOffset = 0;
+    let ntpSyncCompleted = false;
+
+    async function fetchTime() {
+      try {
+        const t0 = Date.now();
+        const urls = [
+          "https://3fe5a5f690efc790d4764f1c528a4ebb89fa4168.nict.go.jp/cgi-bin/json?" + (t0 / 1000),
+          "https://67495dde3b39c2991829589f0101ab7a035eecf5.nict.go.jp/cgi-bin/json?" + (t0 / 1000),
+          "https://08a08e3a6edef4ba7a0c055a42d8e1ba2597f2b5.nict.go.jp/cgi-bin/json?" + (t0 / 1000)
+        ];
+
+        const responses = await Promise.all(urls.map(u => fetch(u).then(r => r.json())));
+        const t1 = Date.now();
+
+        const timeOffset1 = (responses[0].st - responses[0].it) * 1000;
+        const timeOffset2 = (responses[1].st - responses[1].it) * 1000;
+        const timeOffset3 = (responses[2].st - responses[2].it) * 1000;
+
+        const latency = (t1 - (((responses[0].it + responses[1].it + responses[2].it) * 1000) / 3));
+        const latencOneWay = latency / 2;
+
+        averageOffset = Math.round(((timeOffset1 + timeOffset2 + timeOffset3) / 3) - latencOneWay);
+        ntpSyncCompleted = true;
+
+        if (typeof logRX === "function") {
+          logRX(`[NTP同期完了] 補正オフセット: ${averageOffset}ms (片道遅延: ${latencOneWay.toFixed(1)}ms)`);
+        }
+      } catch (e) {
+        console.warn("[NTP Sync Error]", e);
+      }
+    }
+    fetchTime();
+    setInterval(fetchTime, 30000);
+
+    function getSyncedNow() {
+      return Date.now() + averageOffset;
+    }
+
     const params = new URLSearchParams(window.location.search);
 
     if (params.get('d') === 'n') {
@@ -649,7 +691,8 @@
     }
     const PAIR_COUNT = PAIRS.length; // 465
 
-    const TIME_START = 0.2; // 同期調整のため少し長めにキープ
+    // ★ 同期遅延解消のため、トリガー送信時間を大幅に延長
+    const TIME_START = 0.2; // (旧:0.15) 確実に検知させる
     const TIME_SLOT = 0.12;
     const SLOT_COUNT = 4;
 
@@ -670,7 +713,6 @@
     const UNICODE_OFFSET = 1000000;
 
     let rxTextCache = "";
-
     const CUE_DATA = {
       "0": { cat: "SOLID", name: "ブラックアウト", color: "#050505", ms: 0 },
       "3": { cat: "SOLID", name: "ピュアレッド", color: "#FF0033", ms: 0 },
@@ -702,7 +744,6 @@
       "50019": { cat: "FLASH", name: "白黒20Hz", color: "#FFFFFF", ms: 0, strobe: 20 },
       "50024": { cat: "FLASH", name: "白黒25Hz", color: "#FFFFFF", ms: 0, strobe: 25 },
       "50029": { cat: "FLASH", name: "白黒30Hz", color: "#FFFFFF", ms: 0, strobe: 30 },
-
       "50100": { cat: "FLASH", name: "警告フラッシュ (赤)", color: "#FF0000", ms: 0, strobe: 6 },
 
       "70000": { cat: "LASER", name: "サイバービーム", color: "#00FFFF", ms: 3000, strobe: 10 },
@@ -713,6 +754,69 @@
       "80003": { cat: "EFFECT", name: "カラーチェイス", type: "sequence", colors: ["#FF0033", "#FFB703", "#39FF14", "#00f0ff", "#FF00FF"], stepMs: 180, ms: 4500 },
       "80004": { cat: "EFFECT", name: "スパークル", type: "party", colors: ["#FFFFFF", "#F8FAFC", "#00f0ff"], ms: 3000 },
       "80005": { cat: "EFFECT", name: "カウントダウン導光", type: "sequence", colors: ["#0055FF", "#39FF14", "#FFB703", "#FF0033", "#FFFFFF"], stepMs: 700, ms: 3500 },
+
+      // 🎵 EDM
+      "90001": {
+        cat: "TIMELINE", name: "EDM 4つ打ち同期 (BPM128)", type: "timeline", preRollMs: 2000,
+        timeline: [
+          { timeMs: 0, action: { color: "#FF0033", ms: 60, vibrate: [120] } },
+          { timeMs: 468, action: { color: "#050507", ms: 60 } },
+          { timeMs: 937, action: { color: "#FFB703", ms: 60, vibrate: [80] } },
+          { timeMs: 1406, action: { color: "#050507", ms: 60 } },
+          { timeMs: 1875, action: { color: "#00f0ff", ms: 60, vibrate: [120] } },
+          { timeMs: 2343, action: { color: "#050507", ms: 60 } },
+          { timeMs: 2812, action: { color: "#FF00FF", ms: 60, vibrate: [80] } },
+          { timeMs: 3281, action: { color: "#050507", ms: 60 } },
+          { timeMs: 3750, action: { color: "#FFFFFF", ms: 0, strobe: 15 } },
+          { timeMs: 5625, action: { color: "#FF0033", ms: 2000, vibrate: [300, 100, 300] } }
+        ]
+      },
+
+      // 🎵 EDM Evolution
+      "90002": {
+        cat: "TIMELINE", name: "EDM Evolution Drop (BPM128)", type: "timeline", preRollMs: 5000,
+        timeline: [
+          { timeMs: 0, action: { color: "#050507", ms: 80, vibrate: [40] } },
+          { timeMs: 469, action: { color: "#16213E", ms: 80 } },
+          { timeMs: 938, action: { color: "#050507", ms: 80 } },
+          { timeMs: 1406, action: { color: "#16213E", ms: 80 } },
+          { timeMs: 1875, action: { color: "#00F0FF", ms: 100, vibrate: [80] } },
+          { timeMs: 2344, action: { color: "#050507", ms: 80 } },
+          { timeMs: 2813, action: { color: "#00F0FF", ms: 100, vibrate: [80] } },
+          { timeMs: 3281, action: { color: "#050507", ms: 80 } },
+          { timeMs: 3750, action: { color: "#FF0033", ms: 100, vibrate: [100] } },
+          { timeMs: 3984, action: { color: "#FF006E", ms: 50 } },
+          { timeMs: 4219, action: { color: "#FF0033", ms: 100, vibrate: [100] } },
+          { timeMs: 4453, action: { color: "#FF006E", ms: 50 } },
+          { timeMs: 4688, action: { color: "#FFB703", ms: 120, vibrate: [140] } },
+          { timeMs: 4922, action: { color: "#FF006E", ms: 50 } },
+          { timeMs: 5156, action: { color: "#FFB703", ms: 120, vibrate: [140] } },
+          { timeMs: 5391, action: { color: "#FF006E", ms: 50 } },
+          { timeMs: 5625, action: { color: "#020204", ms: 300 } },
+          { timeMs: 6094, action: { color: "#081018", ms: 80 } },
+          { timeMs: 6563, action: { color: "#020204", ms: 80 } },
+          { timeMs: 7031, action: { color: "#081018", ms: 80 } },
+          { timeMs: 7500, action: { color: "#FFFFFF", ms: 70, vibrate: [50] } },
+          { timeMs: 7734, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 7969, action: { color: "#FFFFFF", ms: 70, vibrate: [50] } },
+          { timeMs: 8203, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 8438, action: { color: "#FFFFFF", ms: 70, vibrate: [60] } },
+          { timeMs: 8672, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 8906, action: { color: "#FFFFFF", ms: 70, vibrate: [70] } },
+          { timeMs: 9141, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 9375, action: { color: "#FFFFFF", ms: 0, strobe: 12, vibrate: [80] } },
+          { timeMs: 11250, action: { color: "#000000", ms: 0 } },
+          { timeMs: 11600, action: { color: "#FFFFFF", ms: 40 } },
+          { timeMs: 11700, action: { color: "#000000", ms: 0 } },
+          { timeMs: 11800, action: { color: "#FF0033", ms: 2500, vibrate: [300, 100, 300, 100, 500] } },
+          { timeMs: 12375, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
+          { timeMs: 12844, action: { color: "#FF00FF", ms: 100, vibrate: [100] } },
+          { timeMs: 13313, action: { color: "#FFB703", ms: 120, vibrate: [140] } },
+          { timeMs: 13781, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
+          { timeMs: 15000, action: { color: "#FFFFFF", ms: 0, strobe: 8, vibrate: [500, 100, 500] } },
+          { timeMs: 16875, action: { color: "#FF0033", ms: 3000, vibrate: [700] } }
+        ]
+      },
 
       "1000000": { cat: "HAPTIC", name: "ヘビードロップ", color: "#FFFFFF", ms: 50, vibrate: [300, 100, 300] },
 
@@ -917,6 +1021,10 @@
     let effectInterval = null;
     let effectTimeout = null;
 
+    // ★ タイムライン管理用変数 (追加)
+    let timelineAnimFrame = null;
+    let timelineScheduledTimeout = null;
+
     const spectrumCanvas = document.getElementById("spectrumCanvas");
     const specCtx = spectrumCanvas.getContext("2d");
 
@@ -1099,8 +1207,6 @@
             }
           }
         } else if (elapsed >= windowEnd) {
-          // （以降のチェックサム・完了判定処理はそのまま）
-          // （以降のチェックサム・完了判定処理はそのまま）
           for (let i = 1; i <= SLOT_COUNT; i++) document.getElementById(`slot${i}`).classList.remove('active');
 
           const allDecoded = decodedValues.length === SLOT_COUNT && decodedValues.every(v => v !== undefined);
@@ -1142,9 +1248,88 @@
 
     let isCaching = false;
 
+    // =========================================================================
+    // ★ 高精度ミリ秒同期 楽曲タイムライン再生エンジン (追加)
+    // =========================================================================
+    function startMusicTimeline(cue, startSeekMs = 0) {
+      const canvas = document.getElementById("rxCanvas");
+      const title = document.getElementById("rxTitle");
+      const sub = document.getElementById("rxSub");
+      const timeline = cue.timeline;
+      if (!timeline || timeline.length === 0) return;
+
+      const originPerf = performance.now() - startSeekMs;
+      let actionIndex = 0;
+
+      while (actionIndex < timeline.length && startSeekMs > timeline[actionIndex].timeMs) {
+        actionIndex++;
+      }
+
+      function step() {
+        const currentElapsed = performance.now() - originPerf;
+        sub.innerText = `タイムライン同期中: ${(currentElapsed / 1000).toFixed(2)}s`;
+
+        while (actionIndex < timeline.length && currentElapsed >= timeline[actionIndex].timeMs) {
+          const item = timeline[actionIndex];
+          const act = item.action;
+
+          if (act.strobe) {
+            clearEffects();
+            let on = false;
+            effectInterval = setInterval(() => {
+              on = !on;
+              canvas.style.transition = "none";
+              canvas.style.backgroundColor = on ? act.color : "#050505";
+            }, 1000 / (act.strobe * 2));
+          } else {
+            clearEffects();
+            canvas.style.transition = `background-color ${act.ms || 100}ms ease`;
+            canvas.style.backgroundColor = act.color;
+          }
+
+          if (act.vibrate && navigator.vibrate) {
+            navigator.vibrate(act.vibrate);
+          }
+          actionIndex++;
+        }
+
+        if (actionIndex < timeline.length) {
+          timelineAnimFrame = requestAnimationFrame(step);
+        } else {
+          sub.innerText = "タイムライン完走";
+          clearEffects();
+          canvas.style.transition = "background-color 500ms ease";
+          canvas.style.backgroundColor = "#050505";
+        }
+      }
+
+      timelineAnimFrame = requestAnimationFrame(step);
+    }
+
+    function scheduleMusicTimeline(cue) {
+      const preRoll = cue.preRollMs || 2000;
+      const targetUnix = getSyncedNow() + preRoll;
+      logRX(`[タイムライン同期予約] 発火予定まで: ${preRoll}ms (NICT同期時刻基準)`);
+
+      const currentSynced = getSyncedNow();
+      const delay = targetUnix - currentSynced;
+
+      if (delay > 0) {
+        timelineScheduledTimeout = setTimeout(() => {
+          startMusicTimeline(cue, 0);
+        }, delay);
+      } else {
+        const seek = Math.abs(delay);
+        logRX(`[レイトジョイン検出] ${seek}ms 経過地点から途中合流再生`);
+        startMusicTimeline(cue, seek);
+      }
+    }
+
     function clearEffects() {
       if (effectInterval) { clearInterval(effectInterval); effectInterval = null; }
       if (effectTimeout) { clearTimeout(effectTimeout); effectTimeout = null; }
+      if (timelineAnimFrame) { cancelAnimationFrame(timelineAnimFrame); timelineAnimFrame = null; }
+      if (timelineScheduledTimeout) { clearTimeout(timelineScheduledTimeout); timelineScheduledTimeout = null; }
     }
 
     function runEffect(cue, canvas) {
@@ -1269,6 +1454,13 @@
         const cue = CUE_DATA[idStr];
         title.innerText = cue.name;
         sub.innerText = `ID: ${idNum.toLocaleString()}`;
+
+        // ★ TIMELINE 型演出の分岐 (追加)
+        if (cue.type === "timeline") {
+          msgEl.innerText = "";
+          scheduleMusicTimeline(cue);
+          return;
+        }
 
         if (cue.msg) {
           msgEl.innerText = cue.msg;
