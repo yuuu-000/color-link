@@ -543,7 +543,7 @@
         <div class="control-box">
           <h3>RGBカラー直接送信</h3>
           <div class="control-row">
-            <input type="color" id="colorPicker" value="#00d0ff">
+            <input type="color" id="colorPicker" value="#5599cc">
             <button class="action-btn" id="sendColorBtn" style="flex:1;">カラー送信</button>
           </div>
         </div>
@@ -770,7 +770,6 @@
         ]
       },
 
-      // 🎵 EDM Evolution (5秒グリッド同期対応: "start": 5)
       "90002": {
         cat: "TIMELINE", name: "EDM Evolution Drop (BPM130 Extended)", type: "timeline", start: 10,
         timeline: [
@@ -910,10 +909,19 @@
 
       "1000000": { cat: "HAPTIC", name: "ヘビードロップ", color: "#FFFFFF", ms: 50, vibrate: [300, 100, 300] },
 
-      "100544576": { cat: "MESSAGE", name: "ウェルカム通知", color: "#000", msg: "ようこそ、ライブ会場へ！", ms: 300 },
-      "100544577": { cat: "MESSAGE", name: "緊急避難アナウンス", color: "#000", msg: "緊急避難指示：係員の誘導に従ってください", ms: 200, strobe: 15 },
-      "100544578": { cat: "MESSAGE", name: "サプライズ発表", color: "#000", msg: "ゲスト登場！", ms: 400, strobe: 10 },
-      "100544579": { cat: "MESSAGE", name: "休憩アナウンス", color: "#000", msg: "15分間の休憩時間です", ms: 0 }
+      "100544576": { cat: "MESSAGE", name: "ウェルカム", color: "#000", msg: "WELCOME!!", ms: 0 },
+      "100544577": { cat: "MESSAGE", name: "通知1", color: "#000", msg: "通知1", ms: 0 },
+      "100544578": { cat: "MESSAGE", name: "通知2", color: "#000", msg: "通知2", ms: 0 },
+      "100544579": { cat: "MESSAGE", name: "通知3", color: "#000", msg: "通知3", ms: 0 },
+      "100544580": { cat: "MESSAGE", name: "通知4", color: "#000", msg: "通知4", ms: 0 },
+      "100544581": { cat: "MESSAGE", name: "通知5", color: "#000", msg: "通知5", ms: 0 },
+      "100544582": { cat: "MESSAGE", name: "通知6", color: "#000", msg: "通知6", ms: 0 },
+      "100544583": { cat: "MESSAGE", name: "通知7", color: "#000", msg: "通知7", ms: 0 },
+      "100544584": { cat: "MESSAGE", name: "通知8", color: "#000", msg: "通知8", ms: 0 },
+      "100544585": { cat: "MESSAGE", name: "通知9", color: "#000", msg: "通知9", ms: 0 },
+      "100544586": { cat: "MESSAGE", name: "通知10", color: "#000", msg: "通知10", ms: 0 },
+      "100544587": { cat: "MESSAGE", name: "終了", color: "#000", msg: "Thanks!!\nこれにて終了です!!", ms: 0 },
+
     };
 
     let txCtx = null;
@@ -1423,59 +1431,88 @@
       }
     }
 
+    let effectAnimFrame = null;
+
     function clearEffects() {
       if (effectInterval) { clearInterval(effectInterval); effectInterval = null; }
       if (effectTimeout) { clearTimeout(effectTimeout); effectTimeout = null; }
       if (timelineAnimFrame) { cancelAnimationFrame(timelineAnimFrame); timelineAnimFrame = null; }
       if (timelineScheduledTimeout) { clearTimeout(timelineScheduledTimeout); timelineScheduledTimeout = null; }
+      if (effectAnimFrame) { cancelAnimationFrame(effectAnimFrame); effectAnimFrame = null; }
     }
 
     function runEffect(cue, canvas) {
       clearEffects();
       const duration = cue.ms || 0;
+      const startLocalPerf = performance.now();
+      canvas.style.transition = "none";
+
+      // 全端末共通の時間基準 (NTP補正時刻)
+      const getGlobalTime = () => (typeof getSyncedNow === "function") ? getSyncedNow() : Date.now();
 
       if (cue.type === "rainbow") {
-        let hue = 0;
-        canvas.style.transition = "none";
-        effectInterval = setInterval(() => {
-          hue = (hue + 8) % 360;
-          canvas.style.backgroundColor = `hsl(${hue},100%,50%)`;
-        }, 40);
+        // 周期: 約1.8秒で1周 (360度) -> 実時間ベースで色相を算出
+        const speed = 360 / 1800; // deg per ms
+        function loopRainbow() {
+          const now = getGlobalTime();
+          const hue = Math.floor((now * speed) % 360);
+          canvas.style.backgroundColor = `hsl(${hue}, 100%, 50%)`;
+          effectAnimFrame = requestAnimationFrame(loopRainbow);
+        }
+        effectAnimFrame = requestAnimationFrame(loopRainbow);
+
       } else if (cue.type === "party") {
         const colors = cue.colors || ["#FF0033", "#00F0FF", "#FFB703", "#39FF14", "#FF00FF", "#0055FF"];
-        canvas.style.transition = "none";
-        effectInterval = setInterval(() => {
-          canvas.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-        }, 90);
+        const intervalMs = 90;
+        function loopParty() {
+          const now = getGlobalTime();
+          const index = Math.floor(now / intervalMs) % colors.length;
+          canvas.style.backgroundColor = colors[index];
+          effectAnimFrame = requestAnimationFrame(loopParty);
+        }
+        effectAnimFrame = requestAnimationFrame(loopParty);
+
       } else if (cue.type === "heartbeat") {
-        let beat = 0;
-        canvas.style.transition = "background-color 90ms ease";
-        effectInterval = setInterval(() => {
-          const phase = beat % 4;
+        // 鼓動周期: 640ms周期 (4フェーズ)
+        const cycleMs = 640;
+        function loopHeartbeat() {
+          const now = getGlobalTime();
+          const phase = Math.floor((now % cycleMs) / 160);
           canvas.style.backgroundColor = (phase === 0 || phase === 1) ? cue.color : "#050505";
-          beat++;
-        }, 160);
+          effectAnimFrame = requestAnimationFrame(loopHeartbeat);
+        }
+        effectAnimFrame = requestAnimationFrame(loopHeartbeat);
+
       } else if (cue.type === "sequence") {
         const seq = cue.colors || [cue.color];
-        let i = 0;
-        canvas.style.transition = "background-color 120ms linear";
-        effectInterval = setInterval(() => {
-          canvas.style.backgroundColor = seq[i % seq.length];
-          i++;
-        }, cue.stepMs || 200);
+        const stepMs = cue.stepMs || 200;
+        function loopSequence() {
+          const now = getGlobalTime();
+          const index = Math.floor(now / stepMs) % seq.length;
+          canvas.style.backgroundColor = seq[index];
+          effectAnimFrame = requestAnimationFrame(loopSequence);
+        }
+        effectAnimFrame = requestAnimationFrame(loopSequence);
+
       } else if (cue.strobe) {
-        let on = false;
-        const hz = cue.strobe;
-        canvas.style.transition = "none";
-        effectInterval = setInterval(() => {
-          on = !on;
-          canvas.style.backgroundColor = on ? cue.color : "#000";
-        }, 1000 / (hz * 2));
+        // 正確なストロボ: 1周期 = 1000 / Hz
+        const periodMs = 1000 / cue.strobe;
+        function loopStrobe() {
+          const now = getGlobalTime();
+          // 周期の前半50%を点灯、後半50%を消灯
+          const isOn = (now % periodMs) < (periodMs / 2);
+          canvas.style.backgroundColor = isOn ? cue.color : "#000000";
+          effectAnimFrame = requestAnimationFrame(loopStrobe);
+        }
+        effectAnimFrame = requestAnimationFrame(loopStrobe);
+
       } else {
+        // 通常のソリッド / フェード
         canvas.style.transition = `background-color ${duration || 300}ms ease`;
         canvas.style.backgroundColor = cue.color;
       }
 
+      // 継続時間 (ms) の自動停止
       if (duration > 0) {
         effectTimeout = setTimeout(() => {
           clearEffects();
