@@ -1,735 +1,1634 @@
 <!doctype html>
 <html lang="ja">
+
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Ultrasonic Color Mixer</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>CUE-X | Character Protocol Engine (v4.1 / Perfect Sync)</title>
   <style>
+    :root {
+      --bg: #050507;
+      --panel: #121216;
+      --panel-border: #23232b;
+      --accent: #fd5;
+      --accent-hover: rgb(246, 222, 125);
+      --accent-glow: rgba(0, 240, 255, 0.25);
+      --text-main: #f1f5f9;
+      --text-sub: #94a3b8;
+      --danger: #ff5566;
+      --radius: 12px;
+    }
+
     * {
-      box-sizing: border-box
-    }
-    html,
-    body {
+      box-sizing: border-box;
       margin: 0;
-      min-height: 100%;
-      background: #080a0f;
-      color: #f5f7fb;
-      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
     }
-    body {
-      display: flex;
-      justify-content: center
+
+    body,
+    html {
+      height: 100%;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      overflow: hidden;
     }
-    .wrap {
-      width: min(1180px, 100%);
-      padding: 18px
-    }
-    .top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 14px
-    }
-    .brand {
-      font-weight: 900;
-      letter-spacing: -.04em;
-      font-size: 22px
-    }
-    .brand small {
-      font-size: 10px;
-      color: #687184;
-      letter-spacing: .12em;
-      margin-left: 8px
-    }
-    .mode {
-      display: flex;
-      gap: 4px;
-      background: #11151e;
-      padding: 4px;
-      border: 1px solid #252b38;
-      border-radius: 10px
-    }
-    .mode button {
-      border: 0;
-      background: transparent;
-      color: #7e8798;
-      padding: 8px 13px;
-      border-radius: 7px;
-      font-weight: 800;
-      cursor: pointer
-    }
-    .mode button.active {
-      background: #edf1f7;
-      color: #10131a
-    }
-    .panel {
-      background: linear-gradient(145deg, #131720, #0e1118);
-      border: 1px solid #252b38;
-      border-radius: 18px;
-      padding: 16px;
-      box-shadow: 0 12px 40px #0005;
-      margin-bottom: 12px
-    }
-    .mixer {
-      display: grid;
-      grid-template-columns: 1.25fr .75fr;
-      gap: 12px
-    }
-    .hero {
-      min-height: 470px;
-      display: flex;
-      flex-direction: column
-    }
-    .section-title {
-      font-size: 11px;
-      color: #697386;
-      font-weight: 900;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      margin-bottom: 10px
-    }
-    .color-stage {
-      flex: 1;
-      min-height: 260px;
-      border-radius: 14px;
-      border: 1px solid #303746;
-      background: #ff0000;
+
+    .app-container {
       display: flex;
       flex-direction: column;
+      height: 100dvh;
+    }
+
+    header {
+      background: rgba(5, 5, 7, 0.9);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--panel-border);
+      padding: 14px 24px;
+      display: flex;
       justify-content: space-between;
-      padding: 14px;
-      box-shadow: inset 0 0 80px #0002
+      align-items: center;
+      z-index: 100;
     }
-    .color-stage .freq {
-      font: 900 44px ui-monospace, monospace;
-      text-shadow: 0 2px 15px #0008
+
+    .brand {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-    .color-stage .hex {
-      font: 800 16px ui-monospace, monospace;
-      background: #0009;
-      width: max-content;
-      padding: 7px 10px;
-      border-radius: 8px
+
+    .brand span {
+      color: var(--accent);
+      text-shadow: 0 0 12px var(--accent-glow);
     }
-    .palette {
-      display: grid;
-      grid-template-columns: repeat(8, 1fr);
-      gap: 5px;
-      margin-top: 12px
+
+    .badge {
+      background: rgba(0, 240, 255, 0.08);
+      color: var(--accent);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
     }
-    .chip {
-      height: 30px;
-      border-radius: 6px;
-      border: 1px solid #343b49;
+
+    .split-layout {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    @media (min-width: 900px) {
+      .split-layout {
+        flex-direction: row;
+      }
+    }
+
+    .tx-area {
+      flex: 1.3;
+      padding: 20px;
+      overflow-y: auto;
+      border-right: 1px solid var(--panel-border);
+      background: var(--panel);
+      scrollbar-width: thin;
+      scrollbar-color: var(--panel-border) transparent;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .tx-area h2 {
+      font-size: 12px;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .control-box {
+      background: #1a1a22;
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .control-box h3 {
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 1px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .control-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    input[type="color"] {
+      -webkit-appearance: none;
+      border: none;
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
       cursor: pointer;
-      transition: .12s;
+      background: none;
+    }
+
+    input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    input[type="color"]::-webkit-color-swatch {
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: #0f0f13;
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #fff;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      transition: 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    input[type="text"]:disabled {
+      opacity: 0.5;
+    }
+
+    .action-btn {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      font-weight: 800;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.2s;
+      font-size: 12px;
+      box-shadow: 0 0 15px var(--accent-glow);
+      white-space: nowrap;
+    }
+
+    .action-btn:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 0 25px var(--accent-glow);
+    }
+
+    .action-btn:disabled {
+      background: #3a3a44;
+      color: #888;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    .tx-status-line {
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      color: var(--text-sub);
+      min-height: 14px;
+    }
+
+    .tx-status-line.busy {
+      color: var(--accent);
+    }
+
+    .preset-group {
+      margin-bottom: 10px;
+    }
+
+    .preset-group-title {
+      font-size: 11px;
+      color: var(--accent);
+      margin-bottom: 12px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .preset-group-title::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--panel-border);
+    }
+
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px;
+    }
+
+    .tx-btn {
+      background: #1a1a22;
+      border: 1px solid var(--panel-border);
+      color: var(--text-main);
+      padding: 14px 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      text-align: left;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tx-btn:hover {
+      border-color: var(--accent);
+      background: #22222f;
+      box-shadow: 0 4px 20px var(--accent-glow);
+      transform: translateY(-2px);
+    }
+
+    .tx-btn:active {
+      transform: translateY(0);
+      filter: brightness(0.9);
+    }
+
+    .tx-btn .id-label {
+      font-family: ui-monospace, monospace;
+      font-size: 9px;
+      color: var(--text-sub);
+      margin-bottom: 6px;
+      font-weight: 700;
+      z-index: 2;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .tx-btn .name-label {
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.35;
+      z-index: 2;
+      color: #ffffff;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    }
+
+    .rx-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #000;
+      position: relative;
+    }
+
+    .rx-hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 16px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .rx-card {
+      background: rgba(12, 12, 16, 0.88);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 16px;
+      pointer-events: auto;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .rx-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    #rxStartBtn,
+    #rxFullscreenBtn {
+      padding: 10px 18px;
+      border-radius: 24px;
+      font-weight: 800;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.5px;
+      border: none;
+    }
+
+    #rxStartBtn {
+      background: var(--accent);
+      color: #000;
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+
+    #rxStartBtn:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 0 25px var(--accent-glow);
+    }
+
+    #rxFullscreenBtn {
+      background: #272730;
+      color: #f1f5f9;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    #rxFullscreenBtn:hover {
+      background: #353542;
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .rx-status {
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      color: var(--text-sub);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      text-align: right;
+    }
+
+    .rx-status span {
+      color: #fff;
+      font-weight: bold;
+    }
+
+    .slot-monitor {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .slot {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 8px 0;
+      text-align: center;
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      font-weight: bold;
+      color: var(--text-sub);
+      transition: 0.2s;
+    }
+
+    .slot.active {
+      background: rgba(0, 240, 255, 0.2);
+      color: #fff;
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    .slot.checksum {
+      border-style: dashed;
+    }
+
+    #rxCanvas {
+      flex: 1;
       display: flex;
       align-items: center;
       justify-content: center;
-      font: 700 9px ui-monospace, monospace;
-      color: #fff;
-      text-shadow: 0 1px 2px #000
-    }
-    .chip:hover {
-      transform: translateY(-2px);
-      border-color: #fff
-    }
-    .controls {
-      display: grid;
-      grid-template-columns: 1fr 150px;
-      gap: 12px;
-      margin-top: 12px
-    }
-    .control {
-      background: #0a0d13;
-      border: 1px solid #222936;
-      border-radius: 12px;
-      padding: 12px
-    }
-    label {
-      display: block;
-      color: #7f899b;
-      font-size: 11px;
-      font-weight: 800;
-      margin-bottom: 7px;
-      text-transform: uppercase;
-      letter-spacing: .06em
-    }
-    input[type=range] {
-      width: 100%;
-      accent-color: #7ce5a5
-    }
-    input[type=number] {
-      width: 100%;
-      background: #080b10;
-      color: #fff;
-      border: 1px solid #29303d;
-      border-radius: 7px;
-      padding: 8px;
-      font: 700 13px ui-monospace, monospace
-    }
-    .value {
-      font: 800 14px ui-monospace, monospace;
-      color: #7ce5a5;
-      margin-top: 7px
-    }
-    .right {
-      display: flex;
       flex-direction: column;
-      gap: 12px
-    }
-    .master {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px
-    }
-    .bigbutton {
-      height: 62px;
-      border: 1px solid #303746;
-      border-radius: 12px;
-      background: #171c27;
-      color: #fff;
-      font-weight: 900;
-      cursor: pointer
-    }
-    .bigbutton.primary {
-      background: #f1f4f8;
-      color: #0b0d12
-    }
-    .bigbutton.live {
-      background: #202936
-    }
-    .bigbutton:disabled {
-      opacity: .35;
-      cursor: not-allowed
-    }
-    .status {
-      padding: 10px;
-      border-radius: 9px;
-      background: #090c11;
-      border: 1px solid #242b37;
-      font: 700 12px ui-monospace, monospace;
-      color: #aeb8c9
-    }
-    .status.on {
-      color: #7ce5a5
-    }
-    .livegrid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 6px
-    }
-    .livegrid button {
-      min-height: 45px;
-      border: 1px solid #2a3140;
-      background: #171c25;
-      color: #dce2eb;
-      border-radius: 8px;
-      font-size: 11px;
-      font-weight: 800;
-      cursor: pointer
-    }
-    .livegrid button:hover {
-      background: #222a37
-    }
-    .progress {
-      height: 5px;
-      background: #080b10;
-      border-radius: 4px;
+      transition: background-color 0.15s ease;
+      position: relative;
       overflow: hidden;
-      margin-top: 8px;
-      display: none
+      z-index: 1;
     }
-    .progress i {
-      display: block;
-      height: 100%;
-      width: 0;
-      background: #7ce5a5
-    }
-    .reserved {
-      margin-top: auto;
-      background: #0a0d13;
-      border: 1px solid #252c39;
-      border-radius: 12px;
-      padding: 12px
-    }
-    .reserved-title {
-      display: flex;
-      justify-content: space-between;
-      font-size: 11px;
+
+    .target-title {
+      font-size: clamp(24px, 5vw, 40px);
       font-weight: 900;
-      color: #7f899b
+      color: #fff;
+      text-shadow: 0 4px 24px rgba(0, 0, 0, 0.9);
+      z-index: 2;
+      text-align: center;
+      line-height: 1.15;
+      padding: 0 20px;
+      transition: opacity 0.2s;
     }
-    .reserved-list {
-      display: flex;
-      gap: 5px;
-      flex-wrap: wrap;
-      margin-top: 9px
-    }
-    .reserved-list span {
-      font: 700 10px ui-monospace, monospace;
-      color: #8994a8;
-      background: #121722;
-      border: 1px solid #252d3b;
-      padding: 5px 7px;
-      border-radius: 5px
-    }
-    .debug {
-      background: #06080c;
-      border: 1px solid #1c222d;
-      border-radius: 9px;
-      padding: 9px;
-      color: #71bfff;
-      font: 11px/1.5 ui-monospace, monospace;
-      white-space: pre-wrap;
-      margin-top: 10px
-    }
-    .rxpanel {
-      display: none
-    }
-    .rxbox {
-      height: 240px;
-      border-radius: 14px;
-      border: 1px solid #303746;
-      background: #151923;
-      padding: 14px;
-      display: flex;
-      align-items: flex-end;
-      font: 800 15px ui-monospace, monospace
-    }
-    .big {
-      font: 900 34px ui-monospace, monospace;
-      color: #7ce5a5;
-      margin: 10px 0
-    }
-    canvas {
-      width: 100%;
-      height: 180px;
-      background: #080b10;
-      border: 1px solid #252b36;
-      border-radius: 10px;
+
+    .target-id {
+      font-family: ui-monospace, monospace;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.8);
       margin-top: 10px;
-      display: block
+      letter-spacing: 2px;
+      z-index: 2;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      transition: opacity 0.2s;
     }
-    .hint {
-      color: #687386;
-      font-size: 11px;
-      line-height: 1.5;
-      margin-top: 7px
+
+    .target-msg {
+      font-size: clamp(20px, 4vw, 32px);
+      color: #ddd;
+      margin-top: 16px;
+      font-weight: 800;
+      z-index: 2;
+      text-align: center;
+      max-width: 90%;
+      text-shadow: none;
+      letter-spacing: 1px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    @media(max-width:800px) {
-      .mixer {
-        grid-template-columns: 1fr
-      }
-      .controls {
-        grid-template-columns: 1fr
-      }
-      .palette {
-        grid-template-columns: repeat(4, 1fr)
-      }
-      .hero {
-        min-height: 400px
-      }
+
+    .target-msg.fired {
+      font-size: clamp(36px, 8vw, 72px);
+      text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      margin-top: 0;
+    }
+
+    #spectrumCanvas {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 110px;
+      z-index: 3;
+      pointer-events: none;
+      opacity: 0.85;
+    }
+
+    #txProgress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: var(--accent);
+      width: 0%;
+      z-index: 1000;
+      box-shadow: 0 0 10px var(--accent);
+      transition: width 0.1s linear;
+    }
+
+    .debug-console {
+      background: #090a0f;
+      border: 1px solid #1c222d;
+      border-radius: 8px;
+      padding: 10px;
+      color: #71bfff;
+      font-family: ui-monospace, monospace;
+      font-size: 10px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      max-height: 140px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      margin-top: 6px;
     }
   </style>
 </head>
+
 <body>
-  <div class="wrap">
-    <div class="top">
-      <div class="brand">ULTRASONIC <span>MIXER</span><small>18–21 kHz / COLOR CONTROL</small></div>
-      <div class="mode">
-        <button id="txMode" class="active">TRANSMITTER</button>
-        <button id="rxMode">RECEIVER</button>
+  <div id="txProgress"></div>
+  <div class="app-container">
+    <header>
+      <div class="brand">CUE-X <span>PROTOCOL ENGINE</span></div>
+      <div class="badge">v4.1 · 5s GRID SYNC</div>
+    </header>
+
+    <div class="split-layout">
+      <div class="tx-area">
+        <h2><span>Transmitter Console</span><span>Unicode Sequence Protocol</span></h2>
+
+        <div class="control-box">
+          <h3>カスタム文字列ビルダー & キャッシュ送信</h3>
+          <div class="control-row">
+            <input type="text" id="customInputText" placeholder="文字を入力" value="こんにちは!">
+            <button class="action-btn" id="sendCharCacheBtn">キャッシュ送信</button>
+            <button class="action-btn" id="sendFireBtn" style="background:#ffb703; color:#000;">発火(FIRE)</button>
+          </div>
+          <div class="tx-status-line" id="txStatusLine">各文字にチェックサムが付与されます。誤受信時は自動的に破棄されます。</div>
+          <div class="debug-console" id="txDebugLog">[TX DEBUG] 待機中...</div>
+        </div>
+
+        <div class="control-box">
+          <h3>RGBカラー直接送信</h3>
+          <div class="control-row">
+            <input type="color" id="colorPicker" value="#5599cc">
+            <button class="action-btn" id="sendColorBtn" style="flex:1;">カラー送信</button>
+          </div>
+        </div>
+
+        <div id="txPresets"></div>
+      </div>
+
+      <div class="rx-area" id="rxAreaContainer">
+        <div class="rx-hud">
+          <div class="rx-card">
+            <div class="rx-header">
+              <div class="btn-group">
+                <button id="rxStartBtn">マイク接続</button>
+                <button id="rxFullscreenBtn">全画面</button>
+              </div>
+              <div class="rx-status">
+                <div>状態: <span id="rxState" style="color: var(--text-sub);">待機中</span></div>
+                <div>感度: <span id="rxPeak">--</span> dB / 閾: <span id="rxThresh">--</span> dB</div>
+              </div>
+            </div>
+            <div style="font-size: 10px; color: var(--text-sub); margin-bottom: 4px; font-weight: 700;">
+              受信スロットモニター（S4=検証用チェックサム）</div>
+            <div class="slot-monitor">
+              <div class="slot" id="slot1">S1: ---</div>
+              <div class="slot" id="slot2">S2: ---</div>
+              <div class="slot" id="slot3">S3: ---</div>
+              <div class="slot checksum" id="slot4">CS: ---</div>
+            </div>
+            <div class="debug-console" id="rxDebugLog">[RX DEBUG] マイク未接続</div>
+          </div>
+        </div>
+
+        <div id="rxCanvas">
+          <div class="target-title" id="rxTitle">スタンバイ</div>
+          <div class="target-id" id="rxSub">信号を待っています...</div>
+          <div class="target-msg" id="rxMsg"></div>
+          <canvas id="spectrumCanvas"></canvas>
+        </div>
       </div>
     </div>
-    <section id="txPanel" class="mixer">
-      <div class="panel hero">
-        <div class="section-title">Color Channel</div>
-        <div class="color-stage" id="txColorBox">
-          <div class="freq" id="txFreqText">18000.0 Hz</div>
-          <div class="hex" id="txColorText">#FFFFFF</div>
-        </div>
-        <!-- パレット (指定したカスタム周波数に対応) -->
-        <div class="palette" id="colorPalette">
-          <div class="chip" style="background:#000" data-color="#000000">#000</div>
-          <div class="chip" style="background:#888" data-color="#888888">#888</div>
-          <div class="chip" style="background:#fff;color:#000" data-color="#FFFFFF">#FFF</div>
-          <div class="chip" style="background:#f00" data-color="#FF0000">RED</div>
-          <div class="chip" style="background:#ff7f00" data-color="#FF7F00">ORG</div>
-          <div class="chip" style="background:#ff0;color:#000" data-color="#FFFF00">YEL</div>
-          <div class="chip" style="background:#0f0;color:#000" data-color="#00FF00">GRN</div>
-          <div class="chip" style="background:#0ff;color:#000" data-color="#00FFFF">CYN</div>
-          <div class="chip" style="background:#00f" data-color="#0000FF">BLU</div>
-          <div class="chip" style="background:#8b00ff" data-color="#8B00FF">VIO</div>
-          <div class="chip" style="background:#f0f" data-color="#FF00FF">MAG</div>
-          <div class="chip" style="background:#252c39" data-freq="20916">20916</div>
-          <div class="chip" style="background:#252c39" data-freq="20952">20952</div>
-          <div class="chip" style="background:#252c39" data-freq="20982">20982</div>
-        </div>
-        <div class="controls">
-          <div class="control">
-            <label>Frequency</label>
-            <input id="txFreqRange" type="range" min="18000" max="21000" step="1" value="18000">
-            <input id="txFreqNum" type="number" min="18000" max="21000" step="1" value="18000">
-            <div class="value" id="freqModeText">GRAYSCALE / COLOR</div>
-          </div>
-          <div class="control">
-            <label>Gain</label>
-            <input id="txGain" type="number" value=".08" min="0" max=".5" step=".005">
-            <div class="hint">Sine output<br>0.00–0.50</div>
-          </div>
-        </div>
-      </div>
-      <div class="right">
-        <div class="panel">
-          <div class="section-title">Master</div>
-          <div class="master">
-            <button class="bigbutton primary" id="txStart">START</button>
-            <button class="bigbutton" id="txStop" disabled>STOP</button>
-          </div>
-          <div class="status" id="txStatus">● OFFLINE</div>
-          <div class="progress" id="liveProgress"><i id="liveFill"></i></div>
-        </div>
-        <div class="panel">
-          <div class="section-title">Live Presets</div>
-          <div class="livegrid">
-            <button id="liveColorStart">SMOOTH RAINBOW</button>
-            <button id="liveStrobeStart">EXPLOSIVE STROBE</button>
-            <button id="livePulseStart">BLACK PULSE</button>
-            <button id="liveRaveStart">RAVE</button>
-            <button id="liveGrayStart">GRAYSCALE</button>
-            <button id="liveCustomStrobeStart">CUSTOM STROBE</button>
-          </div>
-          <div class="control" style="margin-top:8px">
-            <label>Strobe Speed</label>
-            <input id="strobeSpeedRange" type="range" min="1" max="20" step="1" value="5">
-            <div class="value" id="strobeSpeedText">5 Hz / 0.20 s</div>
-          </div>
-        </div>
-        <div class="panel reserved">
-          <div class="reserved-title"><span>RESERVED CHANNELS</span><span>33 Hz STEP</span></div>
-          <div class="reserved-list" id="reservedList"></div>
-          <div class="hint">20900 Hz以上は通常カラー領域ではなく予約チャンネル。</div>
-        </div>
-        <div class="debug" id="txDebug">Ready.</div>
-      </div>
-    </section>
-    <section id="rxPanel" class="panel rxpanel">
-      <div class="section-title">Receiver</div>
-      <div class="rxbox" id="rxColorBox"><span id="rxColorText">NO SIGNAL</span></div>
-      <div class="big" id="peakDisplay">NO SIGNAL</div>
-      <div class="controls">
-        <div class="control"><label>Expected Frequency</label><input id="rxExpectedFreq" type="number" min="18000"
-            max="21000"></div>
-        <div class="control"><label>Detected</label>
-          <div class="value" id="rxDetectedFreq">---- Hz</div>
-          <div class="value" id="rxDetectedColor">----</div>
-        </div>
-      </div>
-      <div class="master" style="margin-top:12px">
-        <button class="bigbutton primary" id="rxStart">MIC START</button>
-        <button class="bigbutton" id="rxStop" disabled>STOP</button>
-      </div>
-      <div class="status" id="rxStatus">● OFFLINE</div>
-      <canvas id="spectrum" width="1000" height="180"></canvas>
-      <div class="debug" id="rxLog">Microphone inactive.</div>
-    </section>
   </div>
+
   <script>
-    (() => {
-      "use strict";
-      const MIN_FREQ = 18000, MAX_FREQ = 21000, TX_GRAY_END = 18500, TX_COLOR_START = 18600, TX_SPECIAL_START = 20900, RESERVED_STEP = 33, RX_WHITE_BOUNDARY = 18550, FFT_SIZE = 4096, RX_THRESHOLD_DB = -110;
-      let tx = { ctx: null, osc: null, gain: null, running: false, frequency: 18000, color: "#FFFFFF", liveAnim: null };
-      let rx = { ctx: null, stream: null, source: null, analyser: null, bins: null, raf: null, running: false, lastColor: "#151923", lastFrequency: null, expectedFreq: null };
-      const $ = id => document.getElementById(id);
-      function isReservedFrequency(f) {
-        if (f < TX_SPECIAL_START) return false;
-        let n = Math.round((f - TX_SPECIAL_START) / RESERVED_STEP);
-        let r = TX_SPECIAL_START + n * RESERVED_STEP;
-        return r <= MAX_FREQ && Math.abs(f - r) <= .5;
-      }
-      function nearestReservedFrequency(f) {
-        let n = Math.round((f - TX_SPECIAL_START) / RESERVED_STEP);
-        return Math.max(TX_SPECIAL_START, Math.min(MAX_FREQ, TX_SPECIAL_START + n * RESERVED_STEP));
-      }
-      function getReservedChannels() {
-        let a = [];
-        for (let f = TX_SPECIAL_START; f <= MAX_FREQ; f += RESERVED_STEP) a.push(f);
-        return a;
-      }
-      function renderReserved() {
-        $("reservedList").innerHTML = getReservedChannels().map(f => `<span>${f} Hz</span>`).join("");
-      }
-      function hexToRgb(hex) {
-        let n = parseInt(hex.slice(1), 16);
-        return { r: n >> 16 & 255, g: n >> 8 & 255, b: n & 255 };
-      }
-      function rgbToHex(r, g, b) {
-        return "#" + [r, g, b].map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("").toUpperCase();
-      }
-      function rgbToHsl(r, g, b) {
-        r /= 255; g /= 255; b /= 255;
-        let max = Math.max(r, g, b), min = Math.min(r, g, b), h = 0, s = 0, l = (max + min) / 2;
-        if (max !== min) {
-          let d = max - min;
-          s = l > .5 ? d / (2 - max - min) : d / (max + min);
-          switch (max) {
-            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-            case g: h = (b - r) / d + 2; break;
-            case b: h = (r - g) / d + 4; break;
-          }
-          h /= 6;
+    // =========================================================================
+    // ★ NICT NTP 時刻同期システム
+    // =========================================================================
+    let averageOffset = 0;
+    let ntpSyncCompleted = false;
+
+    async function fetchTime() {
+      try {
+        const t0 = Date.now();
+        const urls = [
+          "https://3fe5a5f690efc790d4764f1c528a4ebb89fa4168.nict.go.jp/cgi-bin/json?" + (t0 / 1000),
+          "https://67495dde3b39c2991829589f0101ab7a035eecf5.nict.go.jp/cgi-bin/json?" + (t0 / 1000),
+          "https://08a08e3a6edef4ba7a0c055a42d8e1ba2597f2b5.nict.go.jp/cgi-bin/json?" + (t0 / 1000)
+        ];
+
+        const responses = await Promise.all(urls.map(u => fetch(u).then(r => r.json())));
+        const t1 = Date.now();
+
+        const timeOffset1 = (responses[0].st - responses[0].it) * 1000;
+        const timeOffset2 = (responses[1].st - responses[1].it) * 1000;
+        const timeOffset3 = (responses[2].st - responses[2].it) * 1000;
+
+        const latency = (t1 - (((responses[0].it + responses[1].it + responses[2].it) * 1000) / 3));
+        const latencOneWay = latency / 2;
+
+        averageOffset = Math.round(((timeOffset1 + timeOffset2 + timeOffset3) / 3) - latencOneWay);
+        ntpSyncCompleted = true;
+
+        if (typeof logRX === "function") {
+          logRX(`[NTP同期完了] 補正オフセット: ${averageOffset}ms (片道遅延: ${latencOneWay.toFixed(1)}ms)`);
         }
-        return { h: h * 360, s, l };
+      } catch (e) {
+        console.warn("[NTP Sync Error]", e);
       }
-      function hslToHex(h, s, l) {
-        s /= 100; l /= 100;
-        let c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs(h / 60 % 2 - 1)), m = l - c / 2, r = 0, g = 0, b = 0;
-        if (h < 60) { r = c; g = x; } else if (h < 120) { r = x; g = c; } else if (h < 180) { g = c; b = x; } else if (h < 240) { g = x; b = c; } else if (h < 300) { r = x; b = c; } else { r = c; b = x; }
-        return rgbToHex((r + m) * 255, (g + m) * 255, (b + m) * 255);
+    }
+    fetchTime();
+    setInterval(fetchTime, 600_000);
+
+    function getSyncedNow() {
+      return Date.now() + averageOffset;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get('d') === 'n') {
+      document.querySelectorAll('.tx-area').forEach(el => {
+        el.style.display = 'none';
+      });
+
+      let wakeLock = null;
+
+      const debug = document.createElement('div');
+      debug.style.cssText = `
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        z-index: 99999;
+        padding: 10px;
+        background: rgba(0,0,0,.8);
+        color: #0f0;
+        font-size: 25px;
+        font-family: monospace;
+      `;
+      document.body.appendChild(debug);
+
+      function log(message) {
+        console.log('[WakeLock]', message);
+        debug.textContent = message;
+        setTimeout(() => { debug.remove(); }, 3000);
       }
-      function colorToFrequency(hex) {
-        let { r, g, b } = hexToRgb(hex), max = Math.max(r, g, b), min = Math.min(r, g, b);
-        if (max - min <= 12) {
-          let gray = (r + g + b) / 3;
-          return MIN_FREQ + gray / 255 * (TX_GRAY_END - MIN_FREQ);
+
+      async function requestWakeLock() {
+        if (!('wakeLock' in navigator)) {
+          log('❌ Wake Lock 非対応');
+          return;
         }
-        let hsl = rgbToHsl(r, g, b);
-        return TX_COLOR_START + hsl.h / 360 * (TX_SPECIAL_START - TX_COLOR_START);
-      }
-      function frequencyToColor(f) {
-        if (f >= TX_SPECIAL_START) {
-          return { type: "reserved", label: `RESERVED ${f.toFixed(1)} Hz`, color: "#252c39" };
+        try {
+          wakeLock = await navigator.wakeLock.request('screen');
+          log('Wake Lock 成功');
+          wakeLock.addEventListener('release', () => { log('Wake Lock 解除'); });
+        } catch (err) {
+          log(`Wake Lock 失敗: ${err.name} / ${err.message}`);
+          console.error(err);
         }
-        if (f <= RX_WHITE_BOUNDARY) {
-          if (f <= TX_GRAY_END) {
-            let t = (f - MIN_FREQ) / (TX_GRAY_END - MIN_FREQ), v = Math.round(t * 255), c = rgbToHex(v, v, v);
-            return { type: "color", label: c, color: c };
-          }
-          return { type: "color", label: "#FFFFFF", color: "#FFFFFF" };
-        }
-        let t = (f - TX_COLOR_START) / (TX_SPECIAL_START - TX_COLOR_START);
-        let c = hslToHex(Math.max(0, Math.min(1, t)) * 360, 100, 50);
-        return { type: "color", label: c, color: c };
       }
-      function updateTxColor(hex) {
-        tx.color = hex.toUpperCase();
-        tx.frequency = colorToFrequency(tx.color);
-        updateFrequencyUI(tx.frequency, false);
+      document.addEventListener('click', requestWakeLock, { once: true });
+      log('画面をタップしてください');
+    }
+
+    const FREQ_TRIGGER = 20500;
+    const GUARD_FREQ = 19000;
+    const FREQ_DATA = [];
+    for (let i = 0; i < 31; i++) {
+      FREQ_DATA.push(17300 + (i * 100));
+    }
+
+    const PAIRS = [];
+    for (let i = 0; i < 31; i++) {
+      for (let j = i + 1; j < 31; j++) {
+        PAIRS.push([i, j]);
       }
-      // forceExact=true のときは 33Hz スパイク補正を行わずに指定Hzをそのまま適用
-      function updateFrequencyUI(f, forceExact = false) {
-        f = Math.max(MIN_FREQ, Math.min(MAX_FREQ, parseFloat(f) || MIN_FREQ));
-        if (f >= TX_SPECIAL_START && !forceExact) {
-          f = nearestReservedFrequency(f);
-        }
-        tx.frequency = f;
-        if (f >= TX_SPECIAL_START) {
-          tx.color = `RESERVED ${f.toFixed(1)} Hz`;
-          $("txColorBox").style.background = "#252c39";
-          $("txColorText").textContent = tx.color;
-          $("freqModeText").textContent = "RESERVED CHANNEL / CUSTOM STEP";
+    }
+    const PAIR_COUNT = PAIRS.length; // 465
+
+    const TIME_START = 0.2;
+    const TIME_SLOT = 0.12;
+    const SLOT_COUNT = 4;
+
+    const THRESHOLD = -100;
+    const TOP2_FLOOR = -105;
+    const PAIR_PEAK_MARGIN = 5;
+
+    const TRIGGER_MARGIN_DB = 18;
+    const TRIGGER_PROMINENCE_DB = 10;
+    const TRIGGER_CONFIRM_FRAMES = 3;
+    const TRIGGER_ABS_FLOOR = -100;
+
+    const ID_CMD_CACHE_START = 100544501;
+    const ID_CMD_CACHE_END = 100544502;
+    const ID_CMD_FIRE = 100544503;
+    const UNICODE_OFFSET = 1000000;
+
+    let rxTextCache = "";
+    const CUE_DATA = {
+      "0": { cat: "SOLID", name: "ブラックアウト", color: "#050505", ms: 0 },
+      "3": { cat: "SOLID", name: "ピュアレッド", color: "#FF0033", ms: 0 },
+      "5": { cat: "SOLID", name: "サンセットオレンジ", color: "#FF6600", ms: 0 },
+      "7": { cat: "SOLID", name: "サンバースト黄", color: "#FFB703", ms: 0 },
+      "10": { cat: "SOLID", name: "ライムグリーン", color: "#39FF14", ms: 0 },
+      "15": { cat: "SOLID", name: "ネオンシアン", color: "#00f0ff", ms: 0 },
+      "18": { cat: "SOLID", name: "エレクトリック青", color: "#0055FF", ms: 0 },
+      "22": { cat: "SOLID", name: "マゼンタピンク", color: "#FF00FF", ms: 0 },
+      "25": { cat: "SOLID", name: "プラチナホワイト", color: "#F8FAFC", ms: 0 },
+
+      "1000": { cat: "FADE", name: "オレンジフェード (3秒)", color: "#FF5500", ms: 3000 },
+      "1001": { cat: "FADE", name: "ディープオーシャン (5秒)", color: "#001144", ms: 5000 },
+      "1002": { cat: "FADE", name: "オーロラ (4秒)", color: "#00FF66", ms: 4000 },
+      "1003": { cat: "FADE", name: "パルススイープ (2秒)", color: "#FF00FF", ms: 2000 },
+      "1004": { cat: "FADE", name: "fd5 (6秒)", color: "#FFDD55", ms: 6000 },
+
+      "50000": { cat: "FLASH", name: "白黒1Hz", color: "#FFFFFF", ms: 0, strobe: 1 },
+      "50001": { cat: "FLASH", name: "白黒2Hz", color: "#FFFFFF", ms: 0, strobe: 2 },
+      "50002": { cat: "FLASH", name: "白黒3Hz", color: "#FFFFFF", ms: 0, strobe: 3 },
+      "50003": { cat: "FLASH", name: "白黒4Hz", color: "#FFFFFF", ms: 0, strobe: 4 },
+      "50004": { cat: "FLASH", name: "白黒5Hz", color: "#FFFFFF", ms: 0, strobe: 5 },
+      "50005": { cat: "FLASH", name: "白黒6Hz", color: "#FFFFFF", ms: 0, strobe: 6 },
+      "50006": { cat: "FLASH", name: "白黒7Hz", color: "#FFFFFF", ms: 0, strobe: 7 },
+      "50007": { cat: "FLASH", name: "白黒8Hz", color: "#FFFFFF", ms: 0, strobe: 8 },
+      "50008": { cat: "FLASH", name: "白黒9Hz", color: "#FFFFFF", ms: 0, strobe: 9 },
+      "50009": { cat: "FLASH", name: "白黒10Hz", color: "#FFFFFF", ms: 0, strobe: 10 },
+      "50014": { cat: "FLASH", name: "白黒15Hz", color: "#FFFFFF", ms: 0, strobe: 15 },
+      "50019": { cat: "FLASH", name: "白黒20Hz", color: "#FFFFFF", ms: 0, strobe: 20 },
+      "50024": { cat: "FLASH", name: "白黒25Hz", color: "#FFFFFF", ms: 0, strobe: 25 },
+      "50029": { cat: "FLASH", name: "白黒30Hz", color: "#FFFFFF", ms: 0, strobe: 30 },
+
+      "50100": { cat: "FLASH", name: "警告フラッシュ (赤)", color: "#FF0000", ms: 0, strobe: 6 },
+
+      "70000": { cat: "LASER", name: "サイバービーム", color: "#00FFFF", ms: 3000, strobe: 10 },
+
+      "80000": { cat: "EFFECT", name: "レインボーサイクル", type: "rainbow", ms: 6000 },
+      "80001": { cat: "EFFECT", name: "パーティーモード", type: "party", ms: 5000 },
+      "80002": { cat: "EFFECT", name: "ハートビート", type: "heartbeat", color: "#FF0033", ms: 4800 },
+      "80003": { cat: "EFFECT", name: "カラーチェイス", type: "sequence", colors: ["#FF0033", "#FFB703", "#39FF14", "#00f0ff", "#FF00FF"], stepMs: 180, ms: 4500 },
+      "80004": { cat: "EFFECT", name: "スパークル", type: "party", colors: ["#FFFFFF", "#F8FAFC", "#00f0ff"], ms: 3000 },
+      "80005": { cat: "EFFECT", name: "カウントダウン導光", type: "sequence", colors: ["#0055FF", "#39FF14", "#FFB703", "#FF0033", "#FFFFFF"], stepMs: 700, ms: 3500 },
+
+      // 🎵 EDM (5秒グリッド同期対応: "start": 5)
+      "90001": {
+        cat: "TIMELINE", name: "EDM 4つ打ち同期 (BPM128)", type: "timeline", start: 5,
+        timeline: [
+          { timeMs: 0, action: { color: "#FF0033", ms: 60, vibrate: [120] } },
+          { timeMs: 468, action: { color: "#050507", ms: 60 } },
+          { timeMs: 937, action: { color: "#FFB703", ms: 60, vibrate: [80] } },
+          { timeMs: 1406, action: { color: "#050507", ms: 60 } },
+          { timeMs: 1875, action: { color: "#00f0ff", ms: 60, vibrate: [120] } },
+          { timeMs: 2343, action: { color: "#050507", ms: 60 } },
+          { timeMs: 2812, action: { color: "#FF00FF", ms: 60, vibrate: [80] } },
+          { timeMs: 3281, action: { color: "#050507", ms: 60 } },
+          { timeMs: 3750, action: { color: "#FFFFFF", ms: 0, strobe: 15 } },
+          { timeMs: 5625, action: { color: "#FF0033", ms: 2000, vibrate: [300, 100, 300] } }
+        ]
+      },
+
+      "90002": {
+        cat: "TIMELINE", name: "EDM Evolution Drop (BPM130 Extended)", type: "timeline", start: 10,
+        timeline: [
+          { timeMs: 0, action: { color: "#050507", ms: 80, vibrate: [40] } },
+          { timeMs: 462, action: { color: "#16213E", ms: 80 } },
+          { timeMs: 923, action: { color: "#050507", ms: 80 } },
+          { timeMs: 1385, action: { color: "#16213E", ms: 80 } },
+          { timeMs: 1846, action: { color: "#00F0FF", ms: 100, vibrate: [80] } },
+          { timeMs: 2308, action: { color: "#050507", ms: 80 } },
+          { timeMs: 2769, action: { color: "#00F0FF", ms: 100, vibrate: [80] } },
+          { timeMs: 3231, action: { color: "#050507", ms: 80 } },
+          { timeMs: 3692, action: { color: "#FF0033", ms: 100, vibrate: [100] } },
+          { timeMs: 3923, action: { color: "#FF006E", ms: 50 } },
+          { timeMs: 4154, action: { color: "#FF0033", ms: 100, vibrate: [100] } },
+          { timeMs: 4385, action: { color: "#FF006E", ms: 50 } },
+          { timeMs: 4615, action: { color: "#FFB703", ms: 120, vibrate: [140] } },
+          { timeMs: 4846, action: { color: "#FF006E", ms: 50 } },
+          { timeMs: 5077, action: { color: "#FFB703", ms: 120, vibrate: [140] } },
+          { timeMs: 5308, action: { color: "#FF006E", ms: 50 } },
+          { timeMs: 5538, action: { color: "#020204", ms: 300 } },
+          { timeMs: 6000, action: { color: "#081018", ms: 80 } },
+          { timeMs: 6462, action: { color: "#020204", ms: 80 } },
+          { timeMs: 6923, action: { color: "#081018", ms: 80 } },
+          { timeMs: 7385, action: { color: "#020204", ms: 80 } },
+          { timeMs: 7846, action: { color: "#FFFFFF", ms: 70, vibrate: [50] } },
+          { timeMs: 8077, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 8308, action: { color: "#FFFFFF", ms: 70, vibrate: [50] } },
+          { timeMs: 8538, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 8769, action: { color: "#FFFFFF", ms: 70, vibrate: [60] } },
+          { timeMs: 9000, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 9231, action: { color: "#FFFFFF", ms: 70, vibrate: [70] } },
+          { timeMs: 9462, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 9692, action: { color: "#FFFFFF", ms: 0, strobe: 12, vibrate: [80] } },
+          { timeMs: 11538, action: { color: "#000000", ms: 0 } },
+          { timeMs: 11800, action: { color: "#FFFFFF", ms: 40 } },
+          { timeMs: 11900, action: { color: "#000000", ms: 0 } },
+          { timeMs: 12000, action: { color: "#FF0033", ms: 2500, vibrate: [300, 100, 300, 100, 500] } },
+          { timeMs: 12462, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
+          { timeMs: 12923, action: { color: "#FF00FF", ms: 100, vibrate: [100] } },
+          { timeMs: 13385, action: { color: "#FFB703", ms: 120, vibrate: [140] } },
+          { timeMs: 13846, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
+          { timeMs: 14308, action: { color: "#FF0033", ms: 100, vibrate: [100] } },
+          { timeMs: 14769, action: { color: "#FF00FF", ms: 100, vibrate: [100] } },
+          { timeMs: 15231, action: { color: "#FFB703", ms: 120, vibrate: [140] } },
+          { timeMs: 15692, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
+          { timeMs: 16154, action: { color: "#FFFFFF", ms: 0, strobe: 8, vibrate: [500, 100, 500] } },
+          { timeMs: 18000, action: { color: "#000000", ms: 500 } },
+          { timeMs: 18462, action: { color: "#081018", ms: 100 } },
+          { timeMs: 18923, action: { color: "#000000", ms: 100 } },
+          { timeMs: 19385, action: { color: "#081018", ms: 100 } },
+          { timeMs: 19846, action: { color: "#000000", ms: 100 } },
+          { timeMs: 20308, action: { color: "#16213E", ms: 120 } },
+          { timeMs: 20769, action: { color: "#00F0FF", ms: 100 } },
+          { timeMs: 21231, action: { color: "#16213E", ms: 120 } },
+          { timeMs: 21692, action: { color: "#00F0FF", ms: 100 } },
+          { timeMs: 22154, action: { color: "#FF006E", ms: 80, vibrate: [60] } },
+          { timeMs: 22385, action: { color: "#FF0033", ms: 80 } },
+          { timeMs: 22615, action: { color: "#FF006E", ms: 80, vibrate: [70] } },
+          { timeMs: 22846, action: { color: "#FF0033", ms: 80 } },
+          { timeMs: 23077, action: { color: "#FFB703", ms: 90, vibrate: [80] } },
+          { timeMs: 23308, action: { color: "#FF006E", ms: 60 } },
+          { timeMs: 23538, action: { color: "#FFB703", ms: 90, vibrate: [90] } },
+          { timeMs: 23769, action: { color: "#FF006E", ms: 60 } },
+          { timeMs: 24000, action: { color: "#FFFFFF", ms: 60, vibrate: [50] } },
+          { timeMs: 24231, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 24462, action: { color: "#FFFFFF", ms: 60, vibrate: [60] } },
+          { timeMs: 24692, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 24923, action: { color: "#FFFFFF", ms: 60, vibrate: [70] } },
+          { timeMs: 25154, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 25385, action: { color: "#FFFFFF", ms: 60, vibrate: [80] } },
+          { timeMs: 25615, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 25846, action: { color: "#FFFFFF", ms: 0, strobe: 16, vibrate: [100] } },
+          { timeMs: 27700, action: { color: "#000000", ms: 0 } },
+          { timeMs: 28000, action: { color: "#FFFFFF", ms: 30 } },
+          { timeMs: 28100, action: { color: "#000000", ms: 0 } },
+          { timeMs: 28200, action: { color: "#FFFFFF", ms: 30 } },
+          { timeMs: 28300, action: { color: "#000000", ms: 0 } },
+          { timeMs: 28615, action: { color: "#FF0033", ms: 3000, vibrate: [700] } },
+          { timeMs: 29077, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
+          { timeMs: 29538, action: { color: "#FF00FF", ms: 100, vibrate: [120] } },
+          { timeMs: 30000, action: { color: "#FFB703", ms: 120, vibrate: [150] } },
+          { timeMs: 30462, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
+          { timeMs: 30923, action: { color: "#FF0033", ms: 100, vibrate: [130] } },
+          { timeMs: 31385, action: { color: "#FF00FF", ms: 100, vibrate: [130] } },
+          { timeMs: 31846, action: { color: "#FFB703", ms: 120, vibrate: [160] } },
+          { timeMs: 32308, action: { color: "#00F0FF", ms: 100, vibrate: [130] } },
+          { timeMs: 32769, action: { color: "#FFFFFF", ms: 0, strobe: 12, vibrate: [500, 100, 500] } },
+          { timeMs: 33231, action: { color: "#FF0033", ms: 100, vibrate: [120] } },
+          { timeMs: 33692, action: { color: "#00F0FF", ms: 100, vibrate: [120] } },
+          { timeMs: 34154, action: { color: "#FF00FF", ms: 100, vibrate: [120] } },
+          { timeMs: 34615, action: { color: "#FFB703", ms: 120, vibrate: [160] } },
+          { timeMs: 35077, action: { color: "#FF0033", ms: 100, vibrate: [130] } },
+          { timeMs: 35538, action: { color: "#00F0FF", ms: 100, vibrate: [130] } },
+          { timeMs: 36000, action: { color: "#FF00FF", ms: 100, vibrate: [130] } },
+          { timeMs: 36462, action: { color: "#FFB703", ms: 120, vibrate: [170] } },
+          { timeMs: 36923, action: { color: "#FFFFFF", ms: 70, vibrate: [80] } },
+          { timeMs: 37154, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 37385, action: { color: "#FFFFFF", ms: 70, vibrate: [90] } },
+          { timeMs: 37615, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 37846, action: { color: "#FF0033", ms: 80, vibrate: [70] } },
+          { timeMs: 38077, action: { color: "#FF006E", ms: 60 } },
+          { timeMs: 38308, action: { color: "#FF0033", ms: 80, vibrate: [80] } },
+          { timeMs: 38538, action: { color: "#FF006E", ms: 60 } },
+          { timeMs: 38769, action: { color: "#FFB703", ms: 100, vibrate: [100] } },
+          { timeMs: 39000, action: { color: "#FF006E", ms: 60 } },
+          { timeMs: 39231, action: { color: "#FFB703", ms: 100, vibrate: [110] } },
+          { timeMs: 39462, action: { color: "#FF006E", ms: 60 } },
+          { timeMs: 39692, action: { color: "#FFFFFF", ms: 70, vibrate: [100] } },
+          { timeMs: 39923, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 40154, action: { color: "#FFFFFF", ms: 70, vibrate: [110] } },
+          { timeMs: 40385, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 40615, action: { color: "#FFFFFF", ms: 70, vibrate: [120] } },
+          { timeMs: 40846, action: { color: "#00F0FF", ms: 60 } },
+          { timeMs: 41077, action: { color: "#FFFFFF", ms: 0, strobe: 20, vibrate: [300, 80, 300, 80, 500] } },
+          { timeMs: 43077, action: { color: "#FF0033", ms: 3500, vibrate: [700, 100, 700] } },
+          { timeMs: 43538, action: { color: "#00F0FF", ms: 100, vibrate: [140] } },
+          { timeMs: 44000, action: { color: "#FF00FF", ms: 100, vibrate: [140] } },
+          { timeMs: 44462, action: { color: "#FFB703", ms: 120, vibrate: [180] } },
+          { timeMs: 44923, action: { color: "#00F0FF", ms: 100, vibrate: [140] } },
+          { timeMs: 45385, action: { color: "#FF0033", ms: 100, vibrate: [150] } },
+          { timeMs: 45846, action: { color: "#FF00FF", ms: 100, vibrate: [150] } },
+          { timeMs: 46308, action: { color: "#FFB703", ms: 120, vibrate: [190] } },
+          { timeMs: 46769, action: { color: "#00F0FF", ms: 100, vibrate: [150] } },
+          { timeMs: 47231, action: { color: "#FFFFFF", ms: 0, strobe: 16, vibrate: [600, 100, 600] } },
+          { timeMs: 49077, action: { color: "#020204", ms: 500 } },
+          { timeMs: 49538, action: { color: "#081018", ms: 100 } },
+          { timeMs: 50000, action: { color: "#020204", ms: 100 } },
+          { timeMs: 50462, action: { color: "#081018", ms: 100 } },
+          { timeMs: 50923, action: { color: "#00F0FF", ms: 120, vibrate: [150] } },
+          { timeMs: 51385, action: { color: "#FF00FF", ms: 120, vibrate: [150] } },
+          { timeMs: 51846, action: { color: "#FFB703", ms: 150, vibrate: [180] } },
+          { timeMs: 52308, action: { color: "#FFFFFF", ms: 0, strobe: 24, vibrate: [800, 100, 800, 100, 1000] } },
+          { timeMs: 54500, action: { color: "#000000", ms: 0 } }
+        ]
+      },
+
+
+      "1000000": { cat: "HAPTIC", name: "ヘビードロップ", color: "#FFFFFF", ms: 50, vibrate: [300, 100, 300] },
+
+      "100544576": { cat: "MESSAGE", name: "ウェルカム", color: "#000", msg: "WELCOME!!", ms: 0 },
+      "100544577": { cat: "MESSAGE", name: "通知1", color: "#000", msg: "通知1", ms: 0 },
+      "100544578": { cat: "MESSAGE", name: "通知2", color: "#000", msg: "通知2", ms: 0 },
+      "100544579": { cat: "MESSAGE", name: "通知3", color: "#000", msg: "通知3", ms: 0 },
+      "100544580": { cat: "MESSAGE", name: "通知4", color: "#000", msg: "通知4", ms: 0 },
+      "100544581": { cat: "MESSAGE", name: "通知5", color: "#000", msg: "通知5", ms: 0 },
+      "100544582": { cat: "MESSAGE", name: "通知6", color: "#000", msg: "通知6", ms: 0 },
+      "100544583": { cat: "MESSAGE", name: "通知7", color: "#000", msg: "通知7", ms: 0 },
+      "100544584": { cat: "MESSAGE", name: "通知8", color: "#000", msg: "通知8", ms: 0 },
+      "100544585": { cat: "MESSAGE", name: "通知9", color: "#000", msg: "通知9", ms: 0 },
+      "100544586": { cat: "MESSAGE", name: "通知10", color: "#000", msg: "通知10", ms: 0 },
+      "100544587": { cat: "MESSAGE", name: "終了", color: "#000", msg: "Thanks!!\nこれにて終了です!!", ms: 0 },
+
+    };
+
+    let txCtx = null;
+    function initTx() { if (!txCtx) txCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+
+    const txDebugLog = document.getElementById("txDebugLog");
+    const rxDebugLog = document.getElementById("rxDebugLog");
+
+    function logTX(msg) {
+      if (!txDebugLog) return;
+      const t = new Date().toLocaleTimeString('ja-JP', { hour12: false });
+      txDebugLog.textContent = `[${t}] ${msg}\n` + txDebugLog.textContent.slice(0, 1500);
+    }
+
+    function logRX(msg) {
+      if (!rxDebugLog) return;
+      const t = new Date().toLocaleTimeString('ja-JP', { hour12: false });
+      rxDebugLog.textContent = `[${t}] ${msg}\n` + rxDebugLog.textContent.slice(0, 1800);
+    }
+
+    function decomposeId(id) {
+      const base1 = PAIR_COUNT * PAIR_COUNT;
+      const base2 = PAIR_COUNT;
+      const val1 = Math.floor(id / base1);
+      const rem1 = id % base1;
+      const val2 = Math.floor(rem1 / base2);
+      const val3 = rem1 % base2;
+      const checksumVal = (val1 + val2 + val3) % PAIR_COUNT;
+      return [val1, val2, val3, checksumVal];
+    }
+
+    function sendTrigger(idStr) {
+      initTx();
+      const now = txCtx.currentTime;
+      const id = parseInt(idStr, 10);
+
+      const [val1, val2, val3, checksumVal] = decomposeId(id);
+      const slots = [PAIRS[val1], PAIRS[val2], PAIRS[val3], PAIRS[checksumVal]];
+
+      const oscA = txCtx.createOscillator();
+      const oscB = txCtx.createOscillator();
+      const gainA = txCtx.createGain();
+      const gainB = txCtx.createGain();
+      oscA.connect(gainA).connect(txCtx.destination);
+      oscB.connect(gainB).connect(txCtx.destination);
+
+      const MAX_GAIN = 0.25;
+
+      const scheduleSlot = (pair, startTime) => {
+        if (!pair) return;
+        oscA.frequency.setValueAtTime(FREQ_DATA[pair[0]], startTime);
+        oscB.frequency.setValueAtTime(FREQ_DATA[pair[1]], startTime);
+      };
+
+      const applyEnvelope = (start, duration) => {
+        gainA.gain.setValueAtTime(0, start);
+        gainB.gain.setValueAtTime(0, start);
+        gainA.gain.linearRampToValueAtTime(MAX_GAIN, start + 0.015);
+        gainB.gain.linearRampToValueAtTime(MAX_GAIN, start + 0.015);
+        gainA.gain.setValueAtTime(MAX_GAIN, start + duration - 0.015);
+        gainB.gain.setValueAtTime(MAX_GAIN, start + duration - 0.015);
+        gainA.gain.linearRampToValueAtTime(0, start + duration);
+        gainB.gain.linearRampToValueAtTime(0, start + duration);
+      };
+
+      let t = now;
+      oscA.frequency.setValueAtTime(FREQ_TRIGGER, t);
+      gainA.gain.setValueAtTime(0, t);
+      gainA.gain.linearRampToValueAtTime(MAX_GAIN, t + 0.02);
+      gainA.gain.setValueAtTime(MAX_GAIN, t + TIME_START - 0.02);
+      gainA.gain.linearRampToValueAtTime(0, t + TIME_START);
+      gainB.gain.setValueAtTime(0, t);
+
+      t += TIME_START;
+      for (let i = 0; i < SLOT_COUNT; i++) {
+        scheduleSlot(slots[i], t);
+        applyEnvelope(t, TIME_SLOT);
+        t += TIME_SLOT;
+      }
+
+      oscA.start(now); oscA.stop(t + 0.1);
+      oscB.start(now); oscB.stop(t + 0.1);
+
+      const bar = document.getElementById("txProgress");
+      bar.style.transition = "none"; bar.style.width = "0%";
+      setTimeout(() => {
+        bar.style.transition = `width ${(t - now)}s linear`;
+        bar.style.width = "100%";
+        setTimeout(() => { bar.style.opacity = 0; setTimeout(() => { bar.style.width = "0%"; bar.style.opacity = 1; }, 200); }, (t - now) * 1000);
+      }, 10);
+
+      const sInfo = slots.map((p, idx) => {
+        const label = idx === 3 ? "CS" : `S${idx + 1}`;
+        return `${label}[${p[0]},${p[1]}]=(${FREQ_DATA[p[0]]}Hz,${FREQ_DATA[p[1]]}Hz)`;
+      }).join("\n  ");
+      logTX(`送信 ID:${id} \n  Trig:${FREQ_TRIGGER}Hz\n  ${sInfo}`);
+
+      return (t - now) * 1000 + 30;
+    }
+
+    const txStatusLine = document.getElementById("txStatusLine");
+    const sendCharCacheBtn = document.getElementById("sendCharCacheBtn");
+    const sendFireBtn = document.getElementById("sendFireBtn");
+    const customInputText = document.getElementById("customInputText");
+    let isSending = false;
+
+    async function sendStringSequence(str) {
+      if (isSending) return;
+      isSending = true;
+      sendCharCacheBtn.disabled = true;
+      customInputText.disabled = true;
+      txStatusLine.classList.add("busy");
+
+      const charArray = Array.from(str);
+
+      txStatusLine.innerText = `キャッシュ開始信号を送信中...`;
+      let waitMs = sendTrigger(ID_CMD_CACHE_START.toString());
+      await new Promise(r => setTimeout(r, waitMs + 80));
+
+      for (let i = 0; i < charArray.length; i++) {
+        const ch = charArray[i];
+        txStatusLine.innerText = `送信中: ${i + 1} / ${charArray.length} 文字目「${ch}」`;
+        const charId = UNICODE_OFFSET + ch.codePointAt(0);
+        waitMs = sendTrigger(charId.toString());
+        await new Promise(r => setTimeout(r, waitMs + 80));
+      }
+
+      txStatusLine.innerText = `キャッシュ終了信号を送信中...`;
+      waitMs = sendTrigger(ID_CMD_CACHE_END.toString());
+      await new Promise(r => setTimeout(r, waitMs + 80));
+
+      txStatusLine.innerText = `送信完了（${charArray.length}文字）。受信側の画面を確認して「発火」してください。`;
+      txStatusLine.classList.remove("busy");
+      sendCharCacheBtn.disabled = false;
+      customInputText.disabled = false;
+      isSending = false;
+    }
+
+    sendCharCacheBtn.onclick = () => {
+      const text = customInputText.value;
+      if (text) sendStringSequence(text);
+    };
+
+    sendFireBtn.onclick = () => {
+      sendTrigger(ID_CMD_FIRE.toString());
+    };
+
+    const colorPicker = document.getElementById("colorPicker");
+    function hexToId(hex) { return parseInt(hex.replace("#", ""), 16); }
+
+    document.getElementById("sendColorBtn").onclick = () => {
+      const colorId = hexToId(colorPicker.value) + 20000000;
+      sendTrigger(colorId.toString());
+    };
+
+    const txContainer = document.getElementById("txPresets");
+    const categories = {};
+    Object.keys(CUE_DATA).forEach(id => {
+      const cat = CUE_DATA[id].cat;
+      if (!categories[cat]) categories[cat] = [];
+      categories[cat].push(id);
+    });
+
+    for (const cat in categories) {
+      const grp = document.createElement('div');
+      grp.className = "preset-group";
+      grp.innerHTML = `<div class="preset-group-title">${cat}</div>`;
+      const grid = document.createElement('div');
+      grid.className = "btn-grid";
+
+      categories[cat].forEach(id => {
+        const cue = CUE_DATA[id];
+        const swatch = cue.color || (cue.colors ? cue.colors[0] : "#00f0ff");
+        const btn = document.createElement("button");
+        btn.className = "tx-btn";
+        btn.style.background = `linear-gradient(135deg, ${swatch}33 0%, #16161c 70%)`;
+        btn.style.borderLeft = `3px solid ${swatch}`;
+        btn.innerHTML = `<div class="id-label">ID: ${parseInt(id).toLocaleString()}</div><div class="name-label">${cue.name}</div>`;
+        btn.onclick = () => sendTrigger(id);
+        grid.appendChild(btn);
+      });
+      grp.appendChild(grid);
+      txContainer.appendChild(grp);
+    }
+
+    let rxCtx, analyser, dataArray;
+    let rxState = "IDLE";
+    let rxStartTime = 0;
+    let potentialStartTime = 0;
+    let decodedValues = [];
+
+    let triggerNoiseFloor = null;
+    let triggerConfirmCount = 0;
+    let effectInterval = null;
+    let effectTimeout = null;
+
+    let timelineAnimFrame = null;
+    let timelineScheduledTimeout = null;
+
+    const spectrumCanvas = document.getElementById("spectrumCanvas");
+    const specCtx = spectrumCanvas.getContext("2d");
+
+    function getMagnitude(freq, nyquist, bufferLength) {
+      const bin = Math.round((freq / nyquist) * bufferLength);
+      return Math.max(dataArray[bin - 1] || -999, dataArray[bin], dataArray[bin + 1] || -999);
+    }
+
+    const UI_STATE = (msg, color) => {
+      const el = document.getElementById("rxState");
+      el.innerText = msg; el.style.color = color;
+    };
+
+    const UI_SLOT = (idx, val, active = false) => {
+      const el = document.getElementById(`slot${idx}`);
+      const prefix = idx === 4 ? "CS" : `S${idx}`;
+      if (val !== null) el.innerText = `${prefix}: ${typeof val === 'number' ? val.toString().padStart(3, '0') : val}`;
+      if (active) el.classList.add('active'); else el.classList.remove('active');
+    };
+
+    function resetSlotUI() {
+      UI_SLOT(1, "---"); UI_SLOT(2, "---"); UI_SLOT(3, "---"); UI_SLOT(4, "---");
+    }
+
+    document.getElementById("rxStartBtn").onclick = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+        rxCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (rxCtx.state === "suspended") await rxCtx.resume();
+        const source = rxCtx.createMediaStreamSource(stream);
+        analyser = rxCtx.createAnalyser();
+
+        analyser.fftSize = 2048;
+        analyser.smoothingTimeConstant = 0.0;
+
+        source.connect(analyser);
+        dataArray = new Float32Array(analyser.frequencyBinCount);
+
+        triggerNoiseFloor = null;
+        triggerConfirmCount = 0;
+
+        UI_STATE("キャリブレーション中...", "#ffb703");
+        document.getElementById("rxStartBtn").style.display = "none";
+        logRX(`マイク接続完了`);
+        requestAnimationFrame(rxLoop);
+      } catch (e) { alert("マイクアクセスが拒否されました。"); }
+    };
+
+    document.getElementById("rxFullscreenBtn").onclick = () => {
+      const elem = document.getElementById("rxAreaContainer");
+      if (!document.fullscreenElement) {
+        if (elem.requestFullscreen) elem.requestFullscreen();
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+      }
+    };
+
+    function drawSpectrum() {
+      if (!analyser || !rxCtx) return;
+      if (spectrumCanvas.width !== spectrumCanvas.clientWidth || spectrumCanvas.height !== spectrumCanvas.clientHeight) {
+        spectrumCanvas.width = spectrumCanvas.clientWidth;
+        spectrumCanvas.height = spectrumCanvas.clientHeight;
+      }
+      const width = spectrumCanvas.width;
+      const height = spectrumCanvas.height;
+      specCtx.clearRect(0, 0, width, height);
+
+      const nyquist = rxCtx.sampleRate / 2;
+      const bufferLength = analyser.frequencyBinCount;
+      const minBin = Math.floor((17000 / nyquist) * bufferLength);
+      const maxBin = Math.floor((20600 / nyquist) * bufferLength);
+      const totalBins = maxBin - minBin;
+
+      if (totalBins <= 0) return;
+      const barWidth = width / totalBins;
+
+      for (let i = 0; i < totalBins; i++) {
+        const binIdx = minBin + i;
+        const db = dataArray[binIdx];
+        let normHeight = Math.max(0, Math.min(1, (db + 100) / 70));
+        const barHeight = normHeight * height;
+        let grad = specCtx.createLinearGradient(0, height, 0, 0);
+        grad.addColorStop(0, "rgba(0, 240, 255, 0.1)");
+        grad.addColorStop(1, "rgba(0, 240, 255, 0.8)");
+        specCtx.fillStyle = grad;
+        specCtx.fillRect(i * barWidth, height - barHeight, Math.max(1, barWidth - 0.5), barHeight);
+      }
+    }
+
+    function rxLoop() {
+      analyser.getFloatFrequencyData(dataArray);
+      const nyquist = rxCtx.sampleRate / 2;
+      const bufferLength = analyser.frequencyBinCount;
+      const now = performance.now();
+
+      const magTrigger = getMagnitude(FREQ_TRIGGER, nyquist, bufferLength);
+      const guardMag = getMagnitude(GUARD_FREQ, nyquist, bufferLength);
+      document.getElementById("rxPeak").innerText = magTrigger > -100 ? magTrigger.toFixed(0) : "--";
+      drawSpectrum();
+
+      if (rxState === "IDLE") {
+        if (triggerNoiseFloor === null) {
+          triggerNoiseFloor = magTrigger;
         } else {
-          let r = frequencyToColor(f);
-          tx.color = r.color;
-          $("txColorBox").style.background = r.color;
-          $("txColorText").textContent = r.label;
-          $("freqModeText").textContent = f <= TX_GRAY_END ? "GRAYSCALE" : f < TX_COLOR_START ? "WHITE BUFFER" : "COLOR CHANNEL";
+          triggerNoiseFloor = triggerNoiseFloor * 0.985 + magTrigger * 0.015;
         }
-        $("txFreqRange").value = f;
-        $("txFreqNum").value = f.toFixed(1);
-        $("txFreqText").textContent = `${f.toFixed(1)} Hz`;
-        if (tx.running && tx.osc) tx.osc.frequency.setTargetAtTime(f, tx.ctx.currentTime, .01);
-        updateTxDebug();
-      }
-      function updateTxDebug() {
-        $("txDebug").textContent = `[TRANSMITTER]\nSTATE       ${tx.running ? "ONLINE" : "OFFLINE"}\nFREQUENCY   ${tx.frequency.toFixed(3)} Hz\nCHANNEL     ${tx.frequency >= TX_SPECIAL_START ? "RESERVED" : "COLOR"}\nCOLOR       ${tx.color}\nSAMPLE RATE ${tx.ctx ? tx.ctx.sampleRate : "----"} Hz\nGAIN        ${$("txGain").value}`;
-      }
-      async function initAudioContext() {
-        if (!tx.ctx) tx.ctx = new (window.AudioContext || window.webkitAudioContext)();
-        if (tx.ctx.state === "suspended") await tx.ctx.resume();
-        if (!tx.running) {
-          let gv = parseFloat($("txGain").value);
-          if (!Number.isFinite(gv)) gv = .05;
-          gv = Math.max(0, Math.min(.5, gv));
-          tx.osc = tx.ctx.createOscillator();
-          tx.gain = tx.ctx.createGain();
-          tx.osc.type = "sine";
-          tx.osc.frequency.setValueAtTime(tx.frequency, tx.ctx.currentTime);
-          tx.gain.gain.setValueAtTime(gv, tx.ctx.currentTime);
-          tx.osc.connect(tx.gain).connect(tx.ctx.destination);
-          tx.osc.start();
-          tx.running = true;
-          $("txStart").disabled = true;
-          $("txStop").disabled = false;
-          $("txStatus").className = "status on";
-          $("txStatus").textContent = `● TRANSMITTING / ${tx.frequency.toFixed(1)} Hz`;
-        }
-      }
-      async function stopTxEverything() {
-        if (tx.liveAnim) cancelAnimationFrame(tx.liveAnim);
-        try { tx.osc?.stop(); await tx.ctx?.close(); } catch { }
-        tx.running = false; tx.osc = null; tx.gain = null; tx.ctx = null;
-        $("txStart").disabled = false;
-        $("txStop").disabled = true;
-        $("txStatus").className = "status";
-        $("txStatus").textContent = "● OFFLINE";
-        $("liveProgress").style.display = "none";
-        $("liveFill").style.width = "0";
-        updateTxDebug();
-      }
-      async function startLivePreset(duration, fn) {
-        if (tx.running) return;
-        await initAudioContext();
-        $("liveProgress").style.display = "block";
-        let st = performance.now();
-        let loop = now => {
-          let e = now - st;
-          if (e >= duration) { stopTxEverything(); return; }
-          $("liveFill").style.width = `${e / duration * 100}%`;
-          let f = fn(e / 1000);
-          updateFrequencyUI(f);
-          $("txStatus").textContent = `● LIVE / ${((duration - e) / 1000).toFixed(1)}s`;
-          tx.liveAnim = requestAnimationFrame(loop);
-        };
-        tx.liveAnim = requestAnimationFrame(loop);
-      }
-      $("txStart").onclick = async () => {
-        try {
-          await initAudioContext();
-          $("txStatus").textContent = `● TRANSMITTING / ${tx.frequency.toFixed(1)} Hz`;
-          updateTxDebug();
-        } catch (e) {
-          $("txDebug").textContent = `[ERROR]\n${e.message}`;
-        }
-      };
-      $("txStop").onclick = stopTxEverything;
-      $("txFreqRange").oninput = e => updateFrequencyUI(e.target.value);
-      $("txFreqRange").onchange = e => updateFrequencyUI(e.target.value);
-      $("txFreqNum").oninput = e => updateFrequencyUI(e.target.value);
-      // チップ・予約ボタンのクリック処理（forceExact=trueを渡してカスタムHzを維持）
-      document.querySelectorAll(".chip").forEach(c => {
-        c.onclick = () => {
-          if (c.dataset.freq) {
-            updateFrequencyUI(parseFloat(c.dataset.freq), true);
-          } else if (c.dataset.color) {
-            updateTxColor(c.dataset.color);
+        const dynThreshold = Math.max(TRIGGER_ABS_FLOOR, triggerNoiseFloor + TRIGGER_MARGIN_DB);
+        document.getElementById("rxThresh").innerText = dynThreshold.toFixed(0);
+
+        const isPeakSharp = (magTrigger - guardMag) > TRIGGER_PROMINENCE_DB;
+
+        if (magTrigger > dynThreshold && isPeakSharp) {
+          if (triggerConfirmCount === 0) {
+            potentialStartTime = now;
           }
-        };
-      });
-      $("liveColorStart").onclick = () => startLivePreset(45000, t => TX_COLOR_START + (((t * 15) % 360) / 360) * (TX_SPECIAL_START - TX_COLOR_START));
-      $("liveStrobeStart").onclick = () => startLivePreset(35000, t => {
-        let step = Math.floor(t * 2.5);
-        if (step % 2 === 0) return MIN_FREQ;
-        let h = [0, 120, 240, 60, 300, 180][Math.floor(t * 1.5) % 6];
-        return TX_COLOR_START + h / 360 * (TX_SPECIAL_START - TX_COLOR_START);
-      });
-      $("livePulseStart").onclick = () => startLivePreset(35000, t => Math.sin(t * Math.PI * 1.2) > 0 ? TX_COLOR_START + (((t * 40) % 360) / 360) * (TX_SPECIAL_START - TX_COLOR_START) : MIN_FREQ);
-      $("liveRaveStart").onclick = () => startLivePreset(35000, t => Math.sin(t * Math.PI * 1.5) > .3 ? TX_SPECIAL_START - 1 - (t * 40) % 1500 : MIN_FREQ);
-      $("liveGrayStart").onclick = () => startLivePreset(30000, t => Math.floor(t * 3) % 2 ? MIN_FREQ + (Math.sin(t * Math.PI * 2) + 1) / 2 * (TX_GRAY_END - MIN_FREQ) : MIN_FREQ);
-      $("liveCustomStrobeStart").onclick = () => {
-        let speed = parseFloat($("strobeSpeedRange").value) || 5;
-        startLivePreset(60000, t => Math.floor(t * speed * 2) % 2 === 0 ? MIN_FREQ : TX_GRAY_END);
-      };
-      $("strobeSpeedRange").oninput = e => {
-        let s = +e.target.value;
-        $("strobeSpeedText").textContent = `${s} Hz / ${(1 / s).toFixed(2)} s`;
-      };
-      $("txMode").onclick = () => {
-        $("txMode").classList.add("active");
-        $("rxMode").classList.remove("active");
-        $("txPanel").style.display = "grid";
-        $("rxPanel").style.display = "none";
-      };
-      $("rxMode").onclick = () => {
-        $("rxMode").classList.add("active");
-        $("txMode").classList.remove("active");
-        $("txPanel").style.display = "none";
-        $("rxPanel").style.display = "block";
-      };
-      function findUltrasonicPeak() {
-        let sr = rx.ctx.sampleRate, ny = sr / 2;
-        let minBin = Math.max(0, Math.floor(MIN_FREQ / ny * rx.bins.length));
-        let maxBin = Math.min(rx.bins.length - 1, Math.ceil(MAX_FREQ / ny * rx.bins.length));
-        let maxDb = -Infinity, idx = minBin;
-        for (let i = minBin; i <= maxBin; i++) {
-          if (rx.bins[i] > maxDb) { maxDb = rx.bins[i]; idx = i; }
+          triggerConfirmCount++;
+        } else {
+          triggerConfirmCount = 0;
         }
-        return { peakHz: idx * ny / rx.bins.length, maxDb };
+
+        if (triggerConfirmCount >= TRIGGER_CONFIRM_FRAMES) {
+          triggerConfirmCount = 0;
+          rxState = "READING";
+
+          rxStartTime = potentialStartTime;
+
+          decodedValues = [];
+          UI_STATE("デコード中...", "#ffeb3b");
+          resetSlotUI();
+          logRX(`トリガー捕捉: Trig=${magTrigger.toFixed(1)}dB`);
+        } else if (UI_STATE) {
+          const stateEl = document.getElementById("rxState");
+          if (stateEl.innerText !== "リスニング中" && stateEl.innerText !== "デコード中...") {
+            UI_STATE("リスニング中", "var(--accent)");
+          }
+        }
+      } else if (rxState === "READING") {
+        const elapsed = (now - rxStartTime) / 1000;
+        const windowEnd = TIME_START + (TIME_SLOT * SLOT_COUNT);
+
+        if (elapsed > TIME_START && elapsed < windowEnd) {
+          const slotIndex = Math.floor((elapsed - TIME_START) / TIME_SLOT);
+          const timeOffset = (elapsed - TIME_START) % TIME_SLOT;
+
+          for (let i = 1; i <= SLOT_COUNT; i++) document.getElementById(`slot${i}`).classList.remove('active');
+          if (slotIndex >= 0 && slotIndex < SLOT_COUNT) {
+            document.getElementById(`slot${slotIndex + 1}`).classList.add('active');
+          }
+
+          if (slotIndex >= 0 && slotIndex < SLOT_COUNT && decodedValues[slotIndex] === undefined && timeOffset > (TIME_SLOT * 0.25) && timeOffset < (TIME_SLOT * 0.75)) {
+            let results = [];
+            for (let i = 0; i < 31; i++) {
+              results.push({ idx: i, hz: FREQ_DATA[i], mag: getMagnitude(FREQ_DATA[i], nyquist, bufferLength) });
+            }
+            results.sort((a, b) => b.mag - a.mag);
+
+            const top1 = results[0];
+            const top2 = results[1];
+            const top3 = results[2];
+
+            const isClearPair = top1.mag > THRESHOLD
+              && top2.mag > TOP2_FLOOR
+              && (top1.mag - top3.mag) > PAIR_PEAK_MARGIN;
+
+            const slotLabel = slotIndex === 3 ? "CS" : `S${slotIndex + 1}`;
+            if (isClearPair) {
+              const idxA = Math.min(top1.idx, top2.idx);
+              const idxB = Math.max(top1.idx, top2.idx);
+              let val = PAIRS.findIndex(p => p[0] === idxA && p[1] === idxB);
+
+              if (val !== -1) {
+                decodedValues[slotIndex] = val;
+                UI_SLOT(slotIndex + 1, val, true);
+                logRX(`  ${slotLabel}: 一致[${val}] (1位:${top1.hz}Hz=${top1.mag.toFixed(1)}dB, 2位:${top2.hz}Hz=${top2.mag.toFixed(1)}dB, 差=${(top1.mag - top3.mag).toFixed(1)}dB)`);
+              }
+            } else {
+              logRX(`  ${slotLabel}: 閾値未達 (1位:${top1.hz}Hz=${top1.mag.toFixed(1)}dB, 2位:${top2.hz}Hz=${top2.mag.toFixed(1)}dB, 差=${(top1.mag - top3.mag).toFixed(1)}dB)`);
+            }
+          }
+        } else if (elapsed >= windowEnd) {
+          for (let i = 1; i <= SLOT_COUNT; i++) document.getElementById(`slot${i}`).classList.remove('active');
+
+          const allDecoded = decodedValues.length === SLOT_COUNT && decodedValues.every(v => v !== undefined);
+
+          if (allDecoded) {
+            const [v0, v1, v2, v3] = decodedValues;
+            const expectedChecksum = (v0 + v1 + v2) % PAIR_COUNT;
+
+            if (v3 === expectedChecksum) {
+              const finalId = (v0 * PAIR_COUNT * PAIR_COUNT) + (v1 * PAIR_COUNT) + v2;
+              logRX(`受信成功 ID:${finalId}`);
+              executeCue(finalId.toString());
+              rxState = "IDLE";
+              UI_STATE("リスニング中", "var(--accent)");
+            } else {
+              logRX(`破棄: チェックサム不一致 受信CS:${v3} != 期待CS:${expectedChecksum}`);
+              rejectPacket("チェックサム不一致(破棄)");
+            }
+          } else {
+            const missing = [];
+            for (let k = 0; k < SLOT_COUNT; k++) {
+              if (decodedValues[k] === undefined) missing.push(k === 3 ? "CS" : `S${k + 1}`);
+            }
+            logRX(`破棄: デコード欠落 未検知=[${missing.join(',')}]`);
+            rejectPacket("デコード不完全(破棄)");
+          }
+        }
       }
-      $("rxStart").onclick = async () => {
-        try {
-          rx.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
-          rx.ctx = new (window.AudioContext || window.webkitAudioContext)();
-          if (rx.ctx.state === "suspended") await rx.ctx.resume();
-          rx.source = rx.ctx.createMediaStreamSource(rx.stream);
-          rx.analyser = rx.ctx.createAnalyser();
-          rx.analyser.fftSize = FFT_SIZE;
-          rx.analyser.smoothingTimeConstant = .05;
-          rx.source.connect(rx.analyser);
-          rx.bins = new Float32Array(rx.analyser.frequencyBinCount);
-          rx.running = true;
-          $("rxStart").disabled = true;
-          $("rxStop").disabled = false;
-          $("rxStatus").className = "status on";
-          $("rxStatus").textContent = `● LISTENING / ${rx.ctx.sampleRate}Hz`;
-          let c = $("spectrum"), g = c.getContext("2d");
-          let loop = () => {
-            if (!rx.running) return;
-            rx.analyser.getFloatFrequencyData(rx.bins);
-            let d = findUltrasonicPeak(), ok = d.maxDb >= RX_THRESHOLD_DB;
-            if (ok) {
-              let r = frequencyToColor(d.peakHz);
-              rx.lastColor = r.color;
-              rx.lastFrequency = d.peakHz;
-              $("rxColorBox").style.background = r.color;
-              $("rxColorText").textContent = r.label;
-              $("rxDetectedFreq").textContent = `${d.peakHz.toFixed(1)} Hz`;
-              $("rxStatus").textContent = r.type === "reserved" ? `● RESERVED / ${d.peakHz.toFixed(1)} Hz` : "● SIGNAL ACTIVE";
-            }
-            $("peakDisplay").textContent = `${d.peakHz.toFixed(1)} Hz (${d.maxDb.toFixed(1)} dB)`;
-            g.clearRect(0, 0, c.width, c.height);
-            g.beginPath();
-            for (let i = 0; i < rx.bins.length; i++) {
-              let x = i / rx.bins.length * c.width;
-              let y = c.height - Math.max(0, Math.min(1, (rx.bins[i] + 100) / 80)) * c.height;
-              i ? g.lineTo(x, y) : g.moveTo(x, y);
-            }
-            g.strokeStyle = "#7fc8ff";
-            g.stroke();
-            if (ok) {
-              let x = d.peakHz / (rx.ctx.sampleRate / 2) * c.width;
-              g.strokeStyle = "#ff7f8f";
-              g.beginPath();
-              g.moveTo(x, 0);
-              g.lineTo(x, c.height);
-              g.stroke();
-            }
-            rx.raf = requestAnimationFrame(loop);
-          };
-          rx.raf = requestAnimationFrame(loop);
-        } catch (e) {
-          $("rxLog").textContent = `[ERROR]\n${e.message}`;
+      requestAnimationFrame(rxLoop);
+    }
+
+    function rejectPacket(reason) {
+      rxState = "IDLE";
+      UI_STATE(reason, "var(--danger)");
+      setTimeout(() => {
+        if (rxState === "IDLE") UI_STATE("リスニング中", "var(--accent)");
+      }, 900);
+    }
+
+    let isCaching = false;
+
+    // =========================================================================
+    // ★ 高精度ミリ秒同期 楽曲タイムライン再生エンジン (5秒グリッド同期)
+    // =========================================================================
+    function startMusicTimeline(cue, startSeekMs = 0) {
+      const canvas = document.getElementById("rxCanvas");
+      const title = document.getElementById("rxTitle");
+      const sub = document.getElementById("rxSub");
+      const timeline = cue.timeline;
+      if (!timeline || timeline.length === 0) return;
+
+      const originPerf = performance.now() - startSeekMs;
+      let actionIndex = 0;
+
+      while (actionIndex < timeline.length && startSeekMs > timeline[actionIndex].timeMs) {
+        actionIndex++;
+      }
+
+      function step() {
+        const currentElapsed = performance.now() - originPerf;
+        sub.innerText = `タイムライン同期中: ${(currentElapsed / 1000).toFixed(2)}s`;
+
+        while (actionIndex < timeline.length && currentElapsed >= timeline[actionIndex].timeMs) {
+          const item = timeline[actionIndex];
+          const act = item.action;
+
+          if (act.strobe) {
+            clearEffects();
+            let on = false;
+            effectInterval = setInterval(() => {
+              on = !on;
+              canvas.style.transition = "none";
+              canvas.style.backgroundColor = on ? act.color : "#050505";
+            }, 1000 / (act.strobe * 2));
+          } else {
+            clearEffects();
+            canvas.style.transition = `background-color ${act.ms || 100}ms ease`;
+            canvas.style.backgroundColor = act.color;
+          }
+
+          if (act.vibrate && navigator.vibrate) {
+            navigator.vibrate(act.vibrate);
+          }
+          actionIndex++;
         }
-      };
-      $("rxStop").onclick = async () => {
-        rx.running = false;
-        if (rx.raf) cancelAnimationFrame(rx.raf);
-        try { rx.source?.disconnect(); rx.stream?.getTracks().forEach(t => t.stop()); await rx.ctx?.close(); } catch { }
-        rx.ctx = null; rx.stream = null; rx.source = null; rx.analyser = null; rx.bins = null;
-        $("rxStart").disabled = false;
-        $("rxStop").disabled = true;
-        $("rxStatus").className = "status";
-        $("rxStatus").textContent = "● OFFLINE";
-        $("peakDisplay").textContent = "NO SIGNAL";
-        $("rxColorText").textContent = "NO SIGNAL";
-        $("rxColorBox").style.background = "#151923";
-        $("rxDetectedFreq").textContent = "---- Hz";
-        $("rxDetectedColor").textContent = "----";
-      };
-      renderReserved();
-      updateTxColor("#FFFFFF");
-    })();
+
+        if (actionIndex < timeline.length) {
+          timelineAnimFrame = requestAnimationFrame(step);
+        } else {
+          sub.innerText = "タイムライン完走";
+          clearEffects();
+          canvas.style.transition = "background-color 500ms ease";
+          canvas.style.backgroundColor = "#050505";
+        }
+      }
+
+      timelineAnimFrame = requestAnimationFrame(step);
+    }
+
+    function scheduleMusicTimeline(cue) {
+      // 5秒グリッド同期 (start: 5)
+      const gridSeconds = cue.start || 5;
+      const gridMs = gridSeconds * 1000;
+      const nowSynced = getSyncedNow();
+
+      // 現在時刻を上回る直近の 5秒グリッド (00s, 05s, 10s, 15s...) のジャスト000ms
+      let targetUnix = Math.ceil(nowSynced / gridMs) * gridMs;
+
+      // 受信完了から発火まで 1.0秒未満しかない場合は次のグリッドへ送る
+      if ((targetUnix - nowSynced) < 1000) {
+        targetUnix += gridMs;
+      }
+
+      const delay = targetUnix - nowSynced;
+      const targetDate = new Date(targetUnix);
+      const targetTimeStr = targetDate.toTimeString().split(' ')[0] + '.' + String(targetDate.getMilliseconds()).padStart(3, '0');
+
+      logRX(`[5sグリッド同期] 目標時刻: ${targetTimeStr} (残り待機: ${delay}ms)`);
+
+      if (delay > 0) {
+        timelineScheduledTimeout = setTimeout(() => {
+          startMusicTimeline(cue, 0);
+        }, delay);
+      } else {
+        const seek = Math.abs(delay);
+        logRX(`[レイトジョイン検出] ${seek}ms 経過地点から途中合流再生`);
+        startMusicTimeline(cue, seek);
+      }
+    }
+
+    let effectAnimFrame = null;
+
+    function clearEffects() {
+      if (effectInterval) { clearInterval(effectInterval); effectInterval = null; }
+      if (effectTimeout) { clearTimeout(effectTimeout); effectTimeout = null; }
+      if (timelineAnimFrame) { cancelAnimationFrame(timelineAnimFrame); timelineAnimFrame = null; }
+      if (timelineScheduledTimeout) { clearTimeout(timelineScheduledTimeout); timelineScheduledTimeout = null; }
+      if (effectAnimFrame) { cancelAnimationFrame(effectAnimFrame); effectAnimFrame = null; }
+    }
+
+    function runEffect(cue, canvas) {
+      clearEffects();
+      const duration = cue.ms || 0;
+      const startLocalPerf = performance.now();
+      canvas.style.transition = "none";
+
+      // 全端末共通の時間基準 (NTP補正時刻)
+      const getGlobalTime = () => (typeof getSyncedNow === "function") ? getSyncedNow() : Date.now();
+
+      if (cue.type === "rainbow") {
+        // 周期: 約1.8秒で1周 (360度) -> 実時間ベースで色相を算出
+        const speed = 360 / 1800; // deg per ms
+        function loopRainbow() {
+          const now = getGlobalTime();
+          const hue = Math.floor((now * speed) % 360);
+          canvas.style.backgroundColor = `hsl(${hue}, 100%, 50%)`;
+          effectAnimFrame = requestAnimationFrame(loopRainbow);
+        }
+        effectAnimFrame = requestAnimationFrame(loopRainbow);
+
+      } else if (cue.type === "party") {
+        const colors = cue.colors || ["#FF0033", "#00F0FF", "#FFB703", "#39FF14", "#FF00FF", "#0055FF"];
+        const intervalMs = 90;
+        function loopParty() {
+          const now = getGlobalTime();
+          const index = Math.floor(now / intervalMs) % colors.length;
+          canvas.style.backgroundColor = colors[index];
+          effectAnimFrame = requestAnimationFrame(loopParty);
+        }
+        effectAnimFrame = requestAnimationFrame(loopParty);
+
+      } else if (cue.type === "heartbeat") {
+        // 鼓動周期: 640ms周期 (4フェーズ)
+        const cycleMs = 640;
+        function loopHeartbeat() {
+          const now = getGlobalTime();
+          const phase = Math.floor((now % cycleMs) / 160);
+          canvas.style.backgroundColor = (phase === 0 || phase === 1) ? cue.color : "#050505";
+          effectAnimFrame = requestAnimationFrame(loopHeartbeat);
+        }
+        effectAnimFrame = requestAnimationFrame(loopHeartbeat);
+
+      } else if (cue.type === "sequence") {
+        const seq = cue.colors || [cue.color];
+        const stepMs = cue.stepMs || 200;
+        function loopSequence() {
+          const now = getGlobalTime();
+          const index = Math.floor(now / stepMs) % seq.length;
+          canvas.style.backgroundColor = seq[index];
+          effectAnimFrame = requestAnimationFrame(loopSequence);
+        }
+        effectAnimFrame = requestAnimationFrame(loopSequence);
+
+      } else if (cue.strobe) {
+        // 正確なストロボ: 1周期 = 1000 / Hz
+        const periodMs = 1000 / cue.strobe;
+        function loopStrobe() {
+          const now = getGlobalTime();
+          // 周期の前半50%を点灯、後半50%を消灯
+          const isOn = (now % periodMs) < (periodMs / 2);
+          canvas.style.backgroundColor = isOn ? cue.color : "#000000";
+          effectAnimFrame = requestAnimationFrame(loopStrobe);
+        }
+        effectAnimFrame = requestAnimationFrame(loopStrobe);
+
+      } else {
+        // 通常のソリッド / フェード
+        canvas.style.transition = `background-color ${duration || 300}ms ease`;
+        canvas.style.backgroundColor = cue.color;
+      }
+
+      // 継続時間 (ms) の自動停止
+      if (duration > 0) {
+        effectTimeout = setTimeout(() => {
+          clearEffects();
+          canvas.style.transition = "background-color 400ms ease";
+          canvas.style.backgroundColor = "#050505";
+        }, duration);
+      }
+    }
+
+    function executeCue(idStr) {
+      const idNum = parseInt(idStr, 10);
+      const canvas = document.getElementById("rxCanvas");
+      const title = document.getElementById("rxTitle");
+      const sub = document.getElementById("rxSub");
+      const msgEl = document.getElementById("rxMsg");
+
+      if (idNum === ID_CMD_CACHE_START) {
+        clearEffects();
+        isCaching = true;
+        rxTextCache = "";
+        title.style.display = "block"; sub.style.display = "block"; msgEl.classList.remove("fired");
+        title.innerText = "データ受信中...";
+        sub.innerText = `ID: ${idNum} (キャッシュ開始)`;
+        msgEl.innerText = "";
+        return;
+      }
+
+      if (idNum === ID_CMD_CACHE_END) {
+        isCaching = false;
+        clearEffects();
+        title.style.display = "block"; sub.style.display = "block"; msgEl.classList.remove("fired");
+        title.innerText = "キャッシュ完了";
+        sub.innerText = `ID: ${idNum} (待機状態)`;
+        msgEl.innerText = `[準備OK] ${rxTextCache}`;
+        msgEl.style.color = "#ddd";
+        canvas.style.transition = "background-color 300ms ease";
+        canvas.style.backgroundColor = "#000000";
+        return;
+      }
+
+      if (idNum === ID_CMD_FIRE) {
+        clearEffects();
+        title.style.display = "none";
+        sub.style.display = "none";
+        msgEl.innerText = rxTextCache;
+        msgEl.style.color = "#ddd";
+        msgEl.classList.add("fired");
+        canvas.style.transition = `background-color 200ms ease-out`;
+        canvas.style.backgroundColor = "#000000";
+        return;
+      }
+
+      if (idNum >= UNICODE_OFFSET && idNum < UNICODE_OFFSET + 2000000) {
+        clearEffects();
+        let codePoint = idNum - UNICODE_OFFSET;
+        let char = String.fromCodePoint(codePoint);
+
+        if (isCaching) {
+          rxTextCache += char;
+          msgEl.innerText = rxTextCache;
+          msgEl.style.color = "#ddd";
+        }
+        title.style.display = "block"; sub.style.display = "block"; msgEl.classList.remove("fired");
+        title.innerText = "文字受信";
+        sub.innerText = `ID: ${idNum} (${char})`;
+        return;
+      }
+
+      title.style.display = "block";
+      sub.style.display = "block";
+      msgEl.classList.remove("fired");
+
+      if (CUE_DATA[idStr]) {
+        const cue = CUE_DATA[idStr];
+        title.innerText = cue.name;
+        sub.innerText = `ID: ${idNum.toLocaleString()}`;
+
+        if (cue.type === "timeline") {
+          msgEl.innerText = "";
+          scheduleMusicTimeline(cue);
+          return;
+        }
+
+        if (cue.msg) {
+          msgEl.innerText = cue.msg;
+          msgEl.style.color = "#ddd";
+          clearEffects();
+          canvas.style.transition = `background-color ${cue.ms || 300}ms ease`;
+          canvas.style.backgroundColor = "#000000";
+        } else {
+          msgEl.innerText = "";
+          runEffect(cue, canvas);
+        }
+
+        if (cue.vibrate && navigator.vibrate) navigator.vibrate(cue.vibrate);
+        return;
+      }
+
+      if (idNum >= 20000000 && idNum <= 36777215) {
+        clearEffects();
+        const rgbNum = idNum - 20000000;
+        const hexColor = "#" + rgbNum.toString(16).padStart(6, '0');
+
+        title.innerText = "RGBカラー直接同期";
+        sub.innerText = `ID: ${idNum.toLocaleString()} (${hexColor.toUpperCase()})`;
+        msgEl.innerText = "";
+
+        canvas.style.transition = `background-color 300ms ease`;
+        canvas.style.backgroundColor = hexColor;
+        return;
+      }
+
+      title.innerText = "UNKNOWN";
+      sub.innerText = `ID: ${idNum}`;
+    }
   </script>
 </body>
+
 </html>
