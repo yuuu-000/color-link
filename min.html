@@ -3,112 +3,117 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ultrasonic ID Sender / Receiver (Triple-Tone Robust)</title>
+<title>Ultra-Robust Acoustic ID (18C3^3 / 5.4億 / 消失復元)</title>
 <style>
-body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:20px;max-width:900px;background:#0b0d12;color:#fff}
-h1{font-size:22px;margin-bottom:8px}
-.box{background:#151923;border:1px solid #2a3040;border-radius:12px;padding:16px;margin:14px 0}
-button{font-size:15px;font-weight:600;padding:10px 16px;margin:4px;cursor:pointer;border:0;border-radius:8px;background:#252b38;color:#fff}
-button:hover{background:#303848}
-input{font-size:18px;padding:8px 12px;width:360px;box-sizing:border-box;background:#0d1017;border:1px solid #2a3040;color:#77e3a2;border-radius:8px;font-family:monospace}
-.value{font-size:28px;font-weight:bold;color:#77e3a2;word-break:break-all}
-#status{white-space:pre-wrap;font-family:monospace;line-height:1.5;color:#c9d1e0;background:#080a0f;padding:12px;border-radius:8px;border:1px solid #1e2533;margin-top:8px}
-.small{font-size:13px;line-height:1.6;color:#aeb6c6}
-canvas{width:100%;height:180px;background:#090c11;border-radius:8px;border:1px solid #252b36;display:block;margin:10px 0}
-#peakMonitor{font-family:monospace;background:#0d1017;padding:12px;border-radius:8px;border:1px solid #252b36;margin:10px 0;font-size:13px;line-height:1.5;white-space:pre-wrap;color:#79c0ff}
+body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:20px;max-width:900px;background:#06070a;color:#eee}
+h1{font-size:20px;margin-bottom:8px;color:#fff}
+.box{background:#11131a;border:1px solid #232733;border-radius:12px;padding:16px;margin:14px 0}
+button{font-size:14px;font-weight:700;padding:10px 18px;margin:4px;cursor:pointer;border:0;border-radius:8px;background:#202532;color:#fff;transition:0.15s}
+button:hover{background:#2d3446}
+input{font-size:18px;padding:8px 12px;width:380px;background:#090a0f;border:1px solid #282f40;color:#00f0ff;border-radius:8px;font-family:monospace}
+.value{font-size:32px;font-weight:900;color:#00f0ff;word-break:break-all}
+#status{white-space:pre-wrap;font-family:monospace;line-height:1.5;color:#abb4c4;background:#050608;padding:12px;border-radius:8px;border:1px solid #1a1e28;margin-top:8px;font-size:13px}
+.small{font-size:12px;line-height:1.6;color:#8a93a5}
+canvas{width:100%;height:160px;background:#07090d;border-radius:8px;border:1px solid #1f2430;display:block;margin:10px 0}
+.badge{display:inline-block;padding:3px 8px;border-radius:4px;background:#8505d5;color:#fff;font-size:11px;font-weight:bold;margin-left:6px}
 </style>
 </head>
 <body>
-<h1>音響ID送受信 (高安定 Triple-Tone: 16C3^3)</h1>
+<h1>OTOSYN Ultra-Core <span class="badge">5.4億ID / 480ms / 消失自動復元</span></h1>
 <div class="box">
-<h2>通信仕様</h2>
-<div class="small">
-<div>データ周波数: 17,500～19,450 Hz (130 Hz間隔 / 16チャンネル)</div>
-<div>トリガー周波数: 19,850 Hz | スロット長: 160ms | FFT: 2048</div>
-<div>ID総数: 560^3 = <span id="idCountText">-</span> 通り</div>
-</div>
-</div>
-
-<div class="box">
-<h2>送信</h2>
-<input id="sendId" type="number" min="0" value="0">
-<br><br>
-<button id="sendButton">ID送信</button>
-<button id="sendRandom">ランダムID送信</button>
-<div style="margin-top:10px;">送信ID: <span id="sentId" class="value">-</span></div>
-<div id="sendInfo" class="small"></div>
+  <div class="small">
+    <div>帯域: 17,000Hz ～ 19,550Hz (150Hz間隔 × 18ch) | トリガー: 19,850Hz</div>
+    <div>シンボル数: 18C3 = 816 | ID総数: 816^3 = <span id="idCountText" style="color:#00f0ff">-</span> 通り</div>
+    <div>伝送時間: 480ms (Trig 120ms + Slot 90ms×4) | エラー耐性: 1スロット完全欠損の代数復元</div>
+  </div>
 </div>
 
 <div class="box">
-<h2>受信</h2>
-<button id="startReceiver">マイク受信開始</button>
-<button id="stopReceiver">停止</button>
-<div style="margin-top:10px;">受信ID: <span id="receivedId" class="value">-</span></div>
-<canvas id="specCanvas" width="800" height="180"></canvas>
-<div id="peakMonitor">ピーク解析: 停止中</div>
-<div id="status">停止中</div>
+  <h2>送信</h2>
+  <input id="sendId" type="number" min="0" value="123456789">
+  <br><br>
+  <button id="sendButton">ID送信 (480ms)</button>
+  <button id="sendRandom">ランダム送信</button>
+  <div style="margin-top:10px;">送信ID: <span id="sentId" class="value">-</span></div>
+  <div id="sendInfo" class="small"></div>
+</div>
+
+<div class="box">
+  <h2>受信</h2>
+  <button id="startReceiver">マイク受信開始</button>
+  <button id="stopReceiver">停止</button>
+  <div style="margin-top:10px;">受信復号ID: <span id="receivedId" class="value">-</span></div>
+  <canvas id="specCanvas" width="800" height="160"></canvas>
+  <div id="status">停止中</div>
 </div>
 
 <script>
 "use strict";
 
-const BASE_FREQ = 17500;
-const STEP_FREQ = 130;
-const NUM_CHANNELS = 16;
+// =========================================================================
+// 1. 周波数・数学モデル定義 (18C3 = 816通り, Modulo 821 素数体による消失訂正)
+// =========================================================================
+const BASE_FREQ = 17000;
+const STEP_FREQ = 150;
+const NUM_CHANNELS = 18;
 const FREQS = Array.from({ length: NUM_CHANNELS }, (_, i) => BASE_FREQ + i * STEP_FREQ);
 const TRIGGER_FREQ = 19850;
+const GUARD_FREQ = 19650;
 
-// スロット長を160msに広げ、過渡応答の影響を低減
-const TRIGGER_DURATION = 0.160;
-const SLOT_DURATION = 0.160;
-const RAMP_TIME = 0.008;
-const TX_GAIN = 0.07; // クリッピング回避の安全ゲイン
+// タイミング定義: 合計 120 + 90*4 = 480ms (超高速)
+const TRIGGER_DURATION = 0.120;
+const SLOT_DURATION = 0.090;
+const RAMP_TIME = 0.012;
+const TX_GAIN = 0.08;
 
-// FFT 2048: 48kHzサンプリング時 Bin分解能約23.4Hz / 窓幅約42.7ms (130Hz間隔に最適)
 const FFT_SIZE = 2048;
-const TRIGGER_MIN_DB = -95;
-const TRIGGER_CONFIRM_FRAMES = 2;
-const DATA_MIN_DB = -92;
+const PRIME_MOD = 821; // 816を超える最小の素数（割り算の逆元を一意に保証）
 
 const TRIPLETS = [];
-const TRIPLET_INDEX = new Map();
+const TRIPLET_MAP = new Map();
 for (let i = 0; i < NUM_CHANNELS; i++) {
   for (let j = i + 1; j < NUM_CHANNELS; j++) {
     for (let k = j + 1; k < NUM_CHANNELS; k++) {
       const idx = TRIPLETS.length;
       TRIPLETS.push([i, j, k]);
-      TRIPLET_INDEX.set(`${i},${j},${k}`, idx);
+      TRIPLET_MAP.set(`${i},${j},${k}`, idx);
     }
   }
 }
+const SYMBOL_COUNT = TRIPLETS.length; // 816
+const TOTAL_IDS = SYMBOL_COUNT * SYMBOL_COUNT * SYMBOL_COUNT; // 543,456,896
 
-const SYMBOL_COUNT = TRIPLETS.length; // 560
-const ID_COUNT = SYMBOL_COUNT * SYMBOL_COUNT * SYMBOL_COUNT;
-const MAX_ID = ID_COUNT - 1;
+document.getElementById("sendId").max = TOTAL_IDS - 1;
+document.getElementById("idCountText").textContent = TOTAL_IDS.toLocaleString();
 
-document.getElementById("sendId").max = MAX_ID;
-document.getElementById("idCountText").textContent = `${ID_COUNT.toLocaleString()} 通り (0 ～ ${MAX_ID.toLocaleString()})`;
+// フェルマーの小定理によるモジュロ逆元計算: a^(p-2) mod p
+function modInverse(a, p) {
+  let res = 1, base = (a % p + p) % p, exp = p - 2;
+  while (exp > 0) {
+    if (exp % 2 === 1) res = (res * base) % p;
+    base = (base * base) % p;
+    exp = Math.floor(exp / 2);
+  }
+  return res;
+}
 
 function idToSlots(id) {
   const s1 = Math.floor(id / (SYMBOL_COUNT * SYMBOL_COUNT));
   const rem = id % (SYMBOL_COUNT * SYMBOL_COUNT);
   const s2 = Math.floor(rem / SYMBOL_COUNT);
   const s3 = rem % SYMBOL_COUNT;
-  const checksum = (s1 + s2 * 2 + s3 * 3) % SYMBOL_COUNT;
-
-  return {
-    s1, s2, s3, checksum,
-    trip1: TRIPLETS[s1],
-    trip2: TRIPLETS[s2],
-    trip3: TRIPLETS[s3],
-    tripCheck: TRIPLETS[checksum]
-  };
+  // パリティ多項式: C = (S1*1 + S2*2 + S3*3) mod PRIME_MOD
+  const check = (s1 * 1 + s2 * 2 + s3 * 3) % PRIME_MOD;
+  return { s1, s2, s3, check };
 }
 
 function slotsToId(s1, s2, s3) {
   return s1 * SYMBOL_COUNT * SYMBOL_COUNT + s2 * SYMBOL_COUNT + s3;
 }
 
+// =========================================================================
+// 2. 送信エンジン (音響パルス & エンベロープ)
+// =========================================================================
 let txCtx = null;
 function initTx() {
   if (!txCtx) txCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -118,271 +123,157 @@ function initTx() {
 
 async function sendId(id) {
   const ctx = initTx();
-  const decoded = idToSlots(id);
-  const slotTriplets = [decoded.trip1, decoded.trip2, decoded.trip3, decoded.tripCheck];
+  const { s1, s2, s3, check } = idToSlots(id);
+  
+  // checkが816以上の場合はダミーとして直近をクリップ（素数体安全域）
+  const checkSymbol = check < SYMBOL_COUNT ? check : (check % SYMBOL_COUNT);
+  const slotIndices = [s1, s2, s3, checkSymbol];
 
   const oscA = ctx.createOscillator();
   const oscB = ctx.createOscillator();
   const oscC = ctx.createOscillator();
-  const gainA = ctx.createGain();
-  const gainB = ctx.createGain();
-  const gainC = ctx.createGain();
+  const gain = ctx.createGain();
 
-  oscA.type = "sine";
-  oscB.type = "sine";
-  oscC.type = "sine";
+  oscA.connect(gain);
+  oscB.connect(gain);
+  oscC.connect(gain);
+  gain.connect(ctx.destination);
 
-  oscA.connect(gainA).connect(ctx.destination);
-  oscB.connect(gainB).connect(ctx.destination);
-  oscC.connect(gainC).connect(ctx.destination);
+  const now = ctx.currentTime + 0.03;
 
-  const now = ctx.currentTime + 0.05;
-
-  // 1. TRIGGER
-  gainA.gain.setValueAtTime(0, now);
-  gainB.gain.setValueAtTime(0, now);
-  gainC.gain.setValueAtTime(0, now);
-
+  // 1. トリガー送信 (単音 + ガード帯域確保)
+  gain.gain.setValueAtTime(0, now);
   oscA.frequency.setValueAtTime(TRIGGER_FREQ, now);
   oscB.frequency.setValueAtTime(TRIGGER_FREQ, now);
   oscC.frequency.setValueAtTime(TRIGGER_FREQ, now);
 
-  gainA.gain.linearRampToValueAtTime(TX_GAIN * 1.5, now + RAMP_TIME);
-  gainA.gain.setValueAtTime(TX_GAIN * 1.5, now + TRIGGER_DURATION);
+  gain.gain.linearRampToValueAtTime(TX_GAIN * 1.6, now + RAMP_TIME);
+  gain.gain.setValueAtTime(TX_GAIN * 1.6, now + TRIGGER_DURATION - RAMP_TIME);
+  gain.gain.linearRampToValueAtTime(0, now + TRIGGER_DURATION);
 
-  // 2. DATA SLOTS
+  // 2. データスロット (4スロット連続)
   let t = now + TRIGGER_DURATION;
-  for (let s = 0; s < slotTriplets.length; s++) {
-    const trip = slotTriplets[s];
-    oscA.frequency.setValueAtTime(FREQS[trip[0]], t);
-    oscB.frequency.setValueAtTime(FREQS[trip[1]], t);
-    oscC.frequency.setValueAtTime(FREQS[trip[2]], t);
+  for (let s = 0; s < 4; s++) {
+    const trip = TRIPLETS[slotIndices[s]];
+    const tStart = t;
+    const tEnd = t + SLOT_DURATION;
 
-    gainA.gain.setValueAtTime(TX_GAIN, t);
-    gainB.gain.setValueAtTime(TX_GAIN, t);
-    gainC.gain.setValueAtTime(TX_GAIN, t);
+    oscA.frequency.setValueAtTime(FREQS[trip[0]], tStart);
+    oscB.frequency.setValueAtTime(FREQS[trip[1]], tStart);
+    oscC.frequency.setValueAtTime(FREQS[trip[2]], tStart);
+
+    gain.gain.setValueAtTime(0, tStart);
+    gain.gain.linearRampToValueAtTime(TX_GAIN, tStart + RAMP_TIME);
+    gain.gain.setValueAtTime(TX_GAIN, tEnd - RAMP_TIME);
+    gain.gain.linearRampToValueAtTime(0, tEnd);
 
     t += SLOT_DURATION;
   }
 
-  gainA.gain.setValueAtTime(TX_GAIN, t - RAMP_TIME);
-  gainB.gain.setValueAtTime(TX_GAIN, t - RAMP_TIME);
-  gainC.gain.setValueAtTime(TX_GAIN, t - RAMP_TIME);
-  gainA.gain.linearRampToValueAtTime(0, t);
-  gainB.gain.linearRampToValueAtTime(0, t);
-  gainC.gain.linearRampToValueAtTime(0, t);
-
-  oscA.start(now);
-  oscB.start(now);
-  oscC.start(now);
-  oscA.stop(t + 0.02);
-  oscB.stop(t + 0.02);
-  oscC.stop(t + 0.02);
+  oscA.start(now); oscB.start(now); oscC.start(now);
+  oscA.stop(t + 0.05); oscB.stop(t + 0.05); oscC.stop(t + 0.05);
 
   document.getElementById("sentId").textContent = id.toLocaleString();
   document.getElementById("sendInfo").textContent =
-    `D1:[${decoded.trip1.join(",")}], D2:[${decoded.trip2.join(",")}], D3:[${decoded.trip3.join(",")}], Check:[${decoded.tripCheck.join(",")}]`;
+    `S1:${s1} | S2:${s2} | S3:${s3} | Check:${check} (全480ms)`;
 }
 
-// RECEIVER
-let rxCtx = null;
-let rxStream = null;
-let rxSource = null;
-let analyser = null;
+// =========================================================================
+// 3. 受信エンジン (エネルギー積分 ＆ 消失訂正ソルバー)
+// =========================================================================
+let rxCtx = null, rxStream = null, analyser = null, spectrum = null;
 let rxRunning = false;
 let rxState = "WAIT_TRIGGER";
-let triggerConfirmCount = 0;
-let dataStartAt = 0;
-let rxSlots = [];
-let currentSlotIndex = -1;
-let currentSlotVotes = [];
-let spectrum = null;
+let triggerCount = 0;
+let dataStartTime = 0;
+let slotEnergyBuffers = []; // [slotIndex][channel] に線形パワーを積算
+let currentSlot = -1;
 
 const canvas = document.getElementById("specCanvas");
 const canvasCtx = canvas.getContext("2d");
-const peakMonitor = document.getElementById("peakMonitor");
 
-function setStatus(text) {
-  document.getElementById("status").textContent = text;
-}
+function setStatus(text) { document.getElementById("status").textContent = text; }
 
 async function startReceiver() {
   if (rxRunning) return;
   try {
     rxStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false,
-        channelCount: 1
-      }
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
     });
-
     rxCtx = new (window.AudioContext || window.webkitAudioContext)();
-    await rxCtx.resume();
-
-    rxSource = rxCtx.createMediaStreamSource(rxStream);
+    const source = rxCtx.createMediaStreamSource(rxStream);
     analyser = rxCtx.createAnalyser();
     analyser.fftSize = FFT_SIZE;
-    analyser.smoothingTimeConstant = 0.1; // 軽微な平滑化でスパイクノイズ抑制
-
-    rxSource.connect(analyser);
+    analyser.smoothingTimeConstant = 0.0; // 積分を自前で行うため生データ取得
+    source.connect(analyser);
     spectrum = new Float32Array(analyser.frequencyBinCount);
 
     rxRunning = true;
-    resetReceiverState();
-    setStatus(`受信待機中...\nRate: ${rxCtx.sampleRate}Hz | FFT: ${FFT_SIZE} | Bin: ${(rxCtx.sampleRate / FFT_SIZE).toFixed(2)}Hz`);
+    rxState = "WAIT_TRIGGER";
+    setStatus("高感度リスニング中... (トリガー: 19850Hz)");
     requestAnimationFrame(receiverLoop);
   } catch (err) {
-    setStatus("マイク開始失敗: " + err.message);
+    setStatus("マイク初期化失敗: " + err.message);
   }
 }
 
 function stopReceiver() {
   rxRunning = false;
-  if (rxStream) {
-    rxStream.getTracks().forEach(t => t.stop());
-    rxStream = null;
-  }
-  if (rxCtx) {
-    rxCtx.close();
-    rxCtx = null;
-  }
-  peakMonitor.textContent = "ピーク解析: 停止中";
-  canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+  if (rxStream) rxStream.getTracks().forEach(t => t.stop());
+  if (rxCtx) rxCtx.close();
   setStatus("停止中");
 }
 
-function getLocalPeakAround(freq) {
-  const bin = Math.round(freq * FFT_SIZE / rxCtx.sampleRate);
-  let bestBin = bin;
-  let bestDb = -Infinity;
-  // 周囲±2ビン（約±46Hz）の中で最高点を探す
-  for (let d = -2; d <= 2; d++) {
-    const cur = bin + d;
-    if (cur >= 0 && cur < spectrum.length && spectrum[cur] > bestDb) {
-      bestDb = spectrum[cur];
-      bestBin = cur;
+function getMagAt(freq) {
+  const nyquist = rxCtx.sampleRate / 2;
+  const bin = Math.round((freq / nyquist) * analyser.frequencyBinCount);
+  return Math.max(spectrum[bin - 1] || -999, spectrum[bin], spectrum[bin + 1] || -999);
+}
+
+// 消失復元アルゴリズム (1スロット欠損をパリティ方程式から代数的に修復)
+function solveErasure(slots) {
+  const [s1, s2, s3, c] = slots;
+  const missing = [];
+  if (s1 === -1) missing.push(1);
+  if (s2 === -1) missing.push(2);
+  if (s3 === -1) missing.push(3);
+  if (c === -1) missing.push(4);
+
+  if (missing.length === 0) {
+    // 欠損なし -> チェックサム照合
+    const expected = (s1 * 1 + s2 * 2 + s3 * 3) % PRIME_MOD;
+    return (expected === c || (expected % SYMBOL_COUNT === c)) ? { s1, s2, s3, recovered: false } : null;
+  }
+
+  if (missing.length === 1) {
+    const target = missing[0];
+    if (target === 4) {
+      // 検査値のみ欠損 -> データ部は無傷
+      return { s1, s2, s3, recovered: true, slot: "Check" };
+    }
+    if (target === 1) {
+      // S1 = (C - 2*S2 - 3*S3) * inv(1) mod PRIME_MOD
+      let val = (c - 2 * s2 - 3 * s3) % PRIME_MOD;
+      val = (val + PRIME_MOD) % PRIME_MOD;
+      if (val < SYMBOL_COUNT) return { s1: val, s2, s3, recovered: true, slot: "S1" };
+    }
+    if (target === 2) {
+      // 2*S2 = (C - S1 - 3*S3) => S2 = RHS * inv(2) mod PRIME_MOD
+      let rhs = (c - s1 - 3 * s3) % PRIME_MOD;
+      rhs = (rhs + PRIME_MOD) % PRIME_MOD;
+      const val = (rhs * modInverse(2, PRIME_MOD)) % PRIME_MOD;
+      if (val < SYMBOL_COUNT) return { s1, s2: val, s3, recovered: true, slot: "S2" };
+    }
+    if (target === 3) {
+      // 3*S3 = (C - S1 - 2*S2) => S3 = RHS * inv(3) mod PRIME_MOD
+      let rhs = (c - s1 - 2 * s2) % PRIME_MOD;
+      rhs = (rhs + PRIME_MOD) % PRIME_MOD;
+      const val = (rhs * modInverse(3, PRIME_MOD)) % PRIME_MOD;
+      if (val < SYMBOL_COUNT) return { s1, s2, s3: val, recovered: true, slot: "S3" };
     }
   }
-  return { freq: bestBin * rxCtx.sampleRate / FFT_SIZE, db: bestDb };
-}
 
-function detectTrigger() {
-  const triggerPeak = getLocalPeakAround(TRIGGER_FREQ);
-  let maxData = -Infinity;
-  for (let i = 0; i < NUM_CHANNELS; i += 2) {
-    const p = getLocalPeakAround(FREQS[i]);
-    if (p.db > maxData) maxData = p.db;
-  }
-  return (triggerPeak.db >= TRIGGER_MIN_DB && triggerPeak.db >= maxData + 6);
-}
-
-// 安定した3波検出
-function detectSlotTriplet() {
-  const channelPowers = [];
-  let noiseFloor = 0;
-
-  for (let i = 0; i < NUM_CHANNELS; i++) {
-    const p = getLocalPeakAround(FREQS[i]);
-    channelPowers.push({ index: i, freq: FREQS[i], db: p.db });
-    noiseFloor += p.db;
-  }
-  noiseFloor /= NUM_CHANNELS;
-
-  channelPowers.sort((a, b) => b.db - a.db);
-
-  // 上位3波の選択（隣接インデックス間のサイドローブ被りを回避）
-  const selected = [];
-  for (const cand of channelPowers) {
-    if (cand.db < DATA_MIN_DB || cand.db < noiseFloor + 5) continue; // ノイズフロア比+5dB以上
-    const conflict = selected.some(s => Math.abs(s.index - cand.index) < 1);
-    if (!conflict) {
-      selected.push(cand);
-      if (selected.length === 3) break;
-    }
-  }
-
-  if (selected.length < 3) return null;
-
-  const idxs = selected.map(s => s.index).sort((a, b) => a - b);
-  const tripletKey = `${idxs[0]},${idxs[1]},${idxs[2]}`;
-  const tripletIndex = TRIPLET_INDEX.get(tripletKey);
-  if (tripletIndex === undefined) return null;
-
-  return {
-    tripletIndex,
-    f1: FREQS[idxs[0]],
-    f2: FREQS[idxs[1]],
-    f3: FREQS[idxs[2]],
-    avgDb: (selected[0].db + selected[1].db + selected[2].db) / 3
-  };
-}
-
-function drawSpectrum() {
-  const w = canvas.width;
-  const h = canvas.height;
-  canvasCtx.fillStyle = "#090c11";
-  canvasCtx.fillRect(0, 0, w, h);
-
-  const minF = 17000;
-  const maxF = 20200;
-  const minDb = -100;
-  const maxDb = -30;
-
-  const fToX = f => (f - minF) / (maxF - minF) * w;
-  const dbToY = db => h - (db - minDb) / (maxDb - minDb) * h;
-
-  const startBin = Math.floor(minF * FFT_SIZE / rxCtx.sampleRate);
-  const endBin = Math.ceil(maxF * FFT_SIZE / rxCtx.sampleRate);
-
-  canvasCtx.strokeStyle = "#00e5ff";
-  canvasCtx.lineWidth = 1.5;
-  canvasCtx.beginPath();
-  for (let b = startBin; b <= endBin; b++) {
-    const freq = b * rxCtx.sampleRate / FFT_SIZE;
-    const x = fToX(freq);
-    const db = Math.max(minDb, Math.min(maxDb, spectrum[b]));
-    const y = dbToY(db);
-    if (b === startBin) canvasCtx.moveTo(x, y);
-    else canvasCtx.lineTo(x, y);
-  }
-  canvasCtx.stroke();
-
-  canvasCtx.strokeStyle = "#ffcc00";
-  canvasCtx.beginPath();
-  canvasCtx.moveTo(fToX(TRIGGER_FREQ), 0);
-  canvasCtx.lineTo(fToX(TRIGGER_FREQ), h);
-  canvasCtx.stroke();
-}
-
-function resetReceiverState() {
-  rxState = "WAIT_TRIGGER";
-  triggerConfirmCount = 0;
-  dataStartAt = 0;
-  rxSlots = [];
-  currentSlotIndex = -1;
-  currentSlotVotes = [];
-}
-
-function processReceivedSlots() {
-  if (rxSlots.length !== 4 || rxSlots.includes(-1)) {
-    setStatus(`スロット欠損のため復号不可\n検出結果: [${rxSlots.join(", ")}]\nトリガー待機に戻ります`);
-    resetReceiverState();
-    return;
-  }
-
-  const [s1, s2, s3, checksum] = rxSlots;
-  const expectedChecksum = (s1 + s2 * 2 + s3 * 3) % SYMBOL_COUNT;
-
-  if (checksum !== expectedChecksum) {
-    setStatus(`チェックデジット不一致\nS1:${s1}, S2:${s2}, S3:${s3}\n受信Check:${checksum} (期待値:${expectedChecksum})\nトリガー待機に戻ります`);
-  } else {
-    const id = slotsToId(s1, s2, s3);
-    document.getElementById("receivedId").textContent = id.toLocaleString();
-    setStatus(`受信成功！\nS1:${s1}, S2:${s2}, S3:${s3}\nCheck:${checksum}\n復号ID: ${id.toLocaleString()}\nトリガー待機中...`);
-  }
-  resetReceiverState();
+  return null; // 2スロット以上欠損時は破棄
 }
 
 function receiverLoop() {
@@ -392,83 +283,114 @@ function receiverLoop() {
 
   drawSpectrum();
 
+  const trigDb = getMagAt(TRIGGER_FREQ);
+  const guardDb = getMagAt(GUARD_FREQ);
+
   if (rxState === "WAIT_TRIGGER") {
-    if (detectTrigger()) {
-      triggerConfirmCount++;
+    // プロミネンス判定: トリガーがガードより12dB以上突出
+    if (trigDb > -95 && (trigDb - guardDb) > 12) {
+      triggerCount++;
     } else {
-      triggerConfirmCount = 0;
+      triggerCount = 0;
     }
 
-    if (triggerConfirmCount >= TRIGGER_CONFIRM_FRAMES) {
-      dataStartAt = now + (TRIGGER_DURATION - 0.040);
-      rxState = "READ_DATA";
-      triggerConfirmCount = 0;
-      currentSlotIndex = -1;
-      rxSlots = [];
-      setStatus("トリガー検知！ 復号処理中...");
+    if (triggerCount >= 2) {
+      triggerCount = 0;
+      rxState = "READING";
+      dataStartTime = now + (TRIGGER_DURATION - 0.020);
+      slotEnergyBuffers = [new Float32Array(NUM_CHANNELS), new Float32Array(NUM_CHANNELS), new Float32Array(NUM_CHANNELS), new Float32Array(NUM_CHANNELS)];
+      currentSlot = 0;
+      setStatus("トリガー捕捉！ データ受信中...");
     }
-  } else if (rxState === "READ_DATA") {
-    const elapsed = now - dataStartAt;
+  } else if (rxState === "READING") {
+    const elapsed = now - dataStartTime;
     const slotIdx = Math.floor(elapsed / SLOT_DURATION);
 
-    if (slotIdx !== currentSlotIndex && currentSlotIndex >= 0 && currentSlotIndex < 4) {
-      let best = -1;
-      if (currentSlotVotes.length > 0) {
-        const counts = {};
-        currentSlotVotes.forEach(v => counts[v] = (counts[v] || 0) + 1);
-        let maxC = 0;
-        for (const k in counts) {
-          if (counts[k] > maxC) {
-            maxC = counts[k];
-            best = Number(k);
+    if (slotIdx >= 0 && slotIdx < 4) {
+      currentSlot = slotIdx;
+      // スロットの中央70%区間でパワーを積算
+      const slotPhase = elapsed - slotIdx * SLOT_DURATION;
+      if (slotPhase > (SLOT_DURATION * 0.15) && slotPhase < (SLOT_DURATION * 0.85)) {
+        for (let ch = 0; ch < NUM_CHANNELS; ch++) {
+          const db = getMagAt(FREQS[ch]);
+          // dBをリニアパワーに変換して積算 (ノイズフロア-105dBカット)
+          if (db > -105) {
+            slotEnergyBuffers[slotIdx][ch] += Math.pow(10, db / 20);
           }
         }
       }
-      rxSlots.push(best);
-      currentSlotVotes = [];
-    }
-    currentSlotIndex = slotIdx;
+    } else if (slotIdx >= 4) {
+      // 復号フェーズ: 各スロットの積算パワー上位3波を抽出
+      const resolvedSlots = [];
 
-    if (slotIdx >= 0 && slotIdx < 4) {
-      // スロット過渡期を外した中央区間（25%〜85%）でサンプリング
-      const phase = elapsed - slotIdx * SLOT_DURATION;
-      if (phase >= SLOT_DURATION * 0.25 && phase <= SLOT_DURATION * 0.85) {
-        const detected = detectSlotTriplet();
-        if (detected) {
-          currentSlotVotes.push(detected.tripletIndex);
-          peakMonitor.textContent = `[Slot ${slotIdx + 1}/4] ${detected.f1} + ${detected.f2} + ${detected.f3} Hz (Index: ${detected.tripletIndex})`;
+      for (let s = 0; s < 4; s++) {
+        const scores = Array.from(slotEnergyBuffers[s]).map((power, idx) => ({ idx, power }));
+        scores.sort((a, b) => b.power - a.power);
+
+        // 3波のエネルギーが有意に取れているかチェック
+        if (scores[2].power > 0.00001 && scores[0].power > scores[3].power * 1.5) {
+          const top3 = [scores[0].idx, scores[1].idx, scores[2].idx].sort((a, b) => a - b);
+          const key = `${top3[0]},${top3[1]},${top3[2]}`;
+          const tripletIdx = TRIPLET_MAP.get(key);
+          resolvedSlots.push(tripletIdx !== undefined ? tripletIdx : -1);
+        } else {
+          resolvedSlots.push(-1); // 欠損スロット判定
         }
       }
-    } else if (slotIdx >= 4) {
-      processReceivedSlots();
-    }
 
-    if (elapsed > SLOT_DURATION * 5.0) {
-      setStatus("受信タイムアウト\nトリガー待機に戻ります");
-      resetReceiverState();
+      // 代数消失訂正を実行
+      const result = solveErasure(resolvedSlots);
+
+      if (result) {
+        const finalId = slotsToId(result.s1, result.s2, result.s3);
+        document.getElementById("receivedId").textContent = finalId.toLocaleString();
+        const info = result.recovered ? ` [消失スロット ${result.slot} を自動復元！]` : " [完全一致]";
+        setStatus(`受信成功: ID ${finalId.toLocaleString()}${info}\nS1:${result.s1}, S2:${result.s2}, S3:${result.s3}`);
+      } else {
+        setStatus(`復号失敗 (スロット状態: [${resolvedSlots.join(", ")}])\nトリガー待機に戻ります`);
+      }
+
+      rxState = "WAIT_TRIGGER";
     }
   }
 
   requestAnimationFrame(receiverLoop);
 }
 
-document.getElementById("sendButton").addEventListener("click", async () => {
-  const id = Number(document.getElementById("sendId").value);
-  if (!Number.isInteger(id) || id < 0 || id > MAX_ID) {
-    alert("IDは0～" + MAX_ID + "の範囲で指定してください");
-    return;
+function drawSpectrum() {
+  const w = canvas.width, h = canvas.height;
+  canvasCtx.fillStyle = "#07090d";
+  canvasCtx.fillRect(0, 0, w, h);
+
+  const minF = 16800, maxF = 20200;
+  const startBin = Math.floor(minF * FFT_SIZE / rxCtx.sampleRate);
+  const endBin = Math.ceil(maxF * FFT_SIZE / rxCtx.sampleRate);
+
+  canvasCtx.strokeStyle = "#8505d5";
+  canvasCtx.lineWidth = 1.5;
+  canvasCtx.beginPath();
+  for (let b = startBin; b <= endBin; b++) {
+    const f = b * rxCtx.sampleRate / FFT_SIZE;
+    const x = (f - minF) / (maxF - minF) * w;
+    const y = h - ((spectrum[b] + 105) / 65) * h;
+    if (b === startBin) canvasCtx.moveTo(x, y); else canvasCtx.lineTo(x, y);
   }
-  await sendId(id);
-});
+  canvasCtx.stroke();
+}
 
-document.getElementById("sendRandom").addEventListener("click", async () => {
-  const id = Math.floor(Math.random() * ID_COUNT);
+document.getElementById("sendButton").onclick = () => {
+  const id = Number(document.getElementById("sendId").value);
+  if (id >= 0 && id < TOTAL_IDS) sendId(id);
+};
+
+document.getElementById("sendRandom").onclick = () => {
+  const id = Math.floor(Math.random() * TOTAL_IDS);
   document.getElementById("sendId").value = id;
-  await sendId(id);
-});
+  sendId(id);
+};
 
-document.getElementById("startReceiver").addEventListener("click", startReceiver);
-document.getElementById("stopReceiver").addEventListener("click", stopReceiver);
+document.getElementById("startReceiver").onclick = startReceiver;
+document.getElementById("stopReceiver").onclick = stopReceiver;
 </script>
 </body>
 </html>
