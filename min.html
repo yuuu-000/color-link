@@ -13,7 +13,8 @@ input{font-size:18px;padding:8px;width:280px;box-sizing:border-box}
 .value{font-size:30px;font-weight:bold;word-break:break-all}
 #status{white-space:pre-wrap;font-family:monospace;line-height:1.5}
 .small{font-size:13px;line-height:1.6}
-.ok{font-weight:bold}
+canvas{width:100%;height:180px;background:#1a1a1a;border-radius:6px;display:block;margin-top:10px}
+#peakInfo{font-family:monospace;background:#f4f4f4;padding:8px;border-radius:6px;margin-top:8px;font-size:13px}
 </style>
 </head>
 <body>
@@ -21,17 +22,12 @@ input{font-size:18px;padding:8px;width:280px;box-sizing:border-box}
 <div class="box">
 <h2>通信仕様</h2>
 <div class="small">
-<div>データ周波数: 17,300～19,400 Hz</div>
-<div>周波数間隔: 20 Hz</div>
-<div>周波数数: 106</div>
-<div>ペア数: 106C2 = 5,565</div>
-<div>データ: 2ペア</div>
-<div>チェックデジット: 1ペア</div>
-<div>ID数: 30,969,225</div>
-<div>ID範囲: 0～30,969,224</div>
-<div>トリガー: 19,500 Hz</div>
+<div>データ周波数: 17,300～19,400 Hz (間隔: 20 Hz, 数: 106)</div>
+<div>ペア数: 106C2 = 5,565 / データ: 2ペア + チェックデジット: 1ペア</div>
+<div>ID範囲: 0～30,969,224 / トリガー: 19,500 Hz</div>
 </div>
 </div>
+
 <div class="box">
 <h2>送信</h2>
 <input id="sendId" type="number" min="0" max="30969224" value="0">
@@ -41,13 +37,17 @@ input{font-size:18px;padding:8px;width:280px;box-sizing:border-box}
 <div>送信ID: <span id="sentId" class="value">-</span></div>
 <div id="sendInfo" class="small"></div>
 </div>
+
 <div class="box">
 <h2>受信</h2>
 <button id="startReceiver">マイク受信開始</button>
 <button id="stopReceiver">停止</button>
 <div>受信ID: <span id="receivedId" class="value">-</span></div>
+<canvas id="specCanvas" width="800" height="180"></canvas>
+<div id="peakInfo">ピーク情報: 停止中</div>
 <div id="status">停止中</div>
 </div>
+
 <script>
 "use strict";
 const DATA_START_FREQ=17300;
@@ -72,347 +72,243 @@ const MIN_PEAK_DISTANCE_HZ=10;
 const SLOT_READ_START=0.30;
 const SLOT_READ_END=0.70;
 const TRIGGER_TIMEOUT=1.0;
+
 const FREQ_DATA=[];
 for(let i=0;i<DATA_COUNT;i++)FREQ_DATA.push(DATA_START_FREQ+i*DATA_STEP);
 const PAIRS=[];
 const PAIR_INDEX=new Map();
 for(let i=0;i<DATA_COUNT;i++){
-for(let j=i+1;j<DATA_COUNT;j++){
-const index=PAIRS.length;
-PAIRS.push([i,j]);
-PAIR_INDEX.set(i+","+j,index);
+  for(let j=i+1;j<DATA_COUNT;j++){
+    const index=PAIRS.length;
+    PAIRS.push([i,j]);
+    PAIR_INDEX.set(i+","+j,index);
+  }
 }
-}
-console.log("DATA_COUNT",DATA_COUNT);
-console.log("DATA_END_FREQ",DATA_END_FREQ);
-console.log("PAIR_COUNT",PAIR_COUNT);
-console.log("ID_COUNT",ID_COUNT);
+
 function idToPairs(id){
-if(!Number.isInteger(id))throw new Error("IDは整数で指定してください");
-if(id<0||id>MAX_ID)throw new Error("IDは0～"+MAX_ID+"です");
-const pair1Index=Math.floor(id/PAIR_COUNT);
-const pair2Index=id%PAIR_COUNT;
-const checksum=(pair1Index+pair2Index)%PAIR_COUNT;
-return{pair1Index,pair2Index,checksum,pair1:PAIRS[pair1Index],pair2:PAIRS[pair2Index],pair3:PAIRS[checksum]};
+  if(!Number.isInteger(id))throw new Error("IDは整数で指定してください");
+  if(id<0||id>MAX_ID)throw new Error("IDは0～"+MAX_ID+"です");
+  const pair1Index=Math.floor(id/PAIR_COUNT);
+  const pair2Index=id%PAIR_COUNT;
+  const checksum=(pair1Index+pair2Index)%PAIR_COUNT;
+  return{pair1Index,pair2Index,checksum,pair1:PAIRS[pair1Index],pair2:PAIRS[pair2Index],pair3:PAIRS[checksum]};
 }
+
 function pairsToId(pair1Index,pair2Index){
-return pair1Index*PAIR_COUNT+pair2Index;
+  return pair1Index*PAIR_COUNT+pair2Index;
 }
+
 function pairToFreqs(pair){
-return[FREQ_DATA[pair[0]],FREQ_DATA[pair[1]]];
+  return[FREQ_DATA[pair[0]],FREQ_DATA[pair[1]]];
 }
+
 let txCtx=null;
 function initTx(){
-if(!txCtx)txCtx=new(window.AudioContext||window.webkitAudioContext)();
-if(txCtx.state==="suspended")txCtx.resume();
-return txCtx;
+  if(!txCtx)txCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(txCtx.state==="suspended")txCtx.resume();
+  return txCtx;
 }
+
 async function sendId(id){
-const ctx=initTx();
-const decoded=idToPairs(id);
-const slots=[decoded.pair1,decoded.pair2,decoded.pair3];
-const oscA=ctx.createOscillator();
-const oscB=ctx.createOscillator();
-const gainA=ctx.createGain();
-const gainB=ctx.createGain();
-oscA.type="sine";
-oscB.type="sine";
-oscA.connect(gainA);
-oscB.connect(gainB);
-gainA.connect(ctx.destination);
-gainB.connect(ctx.destination);
-const now=ctx.currentTime;
-gainA.gain.setValueAtTime(0,now);
-gainB.gain.setValueAtTime(0,now);
-oscA.frequency.setValueAtTime(TRIGGER_FREQ,now);
-oscB.frequency.setValueAtTime(TRIGGER_FREQ,now);
-gainA.gain.linearRampToValueAtTime(TX_GAIN,now+RAMP_TIME);
-gainA.gain.setValueAtTime(TX_GAIN,now+TRIGGER_DURATION-RAMP_TIME);
-gainA.gain.linearRampToValueAtTime(0,now+TRIGGER_DURATION);
-let t=now+TRIGGER_DURATION;
-for(const pair of slots){
-const f1=FREQ_DATA[pair[0]];
-const f2=FREQ_DATA[pair[1]];
-oscA.frequency.setValueAtTime(f1,t);
-oscB.frequency.setValueAtTime(f2,t);
-gainA.gain.setValueAtTime(0,t);
-gainB.gain.setValueAtTime(0,t);
-gainA.gain.linearRampToValueAtTime(TX_GAIN,t+RAMP_TIME);
-gainB.gain.linearRampToValueAtTime(TX_GAIN,t+RAMP_TIME);
-gainA.gain.setValueAtTime(TX_GAIN,t+SLOT_DURATION-RAMP_TIME);
-gainB.gain.setValueAtTime(TX_GAIN,t+SLOT_DURATION-RAMP_TIME);
-gainA.gain.linearRampToValueAtTime(0,t+SLOT_DURATION);
-gainB.gain.linearRampToValueAtTime(0,t+SLOT_DURATION);
-t+=SLOT_DURATION;
-}
-oscA.start(now);
-oscB.start(now);
-oscA.stop(t+0.05);
-oscB.stop(t+0.05);
-document.getElementById("sentId").textContent=String(id);
-document.getElementById("sendInfo").textContent="pair1="+decoded.pair1Index+" ["+pairToFreqs(decoded.pair1).join(" Hz + ")+" Hz], pair2="+decoded.pair2Index+" ["+pairToFreqs(decoded.pair2).join(" Hz + ")+" Hz], checksum="+decoded.checksum+" ["+pairToFreqs(decoded.pair3).join(" Hz + ")+" Hz]";
-}
-function randomId(){
-return Math.floor(Math.random()*ID_COUNT);
-}
-let rxCtx=null;
-let rxStream=null;
-let rxSource=null;
-let analyser=null;
-let rxRunning=false;
-let rxState="WAIT_TRIGGER";
-let triggerConfirmCount=0;
-let triggerDetectedAt=0;
-let dataStartAt=0;
-let nextSlotToRead=0;
-let rxSlots=[];
-let lastFrameTime=0;
-let spectrum=null;
-function setStatus(text){
-document.getElementById("status").textContent=text;
-}
-async function startReceiver(){
-if(rxRunning)return;
-try{
-rxStream=await navigator.mediaDevices.getUserMedia({
-audio:{
-echoCancellation:false,
-noiseSuppression:false,
-autoGainControl:false,
-channelCount:1
-}
-});
-rxCtx=new(window.AudioContext||window.webkitAudioContext)();
-await rxCtx.resume();
-rxSource=rxCtx.createMediaStreamSource(rxStream);
-analyser=rxCtx.createAnalyser();
-analyser.fftSize=FFT_SIZE;
-analyser.smoothingTimeConstant=0;
-analyser.minDecibels=-120;
-analyser.maxDecibels=0;
-rxSource.connect(analyser);
-spectrum=new Float32Array(analyser.frequencyBinCount);
-rxRunning=true;
-rxState="WAIT_TRIGGER";
-triggerConfirmCount=0;
-nextSlotToRead=0;
-rxSlots=[];
-setStatus("受信中\nサンプルレート: "+rxCtx.sampleRate+" Hz\nFFT: "+FFT_SIZE+"\nトリガー待機...");
-requestAnimationFrame(receiverLoop);
-}catch(err){
-console.error(err);
-setStatus("マイク開始失敗\n"+err.message);
-}
-}
-function stopReceiver(){
-rxRunning=false;
-if(rxStream){
-for(const track of rxStream.getTracks())track.stop();
-rxStream=null;
-}
-if(rxCtx){
-rxCtx.close();
-rxCtx=null;
-}
-analyser=null;
-spectrum=null;
-setStatus("停止中");
-}
-function freqToBin(freq){
-return Math.round(freq*FFT_SIZE/rxCtx.sampleRate);
-}
-function binToFreq(bin){
-return bin*rxCtx.sampleRate/FFT_SIZE;
-}
-function dbAtBin(bin){
-if(bin<0||bin>=spectrum.length)return-Infinity;
-return spectrum[bin];
-}
-function interpolatedDb(freq){
-const exact=freq*FFT_SIZE/rxCtx.sampleRate;
-const b0=Math.floor(exact);
-const frac=exact-b0;
-const a=dbAtBin(b0);
-const b=dbAtBin(b0+1);
-if(!Number.isFinite(a)||!Number.isFinite(b))return-Infinity;
-return a+(b-a)*frac;
-}
-function getLocalPeakAround(freq){
-const center=freq*FFT_SIZE/rxCtx.sampleRate;
-const centerBin=Math.round(center);
-let bestBin=centerBin;
-let bestDb=-Infinity;
-for(let d=-2;d<=2;d++){
-const bin=centerBin+d;
-const db=dbAtBin(bin);
-if(db>bestDb){
-bestDb=db;
-bestBin=bin;
-}
-}
-return{freq:binToFreq(bestBin),db:bestDb,bin:bestBin};
-}
-function detectTrigger(){
-const triggerPeak=getLocalPeakAround(TRIGGER_FREQ);
-let maxData=-Infinity;
-for(let i=0;i<DATA_COUNT;i++){
-const p=getLocalPeakAround(FREQ_DATA[i]);
-if(p.db>maxData)maxData=p.db;
-}
-if(triggerPeak.db<TRIGGER_MIN_DB)return false;
-if(triggerPeak.db<maxData+TRIGGER_MARGIN_DB)return false;
-return true;
-}
-function getCandidatePeaks(){
-const candidates=[];
-for(let i=0;i<DATA_COUNT;i++){
-const expected=FREQ_DATA[i];
-const p=getLocalPeakAround(expected);
-candidates.push({
-index:i,
-freq:p.freq,
-db:p.db
-});
-}
-candidates.sort((a,b)=>b.db-a.db);
-return candidates;
-}
-function detectPair(){
-const candidates=getCandidatePeaks();
-if(candidates.length<2)return null;
-const first=candidates[0];
-if(first.db<DATA_MIN_DB)return null;
-let second=null;
-for(let k=1;k<candidates.length;k++){
-const candidate=candidates[k];
-if(Math.abs(candidate.freq-first.freq)>=MIN_PEAK_DISTANCE_HZ){
-second=candidate;
-break;
-}
-}
-if(!second)return null;
-if(second.db<DATA_MIN_DB)return null;
-if(first.db-second.db>12)return null;
-const a=Math.min(first.index,second.index);
-const b=Math.max(first.index,second.index);
-if(a===b)return null;
-const pairIndex=PAIR_INDEX.get(a+","+b);
-if(pairIndex===undefined)return null;
-return{
-pairIndex,
-i:a,
-j:b,
-f1:FREQ_DATA[a],
-f2:FREQ_DATA[b],
-db1:first.db,
-db2:second.db
-};
-}
-function resetReceiverState(){
-rxState="WAIT_TRIGGER";
-triggerConfirmCount=0;
-nextSlotToRead=0;
-rxSlots=[];
-triggerDetectedAt=0;
-dataStartAt=0;
-}
-function processReceivedSlots(){
-if(rxSlots.length!==3)return;
-const pair1=rxSlots[0].pairIndex;
-const pair2=rxSlots[1].pairIndex;
-const receivedChecksum=rxSlots[2].pairIndex;
-const expectedChecksum=(pair1+pair2)%PAIR_COUNT;
-if(receivedChecksum!==expectedChecksum){
-setStatus("チェックデジット不一致\npair1="+pair1+"\npair2="+pair2+"\n受信checksum="+receivedChecksum+"\n期待checksum="+expectedChecksum+"\n\n次のトリガー待機...");
-resetReceiverState();
-return;
-}
-const id=pairsToId(pair1,pair2);
-document.getElementById("receivedId").textContent=String(id);
-setStatus("受信成功\npair1="+pair1+"\npair2="+pair2+"\nchecksum="+receivedChecksum+"\nID="+id+"\n\n次のトリガー待機...");
-resetReceiverState();
-}
-function receiverLoop(){
-if(!rxRunning)return;
-analyser.getFloatFrequencyData(spectrum);
-const now=performance.now()/1000;
-if(rxState==="WAIT_TRIGGER"){
-if(detectTrigger()){
-triggerConfirmCount++;
-}else{
-triggerConfirmCount=0;
-}
-if(triggerConfirmCount>=TRIGGER_CONFIRM_FRAMES){
-triggerDetectedAt=now;
-dataStartAt=now+TRIGGER_DURATION;
-nextSlotToRead=0;
-rxSlots=[];
-rxState="READ_DATA";
-triggerConfirmCount=0;
-setStatus("トリガー検出\nデータ開始まで "+TRIGGER_DURATION.toFixed(2)+" 秒\n待機...");
-}
-}else if(rxState==="READ_DATA"){
-const elapsed=now-dataStartAt;
-if(elapsed<0){
-requestAnimationFrame(receiverLoop);
-return;
-}
-const slot=Math.floor(elapsed/SLOT_DURATION);
-if(slot!==nextSlotToRead&&slot>=nextSlotToRead){
-nextSlotToRead=slot;
-}
-if(nextSlotToRead<3){
-const within=elapsed-nextSlotToRead*SLOT_DURATION;
-if(within>=SLOT_DURATION*SLOT_READ_START&&within<=SLOT_DURATION*SLOT_READ_END){
-const pair=detectPair();
-if(pair){
-rxSlots.push(pair);
-setStatus("トリガーOK\nスロット "+rxSlots.length+"/3\n"+pair.f1+" Hz + "+pair.f2+" Hz\npairIndex="+pair.pairIndex);
-nextSlotToRead++;
-if(rxSlots.length===3){
-processReceivedSlots();
-}
-}else{
-setStatus("トリガーOK\nスロット "+(nextSlotToRead+1)+"/3\nピーク解析中...");
-}
-}
-}
-if(elapsed>TRIGGER_DURATION+SLOT_DURATION*3+TRIGGER_TIMEOUT){
-setStatus("データ受信タイムアウト\n次のトリガー待機...");
-resetReceiverState();
-}
-}
-if(now-lastFrameTime>0.5){
-lastFrameTime=now;
-}
-requestAnimationFrame(receiverLoop);
-}
-document.getElementById("sendButton").addEventListener("click",async()=>{
-const id=Number(document.getElementById("sendId").value);
-if(!Number.isInteger(id)||id<0||id>MAX_ID){
-alert("IDは0～"+MAX_ID+"で指定してください");
-return;
-}
-try{
-await sendId(id);
-}catch(err){
-console.error(err);
-alert(err.message);
-}
-});
-document.getElementById("sendRandom").addEventListener("click",async()=>{
-const id=randomId();
-document.getElementById("sendId").value=id;
-try{
-await sendId(id);
-}catch(err){
-console.error(err);
-alert(err.message);
-}
-});
-document.getElementById("startReceiver").addEventListener("click",startReceiver);
-document.getElementById("stopReceiver").addEventListener("click",stopReceiver);
-setStatus("停止中");
-</script>
+  const ctx=initTx();
+  const decoded=idToPairs(id);
+  const slots=[decoded.pair1,decoded.pair2,decoded.pair3];
+  const oscA=ctx.createOscillator();
+  const oscB=ctx.createOscillator();
+  const gainA=ctx.createGain();
+  const gainB=ctx.createGain();
+  oscA.type="sine";
+  oscB.type="sine";
+  oscA.connect(gainA);
+  oscB.connect(gainB);
+  gainA.connect(ctx.destination);
+  gainB.connect(ctx.destination);
+
+  const now=ctx.currentTime;
+  gainA.gain.setValueAtTime(0,now);
+  gainB.gain.setValueAtTime(0,now);
+  oscA.frequency.setValueAtTime(TRIGGER_FREQ,now);
+  oscB.frequency.setValueAtTime(TRIGGER_FREQ,now);
+  gainA.gain.linearRampToValueAtTime(TX_GAIN,now+RAMP_TIME);
+  gainA.gain.setValueAtTime(TX_GAIN,now+TRIGGER_DURATION-RAMP_TIME);
+  gainA.gain.linearRampToValueAtTime(0,now+TRIGGER_DURATION);
+
+  let t=now+TRIGGER_DURATION;
+  for(const pair of slots){
+    const f1=FREQ_DATA[pair[0]];
+    const f2=FREQ_DATA[pair[1]];
+    oscA.frequency.setValueAtTime(f1,t);
+    oscB.frequency.setValueAtTime(f2,t);
+    gainA.gain.setValueAtTime(0,t);
+    gainB.具体的な用途の指定がないため、レスポンシブ対応・モダンデザインを施した汎用的なランディングページ（LP）の単一HTMLフルコードを出力します。
+
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>モダンWebテンプレート</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .nav-container {
+      max-width: 1024px;
+      margin: 0 auto;
+      padding: 1rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-weight: 700;
+      font-size: 1.25rem;
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    main {
+      max-width: 1024px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem;
+    }
+
+    .hero {
+      text-align: center;
+      padding: 4rem 1rem;
+    }
+
+    .hero h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+      line-height: 1.2;
+    }
+
+    .hero p {
+      font-size: 1.125rem;
+      color: var(--text-muted);
+      max-width: 600px;
+      margin: 0 auto 2rem;
+    }
+
+    .btn {
+      display: inline-block;
+      background-color: var(--primary);
+      color: #fff;
+      padding: 0.75rem 1.75rem;
+      border-radius: 0.375rem;
+      text-decoration: none;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .btn:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin-top: 3rem;
+    }
+
+    .card {
+      background: var(--surface);
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border);
+    }
+
+    .card h2 {
+      font-size: 1.25rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .card p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem 1.5rem;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      margin-top: 4rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="nav-container">
+      <a href="#" class="logo">Brand</a>
+      <a href="#contact" class="btn">お問い合わせ</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>シンプルで拡張性の高い<br>Webサイト構築</h1>
+      <p>HTMLとCSSのみで構成された軽量な基本テンプレートです。レスポンシブデザインに対応しており、自由に変更・拡張が可能です。</p>
+      <button class="btn" onclick="alert('アクションが実行されました')">はじめる</button>
+    </section>
+
+    <section class="features">
+      <div class="card">
+        <h2>高速な読み込み</h2>
+        <p>外部フレームワークや重いライブラリに依存しないプレーンなコードにより、高速な表示を実現します。</p>
+      </div>
+      <div class="card">
+        <h2>モバイル対応</h2>
+        <p>CSS GridとFlexboxを活用し、スマートフォンからPCまで画面幅に合わせて自動的に最適化されます。</p>
+      </div>
+      <div class="card">
+        <h2>カスタム性</h2>
+        <p>CSS変数を採用しているため、カラーパレットや余白の変更を一括で簡単に行うことができます。</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 Brand. All rights reserved.</p>
+  </footer>
+
 </body>
 </html>
