@@ -290,6 +290,20 @@
     <!-- RX PANEL -->
     <section id="rxPanel" class="panel" style="display:none">
 
+      <div class="config-group">
+        <label>ピーク検出周波数範囲 (Hz)</label>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <span style="font-size:11px; color:#aeb6c6;">下限 (Min Hz)</span>
+            <input type="number" id="rxPeakMinHz" value="0" min="0" max="24000" step="10">
+          </div>
+          <div>
+            <span style="font-size:11px; color:#aeb6c6;">上限 (Max Hz)</span>
+            <input type="number" id="rxPeakMaxHz" value="22000" min="0" max="24000" step="10">
+          </div>
+        </div>
+      </div>
+
       <label>検出ピーク</label>
 
       <div class="peaks-container">
@@ -475,7 +489,10 @@
         timeBins: null,
         raf: null,
         running: false,
-        monitorGain: null
+        monitorGain: null,
+        fps: 0,
+        lastFpsTime: performance.now(),
+        frameCount: 0
       };
 
       const canvas = $("spectrum");
@@ -522,6 +539,9 @@
           rx.timeBins = new Uint8Array(rx.analyser.fftSize);
 
           rx.running = true;
+          rx.lastFpsTime = performance.now();
+          rx.frameCount = 0;
+          rx.fps = 0;
 
           $("rxStart").disabled = true;
           $("rxStop").disabled = false;
@@ -679,19 +699,48 @@
           rx.ctx.resume().catch(() => {});
         }
 
+        rx.frameCount++;
+        const now = performance.now();
+        if (now - rx.lastFpsTime >= 500) {
+          rx.fps = Math.round((rx.frameCount * 1000) / (now - rx.lastFpsTime));
+          rx.frameCount = 0;
+          rx.lastFpsTime = now;
+        }
+
         rx.analyser.getFloatFrequencyData(rx.bins);
         rx.analyser.getByteTimeDomainData(rx.timeBins);
 
         const nyquist = rx.ctx.sampleRate / 2;
         const bufferLength = rx.analyser.frequencyBinCount;
+        const binResolution = nyquist / bufferLength;
 
-        // INPUT LEVEL
+        // USER PEAK DETECTION RANGE
+        let pMin = parseFloat($("rxPeakMinHz").value);
+        let pMax = parseFloat($("rxPeakMaxHz").value);
+        if (isNaN(pMin)) pMin = 0;
+        if (isNaN(pMax)) pMax = 22000;
+        if (pMin > pMax) {
+          const temp = pMin;
+          pMin = pMax;
+          pMax = temp;
+        }
+        pMin = Math.max(0, pMin);
+        pMax = Math.min(nyquist, pMax);
+
+        // INPUT LEVEL & RMS
         let maxDb = -Infinity;
+        let sumSquare = 0;
         for (let i = 0; i < rx.bins.length; i++) {
           if (rx.bins[i] > maxDb) {
             maxDb = rx.bins[i];
           }
         }
+        for (let i = 0; i < rx.timeBins.length; i++) {
+          const normSample = (rx.timeBins[i] - 128) / 128;
+          sumSquare += normSample * normSample;
+        }
+        const rms = Math.sqrt(sumSquare / rx.timeBins.length);
+        const rmsDb = rms > 0 ? 20 * Math.log10(rms) : -100;
 
         if (!Number.isFinite(maxDb)) {
           maxDb = -100;
@@ -707,7 +756,7 @@
         for (let i = 1; i < rx.bins.length - 1; i++) {
           const hz = i * nyquist / bufferLength;
 
-          if (hz < DISPLAY_MIN_HZ || hz > DISPLAY_MAX_HZ) {
+          if (hz < pMin || hz > pMax) {
             continue;
           }
 
@@ -743,14 +792,20 @@
         $("peak2").textContent = peakText(peaks[1]);
         $("peak3").textContent = peakText(peaks[2]);
 
+        const audioTrack = rx.stream?.getAudioTracks()[0];
+        const trackLabel = audioTrack ? audioTrack.label : "Default Mic";
+
         $("rxLog").textContent =
-          `[RX] AudioContext: ${rx.ctx.state}\n` +
-          `[RX] SampleRate: ${rx.ctx.sampleRate} Hz\n` +
-          `[RX] Nyquist: ${nyquist.toFixed(0)} Hz\n` +
-          `[RX] FFT Size: ${rx.analyser.fftSize}\n` +
-          `[RX] FFT Bins: ${bufferLength}\n` +
-          `[RX] Max Input: ${maxDb.toFixed(1)} dB\n` +
-          `[RX] 0-22kHz Peaks: ${peaks.length}`;
+          `[RX Hardware] ${trackLabel}\n` +
+          `[RX State] Context: ${rx.ctx.state} | FPS: ${rx.fps}\n` +
+          `[RX Audio] SampleRate: ${rx.ctx.sampleRate} Hz | Nyquist: ${nyquist.toFixed(0)} Hz\n` +
+          `[RX FFT] Size: ${rx.analyser.fftSize} | Bins: ${bufferLength} | Res: ${binResolution.toFixed(2)} Hz/bin\n` +
+          `[RX Signal] Peak Input: ${maxDb.toFixed(1)} dB | RMS: ${rmsDb.toFixed(1)} dB\n` +
+          `[RX Peak Filter] Range: ${pMin.toFixed(0)} Hz - ${pMax.toFixed(0)} Hz\n` +
+          `[RX Peak Hits] Filtered Candidates: ${candidates.length} | Top Peaks: ${peaks.length}\n` +
+          `  1st: ${peakText(peaks[0])}\n` +
+          `  2nd: ${peakText(peaks[1])}\n` +
+          `  3rd: ${peakText(peaks[2])}`;
 
         drawSpectrum();
 
