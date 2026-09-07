@@ -26,7 +26,6 @@ canvas{width:100%;height:180px;background:#090c11;border-radius:8px;border:1px s
 <div>データ周波数: 17,300～19,700 Hz (80 Hz間隔 / 31スロット)</div>
 <div>トリガー周波数: 19,850 Hz (19.85 kHz)</div>
 <div>ペア数: 31C2 = 465 通り</div>
-<div>スロット構成: [Trigger: 120ms] ＋ [Data 1: 120ms] ＋ [Data 2: 120ms] ＋ [Data 3: 120ms] ＋ [CheckDigit: 120ms] (計0.6秒)</div>
 <div>ID総数: (31C2)^3 = 465^3 = <span id="idCountText">-</span></div>
 </div>
 </div>
@@ -60,15 +59,15 @@ const DATA_STEP = 80;
 const DATA_COUNT = 31; // 17,300Hz 〜 19,700Hz
 const TRIGGER_FREQ = 19850;
 
-const TRIGGER_DURATION = 0.12; // 120ms
-const SLOT_DURATION = 0.12;    // 各スロット 120ms
+const TRIGGER_DURATION = 0.125; // 120ms
+const SLOT_DURATION = 0.125;    // 各スロット 120ms
 const RAMP_TIME = 0.005;
 const TX_GAIN = 0.10;          // S/N比確保のため少し高めに設定
 
 const FFT_SIZE = 2048;         // 48kHzサンプリング時: 分解能約23.4Hz / 窓幅約42.7ms
-const TRIGGER_MIN_DB = -75;
+const TRIGGER_MIN_DB = -100;
 const TRIGGER_CONFIRM_FRAMES = 2;
-const DATA_MIN_DB = -85;       // 感度を緩和
+const DATA_MIN_DB = -95;       // 感度を緩和
 
 const FREQ_DATA = [];
 for (let i = 0; i < DATA_COUNT; i++) FREQ_DATA.push(DATA_START_FREQ + i * DATA_STEP);
