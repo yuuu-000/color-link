@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ultra-Robust Acoustic ID (18C3^3 / 5.4億 / 消失復元)</title>
+<title>Ultra-Robust Acoustic ID (16C3^3 / 1.75億 / 消失復元)</title>
 <style>
 body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:20px;max-width:900px;background:#06070a;color:#eee}
 h1{font-size:20px;margin-bottom:8px;color:#fff}
@@ -15,24 +15,24 @@ input{font-size:18px;padding:8px 12px;width:380px;background:#090a0f;border:1px 
 #status{white-space:pre-wrap;font-family:monospace;line-height:1.5;color:#abb4c4;background:#050608;padding:12px;border-radius:8px;border:1px solid #1a1e28;margin-top:8px;font-size:13px}
 .small{font-size:12px;line-height:1.6;color:#8a93a5}
 canvas{width:100%;height:160px;background:#07090d;border-radius:8px;border:1px solid #1f2430;display:block;margin:10px 0}
-.badge{display:inline-block;padding:3px 8px;border-radius:4px;background:#8505d5;color:#fff;font-size:11px;font-weight:bold;margin-left:6px}
+.badge{display:inline-block;padding:3px 8px;border-radius:4px;background:#00b4d8;color:#000;font-size:11px;font-weight:bold;margin-left:6px}
 </style>
 </head>
 <body>
-<h1>OTOSYN Ultra-Core <span class="badge">5.4億ID / 480ms / 消失自動復元</span></h1>
+<h1>OTOSYN Core-16 <span class="badge">1.75億ID / 16ch Triple-Tone / 消失代数復元</span></h1>
 <div class="box">
   <div class="small">
-    <div>帯域: 17,000Hz ～ 19,550Hz (150Hz間隔 × 18ch) | トリガー: 19,850Hz</div>
-    <div>シンボル数: 18C3 = 816 | ID総数: 816^3 = <span id="idCountText" style="color:#00f0ff">-</span> 通り</div>
-    <div>伝送時間: 480ms (Trig 120ms + Slot 90ms×4) | エラー耐性: 1スロット完全欠損の代数復元</div>
+    <div>データ帯域: 17,400Hz ～ 19,800Hz (160Hz間隔 × 16ch) | トリガー: 19,950Hz</div>
+    <div>シンボル数: 16C3 = 560 | ID総数: 560^3 = <span id="idCountText" style="color:#00f0ff">-</span> 通り</div>
+    <div>伝送時間: 580ms (Trig 140ms + Slot 110ms×4) | エラー耐性: 1スロット完全欠損の代数修復</div>
   </div>
 </div>
 
 <div class="box">
   <h2>送信</h2>
-  <input id="sendId" type="number" min="0" value="123456789">
+  <input id="sendId" type="number" min="0" value="12345678">
   <br><br>
-  <button id="sendButton">ID送信 (480ms)</button>
+  <button id="sendButton">ID送信 (580ms)</button>
   <button id="sendRandom">ランダム送信</button>
   <div style="margin-top:10px;">送信ID: <span id="sentId" class="value">-</span></div>
   <div id="sendInfo" class="small"></div>
@@ -51,23 +51,22 @@ canvas{width:100%;height:160px;background:#07090d;border-radius:8px;border:1px s
 "use strict";
 
 // =========================================================================
-// 1. 周波数・数学モデル定義 (18C3 = 816通り, Modulo 821 素数体による消失訂正)
+// 1. 周波数・数学モデル定義 (16C3 = 560通り, Modulo 560 環による厳密消失復元)
 // =========================================================================
-const BASE_FREQ = 17000;
-const STEP_FREQ = 150;
-const NUM_CHANNELS = 18;
-const FREQS = Array.from({ length: NUM_CHANNELS }, (_, i) => BASE_FREQ + i * STEP_FREQ);
-const TRIGGER_FREQ = 19850;
-const GUARD_FREQ = 19650;
+const BASE_FREQ = 17400;
+const STEP_FREQ = 160;
+const NUM_CHANNELS = 16;
+const FREQS = Array.from({ length: NUM_CHANNELS }, (_, i) => BASE_FREQ + i * STEP_FREQ); // 17400Hz 〜 19800Hz
+const TRIGGER_FREQ = 19950;
+const GUARD_FREQ = 19880;
 
-// タイミング定義: 合計 120 + 90*4 = 480ms (超高速)
-const TRIGGER_DURATION = 0.120;
-const SLOT_DURATION = 0.090;
-const RAMP_TIME = 0.012;
+// タイミング定義: 合計 140ms + 110ms*4 = 580ms
+const TRIGGER_DURATION = 0.140;
+const SLOT_DURATION = 0.110;
+const RAMP_TIME = 0.010;
 const TX_GAIN = 0.08;
 
 const FFT_SIZE = 2048;
-const PRIME_MOD = 821; // 816を超える最小の素数（割り算の逆元を一意に保証）
 
 const TRIPLETS = [];
 const TRIPLET_MAP = new Map();
@@ -80,30 +79,40 @@ for (let i = 0; i < NUM_CHANNELS; i++) {
     }
   }
 }
-const SYMBOL_COUNT = TRIPLETS.length; // 816
-const TOTAL_IDS = SYMBOL_COUNT * SYMBOL_COUNT * SYMBOL_COUNT; // 543,456,896
+const SYMBOL_COUNT = TRIPLETS.length; // 560
+const TOTAL_IDS = SYMBOL_COUNT * SYMBOL_COUNT * SYMBOL_COUNT; // 175,616,000
 
 document.getElementById("sendId").max = TOTAL_IDS - 1;
 document.getElementById("idCountText").textContent = TOTAL_IDS.toLocaleString();
 
-// フェルマーの小定理によるモジュロ逆元計算: a^(p-2) mod p
-function modInverse(a, p) {
-  let res = 1, base = (a % p + p) % p, exp = p - 2;
-  while (exp > 0) {
-    if (exp % 2 === 1) res = (res * base) % p;
-    base = (base * base) % p;
-    exp = Math.floor(exp / 2);
+// gcd(c, 560) = 1 となる係数 (1, 3, 9)
+const COEFF_1 = 1;
+const COEFF_2 = 3;
+const COEFF_3 = 9;
+
+// 拡張ユークリッド互除法によるモジュロ逆元 (a * x ≡ 1 mod m)
+function modInverse(a, m) {
+  let [m0, x0, x1] = [m, 0, 1];
+  let val = (a % m + m) % m;
+  if (m === 1) return 0;
+  while (val > 1) {
+    const q = Math.floor(val / m0);
+    [val, m0] = [m0, val % m0];
+    [x0, x1] = [x1 - q * x0, x0];
   }
-  return res;
+  return (x1 < 0) ? x1 + m : x1;
 }
+
+const INV_C1 = modInverse(COEFF_1, SYMBOL_COUNT); // 1
+const INV_C2 = modInverse(COEFF_2, SYMBOL_COUNT); // 187 (3 * 187 = 561 = 560 + 1)
+const INV_C3 = modInverse(COEFF_3, SYMBOL_COUNT); // 311 (9 * 311 = 2799 = 5*560 - 1 -> mod 560 = 1)
 
 function idToSlots(id) {
   const s1 = Math.floor(id / (SYMBOL_COUNT * SYMBOL_COUNT));
   const rem = id % (SYMBOL_COUNT * SYMBOL_COUNT);
   const s2 = Math.floor(rem / SYMBOL_COUNT);
   const s3 = rem % SYMBOL_COUNT;
-  // パリティ多項式: C = (S1*1 + S2*2 + S3*3) mod PRIME_MOD
-  const check = (s1 * 1 + s2 * 2 + s3 * 3) % PRIME_MOD;
+  const check = (s1 * COEFF_1 + s2 * COEFF_2 + s3 * COEFF_3) % SYMBOL_COUNT;
   return { s1, s2, s3, check };
 }
 
@@ -112,7 +121,7 @@ function slotsToId(s1, s2, s3) {
 }
 
 // =========================================================================
-// 2. 送信エンジン (音響パルス & エンベロープ)
+// 2. 送信エンジン
 // =========================================================================
 let txCtx = null;
 function initTx() {
@@ -124,10 +133,7 @@ function initTx() {
 async function sendId(id) {
   const ctx = initTx();
   const { s1, s2, s3, check } = idToSlots(id);
-  
-  // checkが816以上の場合はダミーとして直近をクリップ（素数体安全域）
-  const checkSymbol = check < SYMBOL_COUNT ? check : (check % SYMBOL_COUNT);
-  const slotIndices = [s1, s2, s3, checkSymbol];
+  const slotIndices = [s1, s2, s3, check];
 
   const oscA = ctx.createOscillator();
   const oscB = ctx.createOscillator();
@@ -139,16 +145,16 @@ async function sendId(id) {
   oscC.connect(gain);
   gain.connect(ctx.destination);
 
-  const now = ctx.currentTime + 0.03;
+  const now = ctx.currentTime + 0.04;
 
-  // 1. トリガー送信 (単音 + ガード帯域確保)
+  // 1. トリガー送信 (19.95 kHz)
   gain.gain.setValueAtTime(0, now);
   oscA.frequency.setValueAtTime(TRIGGER_FREQ, now);
   oscB.frequency.setValueAtTime(TRIGGER_FREQ, now);
   oscC.frequency.setValueAtTime(TRIGGER_FREQ, now);
 
-  gain.gain.linearRampToValueAtTime(TX_GAIN * 1.6, now + RAMP_TIME);
-  gain.gain.setValueAtTime(TX_GAIN * 1.6, now + TRIGGER_DURATION - RAMP_TIME);
+  gain.gain.linearRampToValueAtTime(TX_GAIN * 1.5, now + RAMP_TIME);
+  gain.gain.setValueAtTime(TX_GAIN * 1.5, now + TRIGGER_DURATION - RAMP_TIME);
   gain.gain.linearRampToValueAtTime(0, now + TRIGGER_DURATION);
 
   // 2. データスロット (4スロット連続)
@@ -175,19 +181,18 @@ async function sendId(id) {
 
   document.getElementById("sentId").textContent = id.toLocaleString();
   document.getElementById("sendInfo").textContent =
-    `S1:${s1} | S2:${s2} | S3:${s3} | Check:${check} (全480ms)`;
+    `S1:${s1} | S2:${s2} | S3:${s3} | Check:${check} (全580ms)`;
 }
 
 // =========================================================================
-// 3. 受信エンジン (エネルギー積分 ＆ 消失訂正ソルバー)
+// 3. 受信エンジン (エネルギー積分 & 消失訂正ソルバー)
 // =========================================================================
 let rxCtx = null, rxStream = null, analyser = null, spectrum = null;
 let rxRunning = false;
 let rxState = "WAIT_TRIGGER";
 let triggerCount = 0;
 let dataStartTime = 0;
-let slotEnergyBuffers = []; // [slotIndex][channel] に線形パワーを積算
-let currentSlot = -1;
+let slotEnergyBuffers = [];
 
 const canvas = document.getElementById("specCanvas");
 const canvasCtx = canvas.getContext("2d");
@@ -204,13 +209,13 @@ async function startReceiver() {
     const source = rxCtx.createMediaStreamSource(rxStream);
     analyser = rxCtx.createAnalyser();
     analyser.fftSize = FFT_SIZE;
-    analyser.smoothingTimeConstant = 0.0; // 積分を自前で行うため生データ取得
+    analyser.smoothingTimeConstant = 0.0;
     source.connect(analyser);
     spectrum = new Float32Array(analyser.frequencyBinCount);
 
     rxRunning = true;
     rxState = "WAIT_TRIGGER";
-    setStatus("高感度リスニング中... (トリガー: 19850Hz)");
+    setStatus(`高感度リスニング中... (トリガー: 19950Hz | サンプリング: ${rxCtx.sampleRate}Hz)`);
     requestAnimationFrame(receiverLoop);
   } catch (err) {
     setStatus("マイク初期化失敗: " + err.message);
@@ -227,10 +232,17 @@ function stopReceiver() {
 function getMagAt(freq) {
   const nyquist = rxCtx.sampleRate / 2;
   const bin = Math.round((freq / nyquist) * analyser.frequencyBinCount);
-  return Math.max(spectrum[bin - 1] || -999, spectrum[bin], spectrum[bin + 1] || -999);
+  let maxVal = -Infinity;
+  for (let d = -1; d <= 1; d++) {
+    const cur = bin + d;
+    if (cur >= 0 && cur < spectrum.length && spectrum[cur] > maxVal) {
+      maxVal = spectrum[cur];
+    }
+  }
+  return maxVal;
 }
 
-// 消失復元アルゴリズム (1スロット欠損をパリティ方程式から代数的に修復)
+// 代数消失訂正 (1スロット欠損をモジュロ560空間で完全修復)
 function solveErasure(slots) {
   const [s1, s2, s3, c] = slots;
   const missing = [];
@@ -240,40 +252,36 @@ function solveErasure(slots) {
   if (c === -1) missing.push(4);
 
   if (missing.length === 0) {
-    // 欠損なし -> チェックサム照合
-    const expected = (s1 * 1 + s2 * 2 + s3 * 3) % PRIME_MOD;
-    return (expected === c || (expected % SYMBOL_COUNT === c)) ? { s1, s2, s3, recovered: false } : null;
+    const expected = (s1 * COEFF_1 + s2 * COEFF_2 + s3 * COEFF_3) % SYMBOL_COUNT;
+    return (expected === c) ? { s1, s2, s3, recovered: false } : null;
   }
 
   if (missing.length === 1) {
     const target = missing[0];
     if (target === 4) {
-      // 検査値のみ欠損 -> データ部は無傷
       return { s1, s2, s3, recovered: true, slot: "Check" };
     }
     if (target === 1) {
-      // S1 = (C - 2*S2 - 3*S3) * inv(1) mod PRIME_MOD
-      let val = (c - 2 * s2 - 3 * s3) % PRIME_MOD;
-      val = (val + PRIME_MOD) % PRIME_MOD;
-      if (val < SYMBOL_COUNT) return { s1: val, s2, s3, recovered: true, slot: "S1" };
+      let rhs = (c - s2 * COEFF_2 - s3 * COEFF_3) % SYMBOL_COUNT;
+      rhs = (rhs + SYMBOL_COUNT) % SYMBOL_COUNT;
+      const recS1 = (rhs * INV_C1) % SYMBOL_COUNT;
+      return { s1: recS1, s2, s3, recovered: true, slot: "S1" };
     }
     if (target === 2) {
-      // 2*S2 = (C - S1 - 3*S3) => S2 = RHS * inv(2) mod PRIME_MOD
-      let rhs = (c - s1 - 3 * s3) % PRIME_MOD;
-      rhs = (rhs + PRIME_MOD) % PRIME_MOD;
-      const val = (rhs * modInverse(2, PRIME_MOD)) % PRIME_MOD;
-      if (val < SYMBOL_COUNT) return { s1, s2: val, s3, recovered: true, slot: "S2" };
+      let rhs = (c - s1 * COEFF_1 - s3 * COEFF_3) % SYMBOL_COUNT;
+      rhs = (rhs + SYMBOL_COUNT) % SYMBOL_COUNT;
+      const recS2 = (rhs * INV_C2) % SYMBOL_COUNT;
+      return { s1, s2: recS2, s3, recovered: true, slot: "S2" };
     }
     if (target === 3) {
-      // 3*S3 = (C - S1 - 2*S2) => S3 = RHS * inv(3) mod PRIME_MOD
-      let rhs = (c - s1 - 2 * s2) % PRIME_MOD;
-      rhs = (rhs + PRIME_MOD) % PRIME_MOD;
-      const val = (rhs * modInverse(3, PRIME_MOD)) % PRIME_MOD;
-      if (val < SYMBOL_COUNT) return { s1, s2, s3: val, recovered: true, slot: "S3" };
+      let rhs = (c - s1 * COEFF_1 - s2 * COEFF_2) % SYMBOL_COUNT;
+      rhs = (rhs + SYMBOL_COUNT) % SYMBOL_COUNT;
+      const recS3 = (rhs * INV_C3) % SYMBOL_COUNT;
+      return { s1, s2, s3: recS3, recovered: true, slot: "S3" };
     }
   }
 
-  return null; // 2スロット以上欠損時は破棄
+  return null;
 }
 
 function receiverLoop() {
@@ -287,8 +295,8 @@ function receiverLoop() {
   const guardDb = getMagAt(GUARD_FREQ);
 
   if (rxState === "WAIT_TRIGGER") {
-    // プロミネンス判定: トリガーがガードより12dB以上突出
-    if (trigDb > -95 && (trigDb - guardDb) > 12) {
+    // トリガー突出判定 (ガード周波数対比 +10dB)
+    if (trigDb > -92 && (trigDb - guardDb) > 10) {
       triggerCount++;
     } else {
       triggerCount = 0;
@@ -297,30 +305,31 @@ function receiverLoop() {
     if (triggerCount >= 2) {
       triggerCount = 0;
       rxState = "READING";
-      dataStartTime = now + (TRIGGER_DURATION - 0.020);
-      slotEnergyBuffers = [new Float32Array(NUM_CHANNELS), new Float32Array(NUM_CHANNELS), new Float32Array(NUM_CHANNELS), new Float32Array(NUM_CHANNELS)];
-      currentSlot = 0;
-      setStatus("トリガー捕捉！ データ受信中...");
+      dataStartTime = now + (TRIGGER_DURATION - 0.035);
+      slotEnergyBuffers = [
+        new Float32Array(NUM_CHANNELS),
+        new Float32Array(NUM_CHANNELS),
+        new Float32Array(NUM_CHANNELS),
+        new Float32Array(NUM_CHANNELS)
+      ];
+      setStatus("トリガー捕捉！ データ受信・積分中...");
     }
   } else if (rxState === "READING") {
     const elapsed = now - dataStartTime;
     const slotIdx = Math.floor(elapsed / SLOT_DURATION);
 
     if (slotIdx >= 0 && slotIdx < 4) {
-      currentSlot = slotIdx;
-      // スロットの中央70%区間でパワーを積算
       const slotPhase = elapsed - slotIdx * SLOT_DURATION;
-      if (slotPhase > (SLOT_DURATION * 0.15) && slotPhase < (SLOT_DURATION * 0.85)) {
+      // スロット境界の過渡ノイズを除去するため中央25%〜85%のみ積分
+      if (slotPhase > (SLOT_DURATION * 0.25) && slotPhase < (SLOT_DURATION * 0.85)) {
         for (let ch = 0; ch < NUM_CHANNELS; ch++) {
           const db = getMagAt(FREQS[ch]);
-          // dBをリニアパワーに変換して積算 (ノイズフロア-105dBカット)
-          if (db > -105) {
+          if (db > -95) {
             slotEnergyBuffers[slotIdx][ch] += Math.pow(10, db / 20);
           }
         }
       }
     } else if (slotIdx >= 4) {
-      // 復号フェーズ: 各スロットの積算パワー上位3波を抽出
       const resolvedSlots = [];
 
       for (let s = 0; s < 4; s++) {
@@ -328,17 +337,16 @@ function receiverLoop() {
         scores.sort((a, b) => b.power - a.power);
 
         // 3波のエネルギーが有意に取れているかチェック
-        if (scores[2].power > 0.00001 && scores[0].power > scores[3].power * 1.5) {
+        if (scores[2].power > 0.005) {
           const top3 = [scores[0].idx, scores[1].idx, scores[2].idx].sort((a, b) => a - b);
           const key = `${top3[0]},${top3[1]},${top3[2]}`;
           const tripletIdx = TRIPLET_MAP.get(key);
           resolvedSlots.push(tripletIdx !== undefined ? tripletIdx : -1);
         } else {
-          resolvedSlots.push(-1); // 欠損スロット判定
+          resolvedSlots.push(-1);
         }
       }
 
-      // 代数消失訂正を実行
       const result = solveErasure(resolvedSlots);
 
       if (result) {
@@ -362,11 +370,11 @@ function drawSpectrum() {
   canvasCtx.fillStyle = "#07090d";
   canvasCtx.fillRect(0, 0, w, h);
 
-  const minF = 16800, maxF = 20200;
+  const minF = 17200, maxF = 20200;
   const startBin = Math.floor(minF * FFT_SIZE / rxCtx.sampleRate);
   const endBin = Math.ceil(maxF * FFT_SIZE / rxCtx.sampleRate);
 
-  canvasCtx.strokeStyle = "#8505d5";
+  canvasCtx.strokeStyle = "#00b4d8";
   canvasCtx.lineWidth = 1.5;
   canvasCtx.beginPath();
   for (let b = startBin; b <= endBin; b++) {
