@@ -19,14 +19,14 @@ canvas{width:100%;height:180px;background:#090c11;border-radius:8px;border:1px s
 </style>
 </head>
 <body>
-<h1>音響ID送受信 (無音なし連続Dual-Tone方式)</h1>
+<h1>音響ID送受信 (無音なし連続Dual-Tone方式 - 120ms)</h1>
 <div class="box">
 <h2>通信仕様</h2>
 <div class="small">
 <div>データ周波数: 17,300～19,700 Hz (80 Hz間隔 / 31スロット)</div>
 <div>トリガー周波数: 19,850 Hz (19.85 kHz)</div>
 <div>ペア数: 31C2 = 465 通り</div>
-<div>スロット構成: [Trigger] ＋ [Data 1] ＋ [Data 2] ＋ [Data 3] ＋ [CheckDigit] (無音なし連続 0.5秒)</div>
+<div>スロット構成: [Trigger: 120ms] ＋ [Data 1: 120ms] ＋ [Data 2: 120ms] ＋ [Data 3: 120ms] ＋ [CheckDigit: 120ms] (計0.6秒)</div>
 <div>ID総数: (31C2)^3 = 465^3 = <span id="idCountText">-</span></div>
 </div>
 </div>
@@ -60,15 +60,15 @@ const DATA_STEP = 80;
 const DATA_COUNT = 31; // 17,300Hz 〜 19,700Hz
 const TRIGGER_FREQ = 19850;
 
-const TRIGGER_DURATION = 0.10;
-const SLOT_DURATION = 0.10; // 各スロット100ms (無音なしでシームレス周波数遷移)
+const TRIGGER_DURATION = 0.12; // 120ms
+const SLOT_DURATION = 0.12;    // 各スロット 120ms
 const RAMP_TIME = 0.005;
-const TX_GAIN = 0.07; // 2波同時送出のため各波0.07 (合計約0.14)
+const TX_GAIN = 0.10;          // S/N比確保のため少し高めに設定
 
-const FFT_SIZE = 2048; // 48kHzサンプリング時: 分解能約23.4Hz / 時間窓約42ms (80Hz間隔を明確に分離)
-const TRIGGER_MIN_DB = -100;
+const FFT_SIZE = 2048;         // 48kHzサンプリング時: 分解能約23.4Hz / 窓幅約42.7ms
+const TRIGGER_MIN_DB = -75;
 const TRIGGER_CONFIRM_FRAMES = 2;
-const DATA_MIN_DB = -95;
+const DATA_MIN_DB = -85;       // 感度を緩和
 
 const FREQ_DATA = [];
 for (let i = 0; i < DATA_COUNT; i++) FREQ_DATA.push(DATA_START_FREQ + i * DATA_STEP);
@@ -85,7 +85,7 @@ for (let i = 0; i < DATA_COUNT; i++) {
 }
 
 const PAIR_COUNT = PAIRS.length; // 465
-const ID_COUNT = PAIR_COUNT * PAIR_COUNT * PAIR_COUNT; // 465^3 = 100,544,625 (> 1億)
+const ID_COUNT = PAIR_COUNT * PAIR_COUNT * PAIR_COUNT; // 465^3 = 100,544,625
 const MAX_ID = ID_COUNT - 1;
 
 document.getElementById("sendId").max = MAX_ID;
@@ -148,7 +148,7 @@ async function sendId(id) {
   gainA.gain.linearRampToValueAtTime(TX_GAIN * 1.5, now + RAMP_TIME);
   gainA.gain.setValueAtTime(TX_GAIN * 1.5, now + TRIGGER_DURATION);
 
-  // 2. DATA 1 -> DATA 2 -> DATA 3 -> CHECKSUM (無音なし・周波数のみ即時遷移)
+  // 2. DATA 1 -> DATA 2 -> DATA 3 -> CHECKSUM (周波数連続遷移)
   let t = now + TRIGGER_DURATION;
   for (let s = 0; s < slotPairs.length; s++) {
     const pair = slotPairs[s];
@@ -164,7 +164,7 @@ async function sendId(id) {
     t += SLOT_DURATION;
   }
 
-  // 終了時のみクリックノイズ防止でフェードアウト
+  // 終了時クリックノイズ防止
   gainA.gain.setValueAtTime(TX_GAIN, t - RAMP_TIME);
   gainB.gain.setValueAtTime(TX_GAIN, t - RAMP_TIME);
   gainA.gain.linearRampToValueAtTime(0, t);
@@ -278,26 +278,33 @@ function detectTrigger() {
   return true;
 }
 
-// 2波同時ピーク検出 (31スロットから上位2つの山を取得)
+// 2波ピーク検出（隣接ビンのサイドローブ干渉を除去して上位2波を抽出）
 function detectSlotPair() {
   const cands = [];
   for (let i = 0; i < DATA_COUNT; i++) {
     const p = getLocalPeakAround(FREQ_DATA[i]);
-    // 局所極大値判定 (隣り合うビンより高いか)
-    const prevDb = i > 0 ? getLocalPeakAround(FREQ_DATA[i - 1]).db : -Infinity;
-    const nextDb = i < DATA_COUNT - 1 ? getLocalPeakAround(FREQ_DATA[i + 1]).db : -Infinity;
-    if (p.db >= prevDb && p.db >= nextDb) {
+    if (p.db >= DATA_MIN_DB) {
       cands.push({ index: i, freq: FREQ_DATA[i], db: p.db });
     }
   }
+
   cands.sort((a, b) => b.db - a.db);
-
   if (cands.length < 2) return null;
-  const first = cands[0];
-  const second = cands[1];
 
-  if (first.db < DATA_MIN_DB || second.db < DATA_MIN_DB) return null;
-  if (first.db - second.db > 14) return null; // 2波の音量差制限
+  const first = cands[0];
+  
+  // 1番目のピークのサイドローブ（隣接±1スロット）を除外して2番目を特定
+  let second = null;
+  for (let i = 1; i < cands.length; i++) {
+    if (Math.abs(cands[i].index - first.index) >= 2) {
+      second = cands[i];
+      break;
+    }
+  }
+  if (!second) return null;
+
+  // 2波の強度差が20dB以上開いている場合はノイズとみなす
+  if (first.db - second.db > 20) return null;
 
   const a = Math.min(first.index, second.index);
   const b = Math.max(first.index, second.index);
@@ -355,7 +362,13 @@ function resetReceiverState() {
 }
 
 function processReceivedSlots() {
-  if (rxSlots.length !== 4) return;
+  // スロット未取得(-1)が含まれているか検証
+  if (rxSlots.length !== 4 || rxSlots.includes(-1)) {
+    setStatus(`スロット欠損のため復号不可\n検出結果: [${rxSlots.join(", ")}]\nトリガー待機に戻ります`);
+    resetReceiverState();
+    return;
+  }
+
   const [p1, p2, p3, checksum] = rxSlots;
   const expectedChecksum = (p1 + p2 * 2 + p3 * 3) % PAIR_COUNT;
 
@@ -384,7 +397,8 @@ function receiverLoop() {
     }
 
     if (triggerConfirmCount >= TRIGGER_CONFIRM_FRAMES) {
-      dataStartAt = now + (TRIGGER_DURATION * 0.75); // トリガー後縁付近を基準時刻に設定
+      // 2フレーム検出時（約33ms後）からトリガー残り時間を加算してデータ開始時刻を算出
+      dataStartAt = now + (TRIGGER_DURATION - 0.035);
       rxState = "READ_DATA";
       triggerConfirmCount = 0;
       currentSlotIndex = -1;
@@ -395,52 +409,40 @@ function receiverLoop() {
     const elapsed = now - dataStartAt;
     const slotIdx = Math.floor(elapsed / SLOT_DURATION);
 
-    if (slotIdx >= 0 && slotIdx < 4) {
-      if (slotIdx !== currentSlotIndex) {
-        // 前スロットの投票集計
-        if (currentSlotIndex >= 0 && currentSlotVotes.length > 0) {
-          const counts = {};
-          currentSlotVotes.forEach(v => counts[v] = (counts[v] || 0) + 1);
-          let best = -1, maxC = 0;
-          for (const k in counts) {
-            if (counts[k] > maxC) {
-              maxC = counts[k];
-              best = Number(k);
-            }
-          }
-          rxSlots.push(best);
-        }
-        currentSlotIndex = slotIdx;
-        currentSlotVotes = [];
-      }
-
-      // 各スロットの安定区間（25%〜85%）でサンプリング投票
-      const phase = elapsed - slotIdx * SLOT_DURATION;
-      if (phase >= SLOT_DURATION * 0.25 && phase <= SLOT_DURATION * 0.85) {
-        const detected = detectSlotPair();
-        if (detected) {
-          currentSlotVotes.push(detected.pairIndex);
-          peakMonitor.textContent = `[Slot ${slotIdx + 1}/4 検出中] ${detected.f1} Hz + ${detected.f2} Hz (PairIndex: ${detected.pairIndex})`;
-        }
-      }
-    } else if (slotIdx >= 4) {
-      // 最終スロット集計
+    // スロット切り替わり判定と前スロットの確定
+    if (slotIdx !== currentSlotIndex && currentSlotIndex >= 0 && currentSlotIndex < 4) {
+      let best = -1;
       if (currentSlotVotes.length > 0) {
         const counts = {};
         currentSlotVotes.forEach(v => counts[v] = (counts[v] || 0) + 1);
-        let best = -1, maxC = 0;
+        let maxC = 0;
         for (const k in counts) {
           if (counts[k] > maxC) {
             maxC = counts[k];
             best = Number(k);
           }
         }
-        rxSlots.push(best);
       }
+      rxSlots.push(best); // 判定漏れがあっても -1 で配列長(4)を維持
+      currentSlotVotes = [];
+    }
+    currentSlotIndex = slotIdx;
+
+    if (slotIdx >= 0 && slotIdx < 4) {
+      // 周波数遷移直後(約40ms)を避けた 35%〜85% の安定区間でサンプリング
+      const phase = elapsed - slotIdx * SLOT_DURATION;
+      if (phase >= SLOT_DURATION * 0.35 && phase <= SLOT_DURATION * 0.85) {
+        const detected = detectSlotPair();
+        if (detected) {
+          currentSlotVotes.push(detected.pairIndex);
+          peakMonitor.textContent = `[Slot ${slotIdx + 1}/4 検出中] ${detected.f1} Hz + ${detected.f2} Hz (Pair: ${detected.pairIndex})`;
+        }
+      }
+    } else if (slotIdx >= 4) {
       processReceivedSlots();
     }
 
-    if (elapsed > SLOT_DURATION * 6) {
+    if (elapsed > SLOT_DURATION * 5.5) {
       setStatus("受信タイムアウト\nトリガー待機に戻ります");
       resetReceiverState();
     }
