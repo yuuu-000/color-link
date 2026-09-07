@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ultrasonic ID Sender / Receiver (Triple-Tone 3-Slot Continuous)</title>
+<title>Ultrasonic ID Sender / Receiver (Triple-Tone Robust)</title>
 <style>
 body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:20px;max-width:900px;background:#0b0d12;color:#fff}
-h1{font-size:24px;margin-bottom:8px}
+h1{font-size:22px;margin-bottom:8px}
 .box{background:#151923;border:1px solid #2a3040;border-radius:12px;padding:16px;margin:14px 0}
 button{font-size:15px;font-weight:600;padding:10px 16px;margin:4px;cursor:pointer;border:0;border-radius:8px;background:#252b38;color:#fff}
 button:hover{background:#303848}
@@ -19,15 +19,13 @@ canvas{width:100%;height:180px;background:#090c11;border-radius:8px;border:1px s
 </style>
 </head>
 <body>
-<h1>音響ID送受信 (無音なし連続Triple-Tone方式: 16C3^3)</h1>
+<h1>音響ID送受信 (高安定 Triple-Tone: 16C3^3)</h1>
 <div class="box">
 <h2>通信仕様</h2>
 <div class="small">
 <div>データ周波数: 17,500～19,450 Hz (130 Hz間隔 / 16チャンネル)</div>
-<div>トリガー周波数: 19,850 Hz (19.85 kHz)</div>
-<div>シンボル数: 16C3 = 560 通り (各スロット3波同時送出)</div>
-<div>スロット構成: トリガー + Slot1 + Slot2 + Slot3 + Checksum (各130ms)</div>
-<div>ID総数: (16C3)^3 = 560^3 = <span id="idCountText">-</span></div>
+<div>トリガー周波数: 19,850 Hz | スロット長: 160ms | FFT: 2048</div>
+<div>ID総数: 560^3 = <span id="idCountText">-</span> 通り</div>
 </div>
 </div>
 
@@ -54,24 +52,24 @@ canvas{width:100%;height:180px;background:#090c11;border-radius:8px;border:1px s
 <script>
 "use strict";
 
-// CONFIGURATION
 const BASE_FREQ = 17500;
 const STEP_FREQ = 130;
 const NUM_CHANNELS = 16;
-const FREQS = Array.from({ length: NUM_CHANNELS }, (_, i) => BASE_FREQ + i * STEP_FREQ); // 17,500Hz 〜 19,450Hz
+const FREQS = Array.from({ length: NUM_CHANNELS }, (_, i) => BASE_FREQ + i * STEP_FREQ);
 const TRIGGER_FREQ = 19850;
 
-const TRIGGER_DURATION = 0.130;
-const SLOT_DURATION = 0.130;
-const RAMP_TIME = 0.005;
-const TX_GAIN = 0.08;           // 3波合成のためクリッピング防止に各波ゲインを抑制
+// スロット長を160msに広げ、過渡応答の影響を低減
+const TRIGGER_DURATION = 0.160;
+const SLOT_DURATION = 0.160;
+const RAMP_TIME = 0.008;
+const TX_GAIN = 0.07; // クリッピング回避の安全ゲイン
 
-const FFT_SIZE = 4096;          // 48kHz時: 分解能約11.7Hz / 窓幅約85.3ms
+// FFT 2048: 48kHzサンプリング時 Bin分解能約23.4Hz / 窓幅約42.7ms (130Hz間隔に最適)
+const FFT_SIZE = 2048;
 const TRIGGER_MIN_DB = -95;
 const TRIGGER_CONFIRM_FRAMES = 2;
-const DATA_MIN_DB = -95;
+const DATA_MIN_DB = -92;
 
-// 16C3 = 560 通りのトリプレットテーブル生成
 const TRIPLETS = [];
 const TRIPLET_INDEX = new Map();
 for (let i = 0; i < NUM_CHANNELS; i++) {
@@ -85,16 +83,13 @@ for (let i = 0; i < NUM_CHANNELS; i++) {
 }
 
 const SYMBOL_COUNT = TRIPLETS.length; // 560
-const ID_COUNT = SYMBOL_COUNT * SYMBOL_COUNT * SYMBOL_COUNT; // 560^3 = 175,616,000
+const ID_COUNT = SYMBOL_COUNT * SYMBOL_COUNT * SYMBOL_COUNT;
 const MAX_ID = ID_COUNT - 1;
 
 document.getElementById("sendId").max = MAX_ID;
 document.getElementById("idCountText").textContent = `${ID_COUNT.toLocaleString()} 通り (0 ～ ${MAX_ID.toLocaleString()})`;
 
 function idToSlots(id) {
-  if (!Number.isInteger(id)) throw new Error("IDは整数で指定してください");
-  if (id < 0 || id > MAX_ID) throw new Error("IDは0～" + MAX_ID + "です");
-
   const s1 = Math.floor(id / (SYMBOL_COUNT * SYMBOL_COUNT));
   const rem = id % (SYMBOL_COUNT * SYMBOL_COUNT);
   const s2 = Math.floor(rem / SYMBOL_COUNT);
@@ -114,7 +109,6 @@ function slotsToId(s1, s2, s3) {
   return s1 * SYMBOL_COUNT * SYMBOL_COUNT + s2 * SYMBOL_COUNT + s3;
 }
 
-// TRANSMITTER
 let txCtx = null;
 function initTx() {
   if (!txCtx) txCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -144,7 +138,7 @@ async function sendId(id) {
 
   const now = ctx.currentTime + 0.05;
 
-  // 1. TRIGGER (単音同期: 19.85 kHz)
+  // 1. TRIGGER
   gainA.gain.setValueAtTime(0, now);
   gainB.gain.setValueAtTime(0, now);
   gainC.gain.setValueAtTime(0, now);
@@ -153,20 +147,16 @@ async function sendId(id) {
   oscB.frequency.setValueAtTime(TRIGGER_FREQ, now);
   oscC.frequency.setValueAtTime(TRIGGER_FREQ, now);
 
-  gainA.gain.linearRampToValueAtTime(TX_GAIN * 1.8, now + RAMP_TIME);
-  gainA.gain.setValueAtTime(TX_GAIN * 1.8, now + TRIGGER_DURATION);
+  gainA.gain.linearRampToValueAtTime(TX_GAIN * 1.5, now + RAMP_TIME);
+  gainA.gain.setValueAtTime(TX_GAIN * 1.5, now + TRIGGER_DURATION);
 
-  // 2. DATA 1 -> DATA 2 -> DATA 3 -> CHECKSUM (3波連続遷移)
+  // 2. DATA SLOTS
   let t = now + TRIGGER_DURATION;
   for (let s = 0; s < slotTriplets.length; s++) {
     const trip = slotTriplets[s];
-    const f1 = FREQS[trip[0]];
-    const f2 = FREQS[trip[1]];
-    const f3 = FREQS[trip[2]];
-
-    oscA.frequency.setValueAtTime(f1, t);
-    oscB.frequency.setValueAtTime(f2, t);
-    oscC.frequency.setValueAtTime(f3, t);
+    oscA.frequency.setValueAtTime(FREQS[trip[0]], t);
+    oscB.frequency.setValueAtTime(FREQS[trip[1]], t);
+    oscC.frequency.setValueAtTime(FREQS[trip[2]], t);
 
     gainA.gain.setValueAtTime(TX_GAIN, t);
     gainB.gain.setValueAtTime(TX_GAIN, t);
@@ -175,11 +165,9 @@ async function sendId(id) {
     t += SLOT_DURATION;
   }
 
-  // 終了時ランプ
   gainA.gain.setValueAtTime(TX_GAIN, t - RAMP_TIME);
   gainB.gain.setValueAtTime(TX_GAIN, t - RAMP_TIME);
   gainC.gain.setValueAtTime(TX_GAIN, t - RAMP_TIME);
-
   gainA.gain.linearRampToValueAtTime(0, t);
   gainB.gain.linearRampToValueAtTime(0, t);
   gainC.gain.linearRampToValueAtTime(0, t);
@@ -193,10 +181,7 @@ async function sendId(id) {
 
   document.getElementById("sentId").textContent = id.toLocaleString();
   document.getElementById("sendInfo").textContent =
-    `D1: [${FREQS[decoded.trip1[0]]}, ${FREQS[decoded.trip1[1]]}, ${FREQS[decoded.trip1[2]]} Hz], ` +
-    `D2: [${FREQS[decoded.trip2[0]]}, ${FREQS[decoded.trip2[1]]}, ${FREQS[decoded.trip2[2]]} Hz], ` +
-    `D3: [${FREQS[decoded.trip3[0]]}, ${FREQS[decoded.trip3[1]]}, ${FREQS[decoded.trip3[2]]} Hz], ` +
-    `Check: [${FREQS[decoded.tripCheck[0]]}, ${FREQS[decoded.tripCheck[1]]}, ${FREQS[decoded.tripCheck[2]]} Hz]`;
+    `D1:[${decoded.trip1.join(",")}], D2:[${decoded.trip2.join(",")}], D3:[${decoded.trip3.join(",")}], Check:[${decoded.tripCheck.join(",")}]`;
 }
 
 // RECEIVER
@@ -239,17 +224,17 @@ async function startReceiver() {
     rxSource = rxCtx.createMediaStreamSource(rxStream);
     analyser = rxCtx.createAnalyser();
     analyser.fftSize = FFT_SIZE;
-    analyser.smoothingTimeConstant = 0.0;
+    analyser.smoothingTimeConstant = 0.1; // 軽微な平滑化でスパイクノイズ抑制
 
     rxSource.connect(analyser);
     spectrum = new Float32Array(analyser.frequencyBinCount);
 
     rxRunning = true;
     resetReceiverState();
-    setStatus(`受信待機中...\nSampleRate: ${rxCtx.sampleRate} Hz | FFT: ${FFT_SIZE} | Bin: ${(rxCtx.sampleRate / FFT_SIZE).toFixed(2)} Hz`);
+    setStatus(`受信待機中...\nRate: ${rxCtx.sampleRate}Hz | FFT: ${FFT_SIZE} | Bin: ${(rxCtx.sampleRate / FFT_SIZE).toFixed(2)}Hz`);
     requestAnimationFrame(receiverLoop);
   } catch (err) {
-    setStatus("マイク開始失敗\n" + err.message);
+    setStatus("マイク開始失敗: " + err.message);
   }
 }
 
@@ -272,7 +257,8 @@ function getLocalPeakAround(freq) {
   const bin = Math.round(freq * FFT_SIZE / rxCtx.sampleRate);
   let bestBin = bin;
   let bestDb = -Infinity;
-  for (let d = -1; d <= 1; d++) {
+  // 周囲±2ビン（約±46Hz）の中で最高点を探す
+  for (let d = -2; d <= 2; d++) {
     const cur = bin + d;
     if (cur >= 0 && cur < spectrum.length && spectrum[cur] > bestDb) {
       bestDb = spectrum[cur];
@@ -289,37 +275,35 @@ function detectTrigger() {
     const p = getLocalPeakAround(FREQS[i]);
     if (p.db > maxData) maxData = p.db;
   }
-  if (triggerPeak.db < TRIGGER_MIN_DB) return false;
-  if (triggerPeak.db < maxData + 6) return false;
-  return true;
+  return (triggerPeak.db >= TRIGGER_MIN_DB && triggerPeak.db >= maxData + 6);
 }
 
-// 3波ピーク検出
+// 安定した3波検出
 function detectSlotTriplet() {
-  const cands = [];
+  const channelPowers = [];
+  let noiseFloor = 0;
+
   for (let i = 0; i < NUM_CHANNELS; i++) {
     const p = getLocalPeakAround(FREQS[i]);
-    if (p.db >= DATA_MIN_DB) {
-      cands.push({ index: i, freq: FREQS[i], db: p.db });
-    }
+    channelPowers.push({ index: i, freq: FREQS[i], db: p.db });
+    noiseFloor += p.db;
   }
+  noiseFloor /= NUM_CHANNELS;
 
-  cands.sort((a, b) => b.db - a.db);
-  if (cands.length < 3) return null;
+  channelPowers.sort((a, b) => b.db - a.db);
 
-  // 上位候補から隣接干渉のない3波を選択
+  // 上位3波の選択（隣接インデックス間のサイドローブ被りを回避）
   const selected = [];
-  for (const cand of cands) {
+  for (const cand of channelPowers) {
+    if (cand.db < DATA_MIN_DB || cand.db < noiseFloor + 5) continue; // ノイズフロア比+5dB以上
     const conflict = selected.some(s => Math.abs(s.index - cand.index) < 1);
     if (!conflict) {
       selected.push(cand);
       if (selected.length === 3) break;
     }
   }
-  if (selected.length < 3) return null;
 
-  // 最強波と最弱波の差が20dBを超えている場合はノイズとみなす
-  if (selected[0].db - selected[2].db > 20) return null;
+  if (selected.length < 3) return null;
 
   const idxs = selected.map(s => s.index).sort((a, b) => a - b);
   const tripletKey = `${idxs[0]},${idxs[1]},${idxs[2]}`;
@@ -330,7 +314,8 @@ function detectSlotTriplet() {
     tripletIndex,
     f1: FREQS[idxs[0]],
     f2: FREQS[idxs[1]],
-    f3: FREQS[idxs[2]]
+    f3: FREQS[idxs[2]],
+    avgDb: (selected[0].db + selected[1].db + selected[2].db) / 3
   };
 }
 
@@ -364,7 +349,6 @@ function drawSpectrum() {
   }
   canvasCtx.stroke();
 
-  // トリガーライン (19.85 kHz)
   canvasCtx.strokeStyle = "#ffcc00";
   canvasCtx.beginPath();
   canvasCtx.moveTo(fToX(TRIGGER_FREQ), 0);
@@ -416,12 +400,12 @@ function receiverLoop() {
     }
 
     if (triggerConfirmCount >= TRIGGER_CONFIRM_FRAMES) {
-      dataStartAt = now + (TRIGGER_DURATION - 0.035);
+      dataStartAt = now + (TRIGGER_DURATION - 0.040);
       rxState = "READ_DATA";
       triggerConfirmCount = 0;
       currentSlotIndex = -1;
       rxSlots = [];
-      setStatus("トリガー同期検知！ データ受信中 (連続4スロット)...");
+      setStatus("トリガー検知！ 復号処理中...");
     }
   } else if (rxState === "READ_DATA") {
     const elapsed = now - dataStartAt;
@@ -446,19 +430,20 @@ function receiverLoop() {
     currentSlotIndex = slotIdx;
 
     if (slotIdx >= 0 && slotIdx < 4) {
+      // スロット過渡期を外した中央区間（25%〜85%）でサンプリング
       const phase = elapsed - slotIdx * SLOT_DURATION;
-      if (phase >= SLOT_DURATION * 0.35 && phase <= SLOT_DURATION * 0.85) {
+      if (phase >= SLOT_DURATION * 0.25 && phase <= SLOT_DURATION * 0.85) {
         const detected = detectSlotTriplet();
         if (detected) {
           currentSlotVotes.push(detected.tripletIndex);
-          peakMonitor.textContent = `[Slot ${slotIdx + 1}/4 検出中] ${detected.f1} + ${detected.f2} + ${detected.f3} Hz (Index: ${detected.tripletIndex})`;
+          peakMonitor.textContent = `[Slot ${slotIdx + 1}/4] ${detected.f1} + ${detected.f2} + ${detected.f3} Hz (Index: ${detected.tripletIndex})`;
         }
       }
     } else if (slotIdx >= 4) {
       processReceivedSlots();
     }
 
-    if (elapsed > SLOT_DURATION * 5.5) {
+    if (elapsed > SLOT_DURATION * 5.0) {
       setStatus("受信タイムアウト\nトリガー待機に戻ります");
       resetReceiverState();
     }
@@ -467,7 +452,6 @@ function receiverLoop() {
   requestAnimationFrame(receiverLoop);
 }
 
-// EVENT HANDLERS
 document.getElementById("sendButton").addEventListener("click", async () => {
   const id = Number(document.getElementById("sendId").value);
   if (!Number.isInteger(id) || id < 0 || id > MAX_ID) {
