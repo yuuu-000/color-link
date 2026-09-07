@@ -225,6 +225,14 @@
       color: #7f899b;
       line-height: 1.5;
     }
+
+    .ch-card {
+      background: #0d1017;
+      border: 1px solid #252b36;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
   </style>
 </head>
 
@@ -251,22 +259,56 @@
       <div class="config-group">
 
         <div>
+          <label>総ゲイン (0.0 - 0.5)</label>
+          <input type="text" id="txGainVal" value="0.05">
+          <div class="small" style="margin-top:4px;">※有効な送信チャンネル数で等分されます</div>
+        </div>
+
+        <label style="margin-top: 6px;">送信チャンネル設定（最大3波同時送信）</label>
+
+        <!-- CH1 -->
+        <div class="ch-card">
           <div class="flex-between">
-            <label>送信周波数 (Hz)</label>
-            <span id="freqValText" style="font:13px ui-monospace; color:#77e3a2;">
+            <label style="display:flex; align-items:center; gap:6px; margin:0; cursor:pointer; color:#fff; font-weight:600;">
+              <input type="checkbox" id="txCh1Enable" checked style="accent-color:#77e3a2;">
+              CH 1 送信周波数 (Hz)
+            </label>
+            <span id="freqValText1" style="font:13px ui-monospace; color:#77e3a2;">
               18000 Hz
             </span>
           </div>
-
-          <input type="range" id="txFreqRange" value="18000" min="100" max="22000" step="1">
-
-          <input type="number" id="txFreqNum" value="18000" min="100" max="24000" style="margin-top:8px;">
+          <input type="range" id="txFreqRange1" value="18000" min="100" max="22000" step="1">
+          <input type="number" id="txFreqNum1" value="18000" min="100" max="24000">
         </div>
 
+        <!-- CH2 -->
+        <div class="ch-card">
+          <div class="flex-between">
+            <label style="display:flex; align-items:center; gap:6px; margin:0; cursor:pointer; color:#fff; font-weight:600;">
+              <input type="checkbox" id="txCh2Enable" style="accent-color:#7fc8ff;">
+              CH 2 送信周波数 (Hz)
+            </label>
+            <span id="freqValText2" style="font:13px ui-monospace; color:#7fc8ff;">
+              18500 Hz
+            </span>
+          </div>
+          <input type="range" id="txFreqRange2" value="18500" min="100" max="22000" step="1">
+          <input type="number" id="txFreqNum2" value="18500" min="100" max="24000">
+        </div>
 
-        <div>
-          <label>ゲイン (0.0 - 0.5)</label>
-          <input type="text" id="txGainVal" value="0.05">
+        <!-- CH3 -->
+        <div class="ch-card">
+          <div class="flex-between">
+            <label style="display:flex; align-items:center; gap:6px; margin:0; cursor:pointer; color:#fff; font-weight:600;">
+              <input type="checkbox" id="txCh3Enable" style="accent-color:#ffae7f;">
+              CH 3 送信周波数 (Hz)
+            </label>
+            <span id="freqValText3" style="font:13px ui-monospace; color:#ffae7f;">
+              19000 Hz
+            </span>
+          </div>
+          <input type="range" id="txFreqRange3" value="19000" min="100" max="22000" step="1">
+          <input type="number" id="txFreqNum3" value="19000" min="100" max="24000">
         </div>
 
       </div>
@@ -346,8 +388,8 @@
 
 
       <div class="small">
-        上段：マイク波形 
-        下段：0kHz〜22kHzスペクトラム 
+        上段：マイク波形
+        下段：0kHz〜22kHzスペクトラム
         48kHzサンプリング時のナイキスト周波数は24kHzです。
       </div>
 
@@ -374,8 +416,12 @@
       // TX State
       let tx = {
         ctx: null,
-        osc: null,
-        gain: null,
+        channels: [
+          { osc: null, gain: null },
+          { osc: null, gain: null },
+          { osc: null, gain: null }
+        ],
+        masterGain: null,
         running: false
       };
 
@@ -396,30 +442,111 @@
         $("txPanel").style.display = "none";
       };
 
-      // TX FREQUENCY
-      const freqRange = $("txFreqRange");
-      const freqNum = $("txFreqNum");
-      const freqValText = $("freqValText");
-
-      function updateFrequency(val, smooth = false) {
+      // TX FREQUENCY & CHANNELS
+      function commitFrequency(chIdx, val, smooth = false) {
+        const idNum = chIdx + 1;
         const f = Math.max(100, Math.min(24000, parseFloat(val) || 1000));
 
-        freqRange.value = f;
-        freqNum.value = f;
-        freqValText.textContent = `${f} Hz`;
+        $(`txFreqRange${idNum}`).value = f;
+        $(`txFreqNum${idNum}`).value = f;
+        $(`freqValText${idNum}`).textContent = `${f} Hz`;
 
-        if (tx.running && tx.osc && tx.ctx) {
+        if (tx.running && tx.channels[chIdx].osc && tx.ctx) {
           if (smooth) {
-            tx.osc.frequency.setTargetAtTime(f, tx.ctx.currentTime, 0.02);
+            tx.channels[chIdx].osc.frequency.setTargetAtTime(f, tx.ctx.currentTime, 0.02);
           } else {
-            tx.osc.frequency.setValueAtTime(f, tx.ctx.currentTime);
+            tx.channels[chIdx].osc.frequency.setValueAtTime(f, tx.ctx.currentTime);
           }
-          $("txStatus").textContent = `送信中: ${f}Hz`;
+          updateTxStatusDisplay();
         }
       }
 
-      freqRange.oninput = e => updateFrequency(e.target.value, true);
-      freqNum.oninput = e => updateFrequency(e.target.value, false);
+      function updateChannelGains() {
+        if (!tx.running || !tx.ctx) return;
+        const totalGain = Math.max(0, Math.min(0.5, parseFloat($("txGainVal").value) || 0.05));
+        const enables = [
+          $("txCh1Enable").checked,
+          $("txCh2Enable").checked,
+          $("txCh3Enable").checked
+        ];
+        const activeCount = enables.filter(Boolean).length;
+        const perChannelGain = activeCount > 0 ? (totalGain / activeCount) : 0;
+
+        for (let i = 0; i < 3; i++) {
+          if (tx.channels[i].gain) {
+            const target = enables[i] ? perChannelGain : 0;
+            tx.channels[i].gain.gain.setTargetAtTime(target, tx.ctx.currentTime, 0.02);
+          }
+        }
+        updateTxStatusDisplay();
+      }
+
+      function updateTxStatusDisplay() {
+        const actives = [];
+        for (let i = 0; i < 3; i++) {
+          if ($(`txCh${i + 1}Enable`).checked) {
+            actives.push(`${parseFloat($(`txFreqNum${i + 1}`).value) || 0}Hz`);
+          }
+        }
+        if (actives.length > 0) {
+          $("txStatus").textContent = `送信中: ${actives.join(" + ")}`;
+        } else {
+          $("txStatus").textContent = "送信中: (全CHミュート)";
+        }
+      }
+
+      for (let i = 0; i < 3; i++) {
+        const idNum = i + 1;
+        // スライダー操作中はリアルタイムに反映
+        $(`txFreqRange${idNum}`).oninput = e => commitFrequency(i, e.target.value, true);
+
+        // 数値入力は確定時（Enter押下またはフォーカスが外れた時）のみバリデーション・反映
+        $(`txFreqNum${idNum}`).onchange = e => commitFrequency(i, e.target.value, false);
+        $(`txFreqNum${idNum}`).addEventListener("keydown", e => {
+          if (e.key === "Enter") {
+            e.target.blur();
+          }
+        });
+
+        $(`txCh${idNum}Enable`).onchange = () => updateChannelGains();
+      }
+
+      // ゲイン入力も入力完了時のみバリデーション・反映
+      $("txGainVal").onchange = e => {
+        const val = Math.max(0, Math.min(0.5, parseFloat(e.target.value) || 0.05));
+        e.target.value = val;
+        updateChannelGains();
+      };
+      $("txGainVal").addEventListener("keydown", e => {
+        if (e.key === "Enter") {
+          e.target.blur();
+        }
+      });
+
+      // 受信側のピーク範囲入力も入力確定時のみバリデーション
+      function validateRxPeakInputs() {
+        let min = parseFloat($("rxPeakMinHz").value);
+        let max = parseFloat($("rxPeakMaxHz").value);
+        if (isNaN(min)) min = 0;
+        if (isNaN(max)) max = 22000;
+        min = Math.max(0, Math.min(24000, min));
+        max = Math.max(0, Math.min(24000, max));
+        if (min > max) {
+          const temp = min;
+          min = max;
+          max = temp;
+        }
+        $("rxPeakMinHz").value = min;
+        $("rxPeakMaxHz").value = max;
+      }
+      $("rxPeakMinHz").onchange = validateRxPeakInputs;
+      $("rxPeakMinHz").addEventListener("keydown", e => {
+        if (e.key === "Enter") e.target.blur();
+      });
+      $("rxPeakMaxHz").onchange = validateRxPeakInputs;
+      $("rxPeakMaxHz").addEventListener("keydown", e => {
+        if (e.key === "Enter") e.target.blur();
+      });
 
       // TX START
       $("txStart").onclick = async () => {
@@ -432,28 +559,51 @@
             await tx.ctx.resume();
           }
 
-          const freq = parseFloat(freqNum.value) || 18000;
-          const gainVal = Math.max(0, Math.min(0.5, parseFloat($("txGainVal").value) || 0.05));
+          const totalGain = Math.max(0, Math.min(0.5, parseFloat($("txGainVal").value) || 0.05));
+          const enables = [
+            $("txCh1Enable").checked,
+            $("txCh2Enable").checked,
+            $("txCh3Enable").checked
+          ];
+          const activeCount = enables.filter(Boolean).length;
+          const perChannelGain = activeCount > 0 ? (totalGain / activeCount) : 0;
 
-          tx.osc = tx.ctx.createOscillator();
-          tx.gain = tx.ctx.createGain();
+          tx.masterGain = tx.ctx.createGain();
+          tx.masterGain.gain.setValueAtTime(1.0, tx.ctx.currentTime);
+          tx.masterGain.connect(tx.ctx.destination);
 
-          tx.osc.type = "sine";
-          tx.osc.frequency.setValueAtTime(freq, tx.ctx.currentTime);
-          tx.gain.gain.setValueAtTime(gainVal, tx.ctx.currentTime);
+          const activeLogs = [];
 
-          tx.osc.connect(tx.gain).connect(tx.ctx.destination);
-          tx.osc.start();
+          for (let i = 0; i < 3; i++) {
+            const idNum = i + 1;
+            const freq = parseFloat($(`txFreqNum${idNum}`).value) || 18000;
+            const osc = tx.ctx.createOscillator();
+            const gain = tx.ctx.createGain();
+
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(freq, tx.ctx.currentTime);
+            gain.gain.setValueAtTime(enables[i] ? perChannelGain : 0, tx.ctx.currentTime);
+
+            osc.connect(gain).connect(tx.masterGain);
+            osc.start();
+
+            tx.channels[i] = { osc, gain };
+
+            if (enables[i]) {
+              activeLogs.push(`CH${idNum}: ${freq} Hz`);
+            }
+          }
 
           tx.running = true;
 
           $("txStart").disabled = true;
           $("txStop").disabled = false;
-          $("txStatus").textContent = `送信中: ${freq}Hz`;
           $("txStatus").className = "status good";
+          updateTxStatusDisplay();
 
           $("txLog").textContent =
-            `[Info] Tone active at ${freq} Hz.\n` +
+            `[Info] Tones active -> ${activeLogs.length > 0 ? activeLogs.join(", ") : "None"}\n` +
+            `[Info] Total Gain: ${totalGain} (Allocated per CH: ${perChannelGain.toFixed(4)})\n` +
             `[Info] AudioContext: ${tx.ctx.state}\n` +
             `[Info] SampleRate: ${tx.ctx.sampleRate} Hz`;
         } catch (e) {
@@ -466,10 +616,18 @@
         if (!tx.running) return;
 
         try {
-          tx.osc?.stop();
+          for (let i = 0; i < 3; i++) {
+            tx.channels[i].osc?.stop();
+          }
           await tx.ctx?.close();
         } catch {}
 
+        tx.channels = [
+          { osc: null, gain: null },
+          { osc: null, gain: null },
+          { osc: null, gain: null }
+        ];
+        tx.masterGain = null;
         tx.running = false;
 
         $("txStart").disabled = false;
@@ -816,7 +974,9 @@
       window.addEventListener("beforeunload", () => {
         try {
           if (tx.running) {
-            tx.osc?.stop();
+            for (let i = 0; i < 3; i++) {
+              tx.channels[i].osc?.stop();
+            }
             tx.ctx?.close();
           }
 
