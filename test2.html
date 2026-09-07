@@ -1,244 +1,443 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>超音波 FS データ送受信</title>
-  <style>
-    body { font-family: sans-serif; max-width: 650px; margin: 20px auto; padding: 0 15px; line-height: 1.5; }
-    .card { border: 1px solid #ccc; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
-    button { padding: 8px 16px; margin: 4px 0; cursor: pointer; }
-    .checkbox-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 10px 0; }
-    .status { font-weight: bold; margin-top: 10px; color: #333; }
-    .badge {
-      display: inline-block;
-      background: #eef2f7;
-      border: 1px solid #ccd5e0;
-      padding: 6px 10px;
-      border-radius: 6px;
-      margin: 4px 6px 4px 0;
-      font-size: 0.9em;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>超音波 FS Triplet ID データ送受信</title>
+<style>
+body{font-family:sans-serif;max-width:900px;margin:20px auto;padding:0 15px;line-height:1.5}
+.card{border:1px solid #ccc;border-radius:8px;padding:15px;margin-bottom:20px}
+button{padding:8px 16px;margin:4px 0;cursor:pointer}
+.checkbox-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0}
+.status{font-weight:bold;margin-top:10px;color:#333}
+.badge{display:inline-block;background:#eef2f7;border:1px solid #ccd5e0;padding:6px 10px;border-radius:6px;margin:4px 6px 4px 0;font-size:.9em}
+.info{font-family:monospace;background:#f5f5f5;border-radius:6px;padding:10px;margin-top:10px}
+canvas{width:100%;height:300px;background:#080808;border:1px solid #444;border-radius:6px;display:block}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-family:monospace}
+th,td{border:1px solid #ccc;padding:6px;text-align:center}
+th{background:#eee}
+.ok{color:green;font-weight:bold}
+.ng{color:red;font-weight:bold}
+</style>
 </head>
 <body>
 
-  <!-- 送信部 -->
-  <div class="card">
-    <h2>送信側 (Transmitter)</h2>
-    <p>3つ選択してください（チェックを変更すると即座に送信されます）:</p>
-    <div class="checkbox-grid" id="tx-checkboxes"></div>
-    <button id="btn-tx-stop">全解除・停止</button>
-    <div class="status" id="tx-status">停止中 (3つ選択されていません)</div>
-  </div>
+<!-- SECTION 1: 送信 -->
+<div class="card">
+<h2>送信側 (Transmitter)</h2>
+<p>16チャンネルから3つ選択してください。</p>
+<div class="checkbox-grid" id="tx-checkboxes"></div>
+<button id="btn-tx-stop">全解除・停止</button>
+<div class="status" id="tx-status">停止中</div>
+<div class="info" id="tx-info">Triplet ID: ---</div>
+</div>
 
-  <!-- 受信部 -->
-  <div class="card">
-    <h2>受信側 (Receiver)</h2>
-    <button id="btn-rx-toggle">マイク受信を開始</button>
-    <div class="status" id="rx-status">待機中</div>
-    <h3>検出結果 (上位3つ / 下限 -100 dB):</h3>
-    <div id="rx-results">---</div>
-  </div>
+<!-- SECTION 2: 受信 -->
+<div class="card">
+<h2>受信側 (Receiver)</h2>
+<button id="btn-rx-toggle">マイク受信を開始</button>
+<div class="status" id="rx-status">待機中</div>
+<div class="info" id="rx-info">受信Triplet ID: ---</div>
+<div id="rx-results">---</div>
+</div>
 
-  <script>
-    const BASE_FREQ = 17500;
-    const STEP_FREQ = 130;
-    const NUM_CHANNELS = 16;
-    const FREQS = Array.from({ length: NUM_CHANNELS }, (_, i) => BASE_FREQ + i * STEP_FREQ);
+<!-- SECTION 3: FFT -->
+<div class="card">
+<h2>FFTスペクトラム</h2>
+<canvas id="spectrumCanvas" width="900" height="300"></canvas>
+<div class="info" id="fft-info">停止中</div>
+</div>
 
-    // --- 送信側の実装 ---
-    const txContainer = document.getElementById('tx-checkboxes');
-    FREQS.forEach((f, id) => {
-      const label = document.createElement('label');
-      label.innerHTML = `<input type="checkbox" name="tx-ch" value="${id}"> ID ${id} <small>(${f}Hz)</small>`;
-      txContainer.appendChild(label);
-    });
+<!-- SECTION 4: 周波数表 -->
+<div class="card">
+<h2>周波数一覧</h2>
+<div id="frequency-info"></div>
+</div>
 
-    let txAudioCtx = null;
-    let activeOscillators = [];
+<script>
+"use strict";
 
-    // チェックボックス変更時に即時送信処理を更新
-    txContainer.addEventListener('change', (e) => {
-      const checkedBoxes = Array.from(txContainer.querySelectorAll('input[type="checkbox"]:checked'));
-      
-      // 4つ目以降は選択させない
-      if (checkedBoxes.length > 3) {
-        e.target.checked = false;
+/* SECTION 1: 基本設定 */
+const BASE_FREQ=17500;
+const STEP_FREQ=130;
+const NUM_CHANNELS=16;
+const FREQS=Array.from({length:NUM_CHANNELS},(_,i)=>BASE_FREQ+i*STEP_FREQ);
+const FFT_SIZE=8192;
+const MIN_DB=-100;
+const DISPLAY_MIN_FREQ=17300;
+const DISPLAY_MAX_FREQ=19700;
+
+/* SECTION 2: 16C3 = 560 Triplet生成 */
+const TRIPLETS=[];
+const TRIPLET_MAP=new Map();
+
+for(let i=0;i<NUM_CHANNELS;i++){
+    for(let j=i+1;j<NUM_CHANNELS;j++){
+        for(let k=j+1;k<NUM_CHANNELS;k++){
+            const id=TRIPLETS.length;
+            const triplet=[i,j,k];
+            TRIPLETS.push(triplet);
+            TRIPLET_MAP.set(triplet.join(","),id);
+        }
+    }
+}
+
+const TRIPLET_COUNT=TRIPLETS.length;
+
+function getTripletId(ids){
+    const sorted=[...ids].sort((a,b)=>a-b);
+    return TRIPLET_MAP.get(sorted.join(","));
+}
+
+function getTriplet(id){
+    return TRIPLETS[id]||null;
+}
+
+function getClosestChannel(freq){
+    let closestId=0;
+    let minDiff=Infinity;
+
+    for(let id=0;id<NUM_CHANNELS;id++){
+        const diff=Math.abs(freq-FREQS[id]);
+        if(diff<minDiff){
+            minDiff=diff;
+            closestId=id;
+        }
+    }
+
+    return {id:closestId,freq:FREQS[closestId],diff:minDiff};
+}
+
+/* SECTION 3: 周波数表示 */
+const frequencyInfo=document.getElementById("frequency-info");
+frequencyInfo.innerHTML=FREQS.map((freq,id)=>`<span class="badge">CH${id}: ${freq} Hz</span>`).join("");
+
+/* SECTION 4: 送信UI */
+const txContainer=document.getElementById("tx-checkboxes");
+const txStatus=document.getElementById("tx-status");
+const txInfo=document.getElementById("tx-info");
+
+FREQS.forEach((freq,id)=>{
+    const label=document.createElement("label");
+    label.innerHTML=`<input type="checkbox" name="tx-ch" value="${id}"> CH${id} <small>(${freq}Hz)</small>`;
+    txContainer.appendChild(label);
+});
+
+let txAudioCtx=null;
+let activeOscillators=[];
+
+txContainer.addEventListener("change",e=>{
+    const checkedBoxes=Array.from(txContainer.querySelectorAll("input[type=checkbox]:checked"));
+
+    if(checkedBoxes.length>3){
+        e.target.checked=false;
         return;
-      }
+    }
 
-      // 3つ揃った段階で即時再生、それ以外は停止
-      if (checkedBoxes.length === 3) {
-        const selectedIds = checkedBoxes.map(el => parseInt(el.value));
+    if(checkedBoxes.length===3){
+        const selectedIds=checkedBoxes.map(el=>parseInt(el.value,10));
         startTransmission(selectedIds);
-      } else {
+    }else{
         stopOscillatorsOnly();
-        document.getElementById('tx-status').innerText = `選択中: ${checkedBoxes.length}/3個 (3つ選択すると自動送信されます)`;
-      }
-    });
+        txStatus.innerText=`選択中: ${checkedBoxes.length}/3個`;
+        txInfo.innerText="Triplet ID: ---";
+    }
+});
 
-    document.getElementById('btn-tx-stop').addEventListener('click', () => {
-      txContainer.querySelectorAll('input[type="checkbox"]').forEach(el => el.checked = false);
-      stopTransmission();
-    });
+document.getElementById("btn-tx-stop").addEventListener("click",()=>{
+    txContainer.querySelectorAll("input[type=checkbox]").forEach(el=>el.checked=false);
+    stopTransmission();
+});
 
-    function startTransmission(ids) {
-      stopOscillatorsOnly();
+function startTransmission(ids){
+    stopOscillatorsOnly();
 
-      if (!txAudioCtx) {
-        txAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (txAudioCtx.state === 'suspended') {
+    const sortedIds=[...ids].sort((a,b)=>a-b);
+    const tripletId=getTripletId(sortedIds);
+    const freqs=sortedIds.map(id=>FREQS[id]);
+
+    if(tripletId===undefined){
+        txStatus.innerText="Triplet IDの取得に失敗";
+        return;
+    }
+
+    if(!txAudioCtx){
+        txAudioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    }
+
+    if(txAudioCtx.state==="suspended"){
         txAudioCtx.resume();
-      }
+    }
 
-      const gainNode = txAudioCtx.createGain();
-      gainNode.gain.value = 0.15; // 音割れ防止
-      gainNode.connect(txAudioCtx.destination);
+    const gainNode=txAudioCtx.createGain();
+    gainNode.gain.value=0.15;
+    gainNode.connect(txAudioCtx.destination);
 
-      ids.forEach(id => {
-        const osc = txAudioCtx.createOscillator();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(FREQS[id], txAudioCtx.currentTime);
+    sortedIds.forEach(id=>{
+        const osc=txAudioCtx.createOscillator();
+        osc.type="sine";
+        osc.frequency.setValueAtTime(FREQS[id],txAudioCtx.currentTime);
         osc.connect(gainNode);
         osc.start();
         activeOscillators.push(osc);
-      });
-
-      document.getElementById('tx-status').innerText = 
-        `送信中: ID [${ids.join(', ')}] (${ids.map(id => FREQS[id] + 'Hz').join(', ')})`;
-    }
-
-    function stopOscillatorsOnly() {
-      activeOscillators.forEach(osc => {
-        try { osc.stop(); osc.disconnect(); } catch(e) {}
-      });
-      activeOscillators = [];
-    }
-
-    function stopTransmission() {
-      stopOscillatorsOnly();
-      if (txAudioCtx) {
-        txAudioCtx.close();
-        txAudioCtx = null;
-      }
-      document.getElementById('tx-status').innerText = '停止中';
-    }
-
-    // --- 受信側の実装 ---
-    let rxAudioCtx = null;
-    let analyser = null;
-    let rxStream = null;
-    let isListening = false;
-    let animFrameId = null;
-
-    const btnRxToggle = document.getElementById('btn-rx-toggle');
-    const rxStatus = document.getElementById('rx-status');
-    const rxResults = document.getElementById('rx-results');
-
-    btnRxToggle.addEventListener('click', async () => {
-      if (isListening) {
-        stopListening();
-      } else {
-        await startListening();
-      }
     });
 
-    async function startListening() {
-      try {
-        rxStream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    txStatus.innerText=`送信中: Triplet ID ${tripletId}`;
+    txInfo.innerText=`Triplet ID: ${tripletId}\nCH: [${sortedIds.join(", ")}]\n周波数: ${freqs.join(" Hz / ")} Hz`;
+}
+
+function stopOscillatorsOnly(){
+    activeOscillators.forEach(osc=>{
+        try{
+            osc.stop();
+            osc.disconnect();
+        }catch(e){}
+    });
+
+    activeOscillators=[];
+}
+
+function stopTransmission(){
+    stopOscillatorsOnly();
+
+    if(txAudioCtx){
+        txAudioCtx.close();
+        txAudioCtx=null;
+    }
+
+    txStatus.innerText="停止中";
+    txInfo.innerText="Triplet ID: ---";
+}
+
+/* SECTION 5: 受信 */
+let rxAudioCtx=null;
+let analyser=null;
+let rxStream=null;
+let isListening=false;
+let animFrameId=null;
+
+const btnRxToggle=document.getElementById("btn-rx-toggle");
+const rxStatus=document.getElementById("rx-status");
+const rxInfo=document.getElementById("rx-info");
+const rxResults=document.getElementById("rx-results");
+const fftInfo=document.getElementById("fft-info");
+
+btnRxToggle.addEventListener("click",async()=>{
+    if(isListening){
+        stopListening();
+    }else{
+        await startListening();
+    }
+});
+
+async function startListening(){
+    try{
+        rxStream=await navigator.mediaDevices.getUserMedia({
+            audio:{
+                echoCancellation:false,
+                noiseSuppression:false,
+                autoGainControl:false,
+                channelCount:1
+            }
         });
-        rxAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-        analyser = rxAudioCtx.createAnalyser();
-        analyser.fftSize = 8192; // 48kHz時 約5.8Hz/bin
-        analyser.smoothingTimeConstant = 0.4;
+        rxAudioCtx=new(window.AudioContext||window.webkitAudioContext)();
 
-        const source = rxAudioCtx.createMediaStreamSource(rxStream);
+        if(rxAudioCtx.state==="suspended"){
+            await rxAudioCtx.resume();
+        }
+
+        analyser=rxAudioCtx.createAnalyser();
+        analyser.fftSize=FFT_SIZE;
+        analyser.smoothingTimeConstant=0;
+
+        const source=rxAudioCtx.createMediaStreamSource(rxStream);
         source.connect(analyser);
 
-        isListening = true;
-        btnRxToggle.innerText = 'マイク受信を停止';
-        rxStatus.innerText = '解析中...';
+        isListening=true;
+        btnRxToggle.innerText="マイク受信を停止";
+        rxStatus.innerText="解析中...";
+        fftInfo.innerText=`SampleRate: ${rxAudioCtx.sampleRate} Hz\nFFT Size: ${FFT_SIZE}\nBin Width: ${(rxAudioCtx.sampleRate/FFT_SIZE).toFixed(3)} Hz`;
+
         detectFrequencies();
-      } catch (err) {
-        alert('マイク起動に失敗しました: ' + err.message);
-      }
+    }catch(err){
+        alert("マイク起動に失敗しました: "+err.message);
+    }
+}
+
+function stopListening(){
+    isListening=false;
+
+    if(animFrameId){
+        cancelAnimationFrame(animFrameId);
+        animFrameId=null;
     }
 
-    function stopListening() {
-      isListening = false;
-      cancelAnimationFrame(animFrameId);
-      if (rxStream) rxStream.getTracks().forEach(t => t.stop());
-      if (rxAudioCtx) rxAudioCtx.close();
-      btnRxToggle.innerText = 'マイク受信を開始';
-      rxStatus.innerText = '停止中';
-      rxResults.innerText = '---';
+    if(rxStream){
+        rxStream.getTracks().forEach(t=>t.stop());
+        rxStream=null;
     }
 
-    function detectFrequencies() {
-      if (!isListening) return;
+    if(rxAudioCtx){
+        rxAudioCtx.close();
+        rxAudioCtx=null;
+    }
 
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Float32Array(bufferLength);
-      analyser.getFloatFrequencyData(dataArray);
+    analyser=null;
+    btnRxToggle.innerText="マイク受信を開始";
+    rxStatus.innerText="停止中";
+    rxInfo.innerText="受信Triplet ID: ---";
+    rxResults.innerText="---";
+    fftInfo.innerText="停止中";
+}
 
-      const binWidth = rxAudioCtx.sampleRate / analyser.fftSize;
+/* SECTION 6: FFT検出 */
+const canvas=document.getElementById("spectrumCanvas");
+const canvasCtx=canvas.getContext("2d");
 
-      // 17.3kHz〜19.6kHz のビン範囲
-      const minBin = Math.floor(17300 / binWidth);
-      const maxBin = Math.floor(19600 / binWidth);
-      const peaks = [];
+function detectFrequencies(){
+    if(!isListening)return;
 
-      // ローカルピーク検出 (下限 -100 dB)
-      for (let i = minBin; i <= maxBin; i++) {
-        const val = dataArray[i];
-        if (val > -100 && val > dataArray[i - 1] && val > dataArray[i + 1]) {
-          peaks.push({ freq: i * binWidth, power: val });
+    const bufferLength=analyser.frequencyBinCount;
+    const dataArray=new Float32Array(bufferLength);
+    analyser.getFloatFrequencyData(dataArray);
+
+    const binWidth=rxAudioCtx.sampleRate/analyser.fftSize;
+    const minBin=Math.max(1,Math.floor(DISPLAY_MIN_FREQ/binWidth));
+    const maxBin=Math.min(bufferLength-2,Math.ceil(DISPLAY_MAX_FREQ/binWidth));
+    const peaks=[];
+
+    for(let i=minBin;i<=maxBin;i++){
+        const val=dataArray[i];
+
+        if(val>MIN_DB&&val>=dataArray[i-1]&&val>=dataArray[i+1]){
+            peaks.push({
+                bin:i,
+                freq:i*binWidth,
+                power:val
+            });
         }
-      }
+    }
 
-      // パワー順にソートして、近接周波数（65Hz未満の山）を除去しつつ上位3つを抽出
-      peaks.sort((a, b) => b.power - a.power);
-      const filteredPeaks = [];
-      for (const p of peaks) {
-        const isDuplicate = filteredPeaks.some(fp => Math.abs(fp.freq - p.freq) < STEP_FREQ / 2);
-        if (!isDuplicate) {
-          filteredPeaks.push(p);
-          if (filteredPeaks.length === 3) break;
-        }
-      }
+    peaks.sort((a,b)=>b.power-a.power);
 
-      // 表示処理
-      if (filteredPeaks.length > 0) {
-        rxResults.innerHTML = filteredPeaks.map(p => {
-          // 最も近いIDの算出
-          let closestId = 0;
-          let minDiff = Infinity;
-          FREQS.forEach((f, id) => {
-            const diff = Math.abs(p.freq - f);
-            if (diff < minDiff) {
-              minDiff = diff;
-              closestId = id;
+    const selectedPeaks=[];
+
+    for(const peak of peaks){
+        const duplicate=selectedPeaks.some(p=>Math.abs(p.freq-peak.freq)<STEP_FREQ/2);
+
+        if(!duplicate){
+            selectedPeaks.push(peak);
+
+            if(selectedPeaks.length===3){
+                break;
             }
-          });
-
-          const diffHz = Math.round(p.freq - FREQS[closestId]);
-          const sign = diffHz >= 0 ? '+' : '';
-
-          return `<div class="badge">
-            <b>ID ${closestId}</b> (${FREQS[closestId]}Hz)<br>
-            受信: ${Math.round(p.freq)}Hz (${sign}${diffHz}Hz)<br>
-            強度: <b>${p.power.toFixed(1)} dB</b>
-          </div>`;
-        }).join('');
-      } else {
-        rxResults.innerText = '信号なし (-100 dB 未満)';
-      }
-
-      animFrameId = requestAnimationFrame(detectFrequencies);
+        }
     }
-  </script>
+
+    const detectedChannels=selectedPeaks.map(peak=>{
+        const closest=getClosestChannel(peak.freq);
+
+        return {
+            peak,
+            id:closest.id,
+            targetFreq:closest.freq,
+            diffHz:peak.freq-closest.freq
+        };
+    });
+
+    detectedChannels.sort((a,b)=>a.id-b.id);
+
+    if(detectedChannels.length===3){
+        const ids=detectedChannels.map(x=>x.id);
+        const tripletId=getTripletId(ids);
+
+        if(tripletId!==undefined){
+            const triplet=getTriplet(tripletId);
+
+            rxStatus.innerText=`3周波数検出: Triplet ID ${tripletId}`;
+            rxInfo.innerText=`受信Triplet ID: ${tripletId}\nCH: [${triplet.join(", ")}]\n周波数: ${triplet.map(id=>FREQS[id]).join(" Hz / ")} Hz`;
+
+            rxResults.innerHTML=detectedChannels.map(x=>{
+                const diff=Math.round(x.diffHz);
+                const sign=diff>=0?"+":"";
+
+                return `<div class="badge"><b>CH${x.id}</b> (${x.targetFreq}Hz)<br>受信: ${Math.round(x.peak.freq)}Hz (${sign}${diff}Hz)<br>強度: <b>${x.peak.power.toFixed(1)} dB</b></div>`;
+            }).join("");
+        }else{
+            rxStatus.innerText="3周波数は検出されたがTriplet不明";
+        }
+    }else{
+        rxStatus.innerText=`検出中: ${detectedChannels.length}/3`;
+        rxInfo.innerText="受信Triplet ID: ---";
+
+        rxResults.innerHTML=detectedChannels.map(x=>{
+            return `<div class="badge"><b>CH${x.id}</b> (${x.targetFreq}Hz)<br>受信: ${Math.round(x.peak.freq)}Hz<br>強度: <b>${x.peak.power.toFixed(1)} dB</b></div>`;
+        }).join("")||"信号なし (-100 dB未満)";
+    }
+
+    drawSpectrum(dataArray,binWidth);
+    animFrameId=requestAnimationFrame(detectFrequencies);
+}
+
+/* SECTION 7: Canvas描画 */
+function drawSpectrum(dataArray,binWidth){
+    const width=canvas.width;
+    const height=canvas.height;
+
+    canvasCtx.clearRect(0,0,width,height);
+    canvasCtx.fillStyle="#080808";
+    canvasCtx.fillRect(0,0,width,height);
+
+    const freqToX=freq=>(freq-DISPLAY_MIN_FREQ)/(DISPLAY_MAX_FREQ-DISPLAY_MIN_FREQ)*width;
+
+    canvasCtx.strokeStyle="#303030";
+    canvasCtx.lineWidth=1;
+
+    FREQS.forEach((freq,id)=>{
+        if(freq<DISPLAY_MIN_FREQ||freq>DISPLAY_MAX_FREQ)return;
+
+        const x=freqToX(freq);
+
+        canvasCtx.beginPath();
+        canvasCtx.moveTo(x,0);
+        canvasCtx.lineTo(x,height);
+        canvasCtx.stroke();
+
+        canvasCtx.fillStyle="#aaa";
+        canvasCtx.font="10px monospace";
+        canvasCtx.fillText(`CH${id}`,x-10,height-6);
+    });
+
+    const minBin=Math.max(1,Math.floor(DISPLAY_MIN_FREQ/binWidth));
+    const maxBin=Math.min(dataArray.length-2,Math.ceil(DISPLAY_MAX_FREQ/binWidth));
+
+    canvasCtx.beginPath();
+
+    for(let i=minBin;i<=maxBin;i++){
+        const freq=i*binWidth;
+        const x=freqToX(freq);
+        const db=Math.max(-100,Math.min(-35,dataArray[i]));
+        const y=height-((db+100)/65)*height;
+
+        if(i===minBin){
+            canvasCtx.moveTo(x,y);
+        }else{
+            canvasCtx.lineTo(x,y);
+        }
+    }
+
+    canvasCtx.strokeStyle="#00e5ff";
+    canvasCtx.lineWidth=1.5;
+    canvasCtx.stroke();
+
+    canvasCtx.fillStyle="#aaa";
+    canvasCtx.font="11px monospace";
+    canvasCtx.fillText(`${DISPLAY_MIN_FREQ} Hz`,4,15);
+    canvasCtx.fillText(`${DISPLAY_MAX_FREQ} Hz`,width-75,15);
+
+    canvasCtx.fillText("-35 dB",4,30);
+    canvasCtx.fillText("-100 dB",4,height-5);
+}
+</script>
 </body>
 </html>
