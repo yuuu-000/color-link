@@ -3,68 +3,72 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ultra-Robust Acoustic ID (16C3^3 / 1.75億 / 立ち下がり同期)</title>
+<title>Acoustic ID Debugger (周波数完全ログ)</title>
 <style>
-body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:20px;max-width:900px;background:#06070a;color:#eee}
+body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:16px;max-width:960px;background:#06070a;color:#eee}
 h1{font-size:20px;margin-bottom:8px;color:#fff}
-.box{background:#11131a;border:1px solid #232733;border-radius:12px;padding:16px;margin:14px 0}
-button{font-size:14px;font-weight:700;padding:10px 18px;margin:4px;cursor:pointer;border:0;border-radius:8px;background:#202532;color:#fff;transition:0.15s}
+.box{background:#11131a;border:1px solid #232733;border-radius:12px;padding:14px;margin:12px 0}
+button{font-size:14px;font-weight:700;padding:8px 16px;margin:3px;cursor:pointer;border:0;border-radius:8px;background:#202532;color:#fff}
 button:hover{background:#2d3446}
-input{font-size:18px;padding:8px 12px;width:380px;background:#090a0f;border:1px solid #282f40;color:#00f0ff;border-radius:8px;font-family:monospace}
-.value{font-size:32px;font-weight:900;color:#00f0ff;word-break:break-all}
-#status{white-space:pre-wrap;font-family:monospace;line-height:1.5;color:#abb4c4;background:#050608;padding:12px;border-radius:8px;border:1px solid #1a1e28;margin-top:8px;font-size:13px}
-.small{font-size:12px;line-height:1.6;color:#8a93a5}
-canvas{width:100%;height:160px;background:#07090d;border-radius:8px;border:1px solid #1f2430;display:block;margin:10px 0}
-.badge{display:inline-block;padding:3px 8px;border-radius:4px;background:#00b4d8;color:#000;font-size:11px;font-weight:bold;margin-left:6px}
+input{font-size:18px;padding:6px 10px;width:340px;background:#090a0f;border:1px solid #282f40;color:#00f0ff;border-radius:8px;font-family:monospace}
+.value{font-size:26px;font-weight:900;color:#00f0ff;word-break:break-all}
+#status{white-space:pre-wrap;font-family:monospace;line-height:1.4;color:#abb4c4;background:#050608;padding:10px;border-radius:8px;border:1px solid #1a1e28;margin-top:8px;font-size:12px}
+canvas{width:100%;height:140px;background:#07090d;border-radius:8px;border:1px solid #1f2430;display:block;margin:8px 0}
+#logTable{width:100%;border-collapse:collapse;font-family:monospace;font-size:12px;margin-top:8px}
+#logTable th,#logTable td{border:1px solid #232733;padding:6px 8px;text-align:left}
+#logTable th{background:#161922;color:#79c0ff}
+.ok{color:#77e3a2;font-weight:bold}
+.ng{color:#ff7b72;font-weight:bold}
+.diff{color:#e3b341}
 </style>
 </head>
 <body>
-<h1>OTOSYN Core-16 <span class="badge">1.75億ID / 立ち下がり同期 / 消失復元</span></h1>
-<div class="box">
-  <div class="small">
-    <div>データ帯域: 17,400Hz ～ 19,800Hz (160Hz間隔 × 16ch) | トリガー: 19,950Hz</div>
-    <div>シンボル数: 16C3 = 560 | ID総数: 560^3 = <span id="idCountText" style="color:#00f0ff">-</span> 通り</div>
-    <div>伝送時間: 580ms (Trig 140ms + Slot 110ms×4) | トリガー消滅をT=0とする精密同期</div>
-  </div>
-</div>
+<h1>OTOSYN Debugger <span style="font-size:12px;background:#00b4d8;color:#000;padding:2px 6px;border-radius:4px">詳細周波数ログ出力</span></h1>
 
 <div class="box">
-  <h2>送信</h2>
   <input id="sendId" type="number" min="0" value="12345678">
-  <br><br>
-  <button id="sendButton">ID送信 (580ms)</button>
+  <button id="sendButton">ID送信</button>
   <button id="sendRandom">ランダム送信</button>
-  <div style="margin-top:10px;">送信ID: <span id="sentId" class="value">-</span></div>
-  <div id="sendInfo" class="small"></div>
-</div>
-
-<div class="box">
-  <h2>受信</h2>
   <button id="startReceiver">マイク受信開始</button>
   <button id="stopReceiver">停止</button>
-  <div style="margin-top:10px;">受信復号ID: <span id="receivedId" class="value">-</span></div>
-  <canvas id="specCanvas" width="800" height="160"></canvas>
+  <div style="margin-top:8px">送信ID: <span id="sentId" class="value">-</span> | 受信ID: <span id="receivedId" class="value">-</span></div>
+  <canvas id="specCanvas" width="900" height="140"></canvas>
   <div id="status">停止中</div>
+</div>
+
+<div class="box">
+  <h3 style="margin:0 0 6px 0;font-size:14px;color:#79c0ff">スロット別 送信 vs 受信 周波数対照ログ</h3>
+  <table id="logTable">
+    <thead>
+      <tr>
+        <th>スロット</th>
+        <th>送信 周波数 (Hz)</th>
+        <th>受信 認識周波数 (Hz)</th>
+        <th>送信Triplet</th>
+        <th>受信Triplet</th>
+        <th>判定</th>
+      </tr>
+    </thead>
+    <tbody id="logBody">
+      <tr><td colspan="6" style="color:#666">データ未受信</td></tr>
+    </tbody>
+  </table>
 </div>
 
 <script>
 "use strict";
 
-// =========================================================================
-// 1. 周波数・数学モデル定義 (16C3 = 560通り, Modulo 560 完全消失復元)
-// =========================================================================
 const BASE_FREQ = 17400;
 const STEP_FREQ = 160;
 const NUM_CHANNELS = 16;
-const FREQS = Array.from({ length: NUM_CHANNELS }, (_, i) => BASE_FREQ + i * STEP_FREQ); // 17400Hz 〜 19800Hz
+const FREQS = Array.from({ length: NUM_CHANNELS }, (_, i) => BASE_FREQ + i * STEP_FREQ);
 const TRIGGER_FREQ = 19950;
-const GUARD_FREQ = 19600; // トリガーサイドローブとの干渉を避けるため十分離す
+const GUARD_FREQ = 19600;
 
 const TRIGGER_DURATION = 0.140;
-const SLOT_DURATION = 0.110;
+const SLOT_DURATION = 0.120; // 10ms拡大して安定化
 const RAMP_TIME = 0.008;
 const TX_GAIN = 0.08;
-
 const FFT_SIZE = 2048;
 
 const TRIPLETS = [];
@@ -79,20 +83,12 @@ for (let i = 0; i < NUM_CHANNELS; i++) {
   }
 }
 const SYMBOL_COUNT = TRIPLETS.length; // 560
-const TOTAL_IDS = SYMBOL_COUNT * SYMBOL_COUNT * SYMBOL_COUNT; // 175,616,000
+const TOTAL_IDS = SYMBOL_COUNT ** 3; // 175,616,000
 
-document.getElementById("sendId").max = TOTAL_IDS - 1;
-document.getElementById("idCountText").textContent = TOTAL_IDS.toLocaleString();
-
-// gcd(c, 560) = 1 となる係数 (1, 3, 9)
-const COEFF_1 = 1;
-const COEFF_2 = 3;
-const COEFF_3 = 9;
-
+const COEFF_1 = 1, COEFF_2 = 3, COEFF_3 = 9;
 function modInverse(a, m) {
   let [m0, x0, x1] = [m, 0, 1];
   let val = (a % m + m) % m;
-  if (m === 1) return 0;
   while (val > 1) {
     const q = Math.floor(val / m0);
     [val, m0] = [m0, val % m0];
@@ -100,10 +96,9 @@ function modInverse(a, m) {
   }
   return (x1 < 0) ? x1 + m : x1;
 }
-
-const INV_C1 = modInverse(COEFF_1, SYMBOL_COUNT); // 1
-const INV_C2 = modInverse(COEFF_2, SYMBOL_COUNT); // 187
-const INV_C3 = modInverse(COEFF_3, SYMBOL_COUNT); // 311
+const INV_C1 = modInverse(COEFF_1, SYMBOL_COUNT);
+const INV_C2 = modInverse(COEFF_2, SYMBOL_COUNT);
+const INV_C3 = modInverse(COEFF_3, SYMBOL_COUNT);
 
 function idToSlots(id) {
   const s1 = Math.floor(id / (SYMBOL_COUNT * SYMBOL_COUNT));
@@ -118,9 +113,9 @@ function slotsToId(s1, s2, s3) {
   return s1 * SYMBOL_COUNT * SYMBOL_COUNT + s2 * SYMBOL_COUNT + s3;
 }
 
-// =========================================================================
-// 2. 送信エンジン (無音隙間を作らない周波数連続遷移)
-// =========================================================================
+// 直近の送信データを保持するデバッグ用変数
+let lastSentDetails = null;
+
 let txCtx = null;
 function initTx() {
   if (!txCtx) txCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -133,28 +128,30 @@ async function sendId(id) {
   const { s1, s2, s3, check } = idToSlots(id);
   const slotIndices = [s1, s2, s3, check];
 
+  lastSentDetails = slotIndices.map((sym, idx) => ({
+    name: idx === 3 ? "Check" : `Slot ${idx + 1}`,
+    sym,
+    trip: TRIPLETS[sym],
+    freqs: TRIPLETS[sym].map(ch => FREQS[ch])
+  }));
+
   const oscA = ctx.createOscillator();
   const oscB = ctx.createOscillator();
   const oscC = ctx.createOscillator();
   const gain = ctx.createGain();
 
-  oscA.connect(gain);
-  oscB.connect(gain);
-  oscC.connect(gain);
+  oscA.connect(gain); oscB.connect(gain); oscC.connect(gain);
   gain.connect(ctx.destination);
 
   const now = ctx.currentTime + 0.04;
 
-  // 1. トリガー送信 (19.95 kHz)
   gain.gain.setValueAtTime(0, now);
   oscA.frequency.setValueAtTime(TRIGGER_FREQ, now);
   oscB.frequency.setValueAtTime(TRIGGER_FREQ, now);
   oscC.frequency.setValueAtTime(TRIGGER_FREQ, now);
-
   gain.gain.linearRampToValueAtTime(TX_GAIN * 1.5, now + RAMP_TIME);
   gain.gain.setValueAtTime(TX_GAIN * 1.5, now + TRIGGER_DURATION);
 
-  // 2. データスロット (境界で音量を落とさず連続遷移)
   let t = now + TRIGGER_DURATION;
   for (let s = 0; s < 4; s++) {
     const trip = TRIPLETS[slotIndices[s]];
@@ -165,7 +162,6 @@ async function sendId(id) {
     t += SLOT_DURATION;
   }
 
-  // 終了時ランプ
   gain.gain.setValueAtTime(TX_GAIN, t - RAMP_TIME);
   gain.gain.linearRampToValueAtTime(0, t);
 
@@ -173,24 +169,14 @@ async function sendId(id) {
   oscA.stop(t + 0.05); oscB.stop(t + 0.05); oscC.stop(t + 0.05);
 
   document.getElementById("sentId").textContent = id.toLocaleString();
-  document.getElementById("sendInfo").textContent =
-    `S1:${s1} | S2:${s2} | S3:${s3} | Check:${check} (全580ms)`;
 }
 
-// =========================================================================
-// 3. 受信エンジン (立ち下がりエッジ同期 & 消失復元)
-// =========================================================================
 let rxCtx = null, rxStream = null, analyser = null, spectrum = null;
-let rxRunning = false;
-let rxState = "WAIT_TRIGGER";
-let triggerHeardFrames = 0;
-let dataStartTime = 0;
-let slotEnergyBuffers = [];
+let rxRunning = false, rxState = "WAIT_TRIGGER", triggerHeardFrames = 0;
+let dataStartTime = 0, slotEnergyBuffers = [];
+const canvas = document.getElementById("specCanvas"), canvasCtx = canvas.getContext("2d");
 
-const canvas = document.getElementById("specCanvas");
-const canvasCtx = canvas.getContext("2d");
-
-function setStatus(text) { document.getElementById("status").textContent = text; }
+function setStatus(t) { document.getElementById("status").textContent = t; }
 
 async function startReceiver() {
   if (rxRunning) return;
@@ -209,7 +195,7 @@ async function startReceiver() {
     rxRunning = true;
     rxState = "WAIT_TRIGGER";
     triggerHeardFrames = 0;
-    setStatus(`リスニング中... (サンプリング: ${rxCtx.sampleRate}Hz)`);
+    setStatus(`リスニング中... (サンプリングレート: ${rxCtx.sampleRate} Hz)`);
     requestAnimationFrame(receiverLoop);
   } catch (err) {
     setStatus("マイク初期化失敗: " + err.message);
@@ -236,6 +222,24 @@ function getMagAt(freq) {
   return maxVal;
 }
 
+// 隣接サイドローブ除去付きの3波選択アルゴリズム
+function extractTop3Channels(energyArray) {
+  const list = Array.from(energyArray).map((p, ch) => ({ ch, freq: FREQS[ch], p }));
+  list.sort((a, b) => b.p - a.p);
+
+  const selected = [];
+  for (const item of list) {
+    if (item.p <= 0.00005) continue;
+    // すでに選ばれたチャンネルの直隣（±1ch）はサイドローブ漏れとしてスキップ
+    const isSideLobe = selected.some(s => Math.abs(s.ch - item.ch) <= 1);
+    if (!isSideLobe) {
+      selected.push(item);
+      if (selected.length === 3) break;
+    }
+  }
+  return selected;
+}
+
 function solveErasure(slots) {
   const [s1, s2, s3, c] = slots;
   const missing = [];
@@ -248,32 +252,22 @@ function solveErasure(slots) {
     const expected = (s1 * COEFF_1 + s2 * COEFF_2 + s3 * COEFF_3) % SYMBOL_COUNT;
     return (expected === c) ? { s1, s2, s3, recovered: false } : null;
   }
-
   if (missing.length === 1) {
     const target = missing[0];
-    if (target === 4) {
-      return { s1, s2, s3, recovered: true, slot: "Check" };
-    }
+    if (target === 4) return { s1, s2, s3, recovered: true, slot: "Check" };
     if (target === 1) {
       let rhs = (c - s2 * COEFF_2 - s3 * COEFF_3) % SYMBOL_COUNT;
-      rhs = (rhs + SYMBOL_COUNT) % SYMBOL_COUNT;
-      const recS1 = (rhs * INV_C1) % SYMBOL_COUNT;
-      return { s1: recS1, s2, s3, recovered: true, slot: "S1" };
+      return { s1: (((rhs + SYMBOL_COUNT) % SYMBOL_COUNT) * INV_C1) % SYMBOL_COUNT, s2, s3, recovered: true, slot: "S1" };
     }
     if (target === 2) {
       let rhs = (c - s1 * COEFF_1 - s3 * COEFF_3) % SYMBOL_COUNT;
-      rhs = (rhs + SYMBOL_COUNT) % SYMBOL_COUNT;
-      const recS2 = (rhs * INV_C2) % SYMBOL_COUNT;
-      return { s1, s2: recS2, s3, recovered: true, slot: "S2" };
+      return { s1, s2: (((rhs + SYMBOL_COUNT) % SYMBOL_COUNT) * INV_C2) % SYMBOL_COUNT, s3, recovered: true, slot: "S2" };
     }
     if (target === 3) {
       let rhs = (c - s1 * COEFF_1 - s2 * COEFF_2) % SYMBOL_COUNT;
-      rhs = (rhs + SYMBOL_COUNT) % SYMBOL_COUNT;
-      const recS3 = (rhs * INV_C3) % SYMBOL_COUNT;
-      return { s1, s2, s3: recS3, recovered: true, slot: "S3" };
+      return { s1, s2, s3: (((rhs + SYMBOL_COUNT) % SYMBOL_COUNT) * INV_C3) % SYMBOL_COUNT, recovered: true, slot: "S3" };
     }
   }
-
   return null;
 }
 
@@ -281,29 +275,21 @@ function receiverLoop() {
   if (!rxRunning) return;
   analyser.getFloatFrequencyData(spectrum);
   const now = performance.now() / 1000;
-
   drawSpectrum();
 
   const trigDb = getMagAt(TRIGGER_FREQ);
   const guardDb = getMagAt(GUARD_FREQ);
 
   if (rxState === "WAIT_TRIGGER") {
-    // トリガーが鳴っているか判定
-    if (trigDb > -90 && (trigDb - guardDb) > 10) {
+    if (trigDb > -88 && (trigDb - guardDb) > 10) {
       triggerHeardFrames++;
-      setStatus(`トリガー検出中... (${triggerHeardFrames}フレーム)`);
+      setStatus(`トリガー捕捉中... (${triggerHeardFrames}フレーム)`);
     } else if (triggerHeardFrames >= 2) {
-      // トリガー音が消えた（立ち下がり）瞬間 = スロット1の正確な開始点 (T=0)
       rxState = "READING";
       triggerHeardFrames = 0;
       dataStartTime = now;
-      slotEnergyBuffers = [
-        new Float32Array(NUM_CHANNELS),
-        new Float32Array(NUM_CHANNELS),
-        new Float32Array(NUM_CHANNELS),
-        new Float32Array(NUM_CHANNELS)
-      ];
-      setStatus("トリガー立ち下がり同期！ 4スロット受信中...");
+      slotEnergyBuffers = Array.from({ length: 4 }, () => new Float32Array(NUM_CHANNELS));
+      setStatus("トリガー立ち下がり同期！ 4スロット積算中...");
     } else {
       triggerHeardFrames = 0;
     }
@@ -313,7 +299,7 @@ function receiverLoop() {
 
     if (slotIdx >= 0 && slotIdx < 4) {
       const slotPhase = elapsed - slotIdx * SLOT_DURATION;
-      // スロット境界の過渡ノイズを除去するため中央20%〜85%のみ積分
+      // スロット中央20%〜85%を積分
       if (slotPhase > (SLOT_DURATION * 0.20) && slotPhase < (SLOT_DURATION * 0.85)) {
         for (let ch = 0; ch < NUM_CHANNELS; ch++) {
           const db = getMagAt(FREQS[ch]);
@@ -323,32 +309,38 @@ function receiverLoop() {
         }
       }
     } else if (slotIdx >= 4) {
+      // 復号 ＆ 詳細ログ出力
       const resolvedSlots = [];
+      const rxLogDetails = [];
 
       for (let s = 0; s < 4; s++) {
-        const scores = Array.from(slotEnergyBuffers[s]).map((power, idx) => ({ idx, power }));
-        scores.sort((a, b) => b.power - a.power);
-
-        // 緩和された適正閾値判定
-        if (scores[2].power > 0.0001 && scores[2].power > scores[3].power * 1.15) {
-          const top3 = [scores[0].idx, scores[1].idx, scores[2].idx].sort((a, b) => a - b);
-          const key = `${top3[0]},${top3[1]},${top3[2]}`;
-          const tripletIdx = TRIPLET_MAP.get(key);
-          resolvedSlots.push(tripletIdx !== undefined ? tripletIdx : -1);
+        const top3 = extractTop3Channels(slotEnergyBuffers[s]);
+        if (top3.length === 3) {
+          top3.sort((a, b) => a.ch - b.ch);
+          const key = `${top3[0].ch},${top3[1].ch},${top3[2].ch}`;
+          const tripIdx = TRIPLET_MAP.get(key);
+          resolvedSlots.push(tripIdx !== undefined ? tripIdx : -1);
+          rxLogDetails.push({
+            sym: tripIdx !== undefined ? tripIdx : -1,
+            trip: [top3[0].ch, top3[1].ch, top3[2].ch],
+            freqs: top3.map(t => t.freq)
+          });
         } else {
           resolvedSlots.push(-1);
+          rxLogDetails.push({ sym: -1, trip: [], freqs: [] });
         }
       }
 
-      const result = solveErasure(resolvedSlots);
+      renderComparisonLog(lastSentDetails, rxLogDetails, resolvedSlots);
 
+      const result = solveErasure(resolvedSlots);
       if (result) {
         const finalId = slotsToId(result.s1, result.s2, result.s3);
         document.getElementById("receivedId").textContent = finalId.toLocaleString();
-        const info = result.recovered ? ` [消失スロット ${result.slot} を自動復元！]` : " [完全一致]";
-        setStatus(`受信成功: ID ${finalId.toLocaleString()}${info}\nS1:${result.s1}, S2:${result.s2}, S3:${result.s3}`);
+        const tag = result.recovered ? ` [消失スロット ${result.slot} を自動復元]` : " [完全一致]";
+        setStatus(`受信成功: ID ${finalId.toLocaleString()}${tag}`);
       } else {
-        setStatus(`復号失敗 (スロット検出状態: [${resolvedSlots.join(", ")}])\nトリガー待機に戻ります`);
+        setStatus(`復号失敗: スロット欠損過多または不整合 [${resolvedSlots.join(", ")}]`);
       }
 
       rxState = "WAIT_TRIGGER";
@@ -358,9 +350,39 @@ function receiverLoop() {
   requestAnimationFrame(receiverLoop);
 }
 
-// =========================================================================
-// 4. キャンバス描画 (トリガーライン & データチャンネル帯域描画)
-// =========================================================================
+function renderComparisonLog(txDetails, rxDetails, resolvedSlots) {
+  const tbody = document.getElementById("logBody");
+  tbody.innerHTML = "";
+
+  for (let s = 0; s < 4; s++) {
+    const tr = document.createElement("tr");
+    const tx = txDetails ? txDetails[s] : null;
+    const rx = rxDetails[s];
+
+    const slotName = s === 3 ? "Check" : `Slot ${s + 1}`;
+    const txFreqStr = tx ? tx.freqs.join(", ") : "-";
+    const rxFreqStr = rx.freqs.length ? rx.freqs.join(", ") : "<span class='ng'>検出なし (-1)</span>";
+    const txTripStr = tx ? `[${tx.trip.join(",")}] (#${tx.sym})` : "-";
+    const rxTripStr = rx.trip.length ? `[${rx.trip.join(",")}] (#${rx.sym})` : "-";
+
+    const isMatch = tx && rx.sym === tx.sym;
+    const isRecovered = !isMatch && resolvedSlots[s] === -1;
+    let statusBadge = "<span class='ng'>NG (不一致)</span>";
+    if (isMatch) statusBadge = "<span class='ok'>MATCH (完全一致)</span>";
+    else if (isRecovered) statusBadge = "<span class='diff'>ERASURE (欠損/復元対象)</span>";
+
+    tr.innerHTML = `
+      <td><b>${slotName}</b></td>
+      <td>${txFreqStr}</td>
+      <td>${rxFreqStr}</td>
+      <td>${txTripStr}</td>
+      <td>${rxTripStr}</td>
+      <td>${statusBadge}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
 function drawSpectrum() {
   const w = canvas.width, h = canvas.height;
   canvasCtx.fillStyle = "#07090d";
@@ -368,11 +390,9 @@ function drawSpectrum() {
 
   const minF = 17200, maxF = 20200;
   const fToX = f => (f - minF) / (maxF - minF) * w;
-
   const startBin = Math.floor(minF * FFT_SIZE / rxCtx.sampleRate);
   const endBin = Math.ceil(maxF * FFT_SIZE / rxCtx.sampleRate);
 
-  // 1. スペクトラム波形 (シアン)
   canvasCtx.strokeStyle = "#00b4d8";
   canvasCtx.lineWidth = 1.5;
   canvasCtx.beginPath();
@@ -384,27 +404,17 @@ function drawSpectrum() {
   }
   canvasCtx.stroke();
 
-  // 2. データチャンネル範囲 (17.4k〜19.8k の区切り点線)
+  // データ周波数ライン
   canvasCtx.strokeStyle = "#1f3b4d";
-  canvasCtx.lineWidth = 1;
   canvasCtx.setLineDash([2, 4]);
   for (let i = 0; i < NUM_CHANNELS; i++) {
     const x = fToX(FREQS[i]);
     canvasCtx.beginPath();
-    canvasCtx.moveTo(x, 0);
-    canvasCtx.lineTo(x, h);
+    canvasCtx.moveTo(x, 0); canvasCtx.lineTo(x, h);
     canvasCtx.stroke();
   }
 
-  // 3. ガード周波数ライン (19.60 kHz: 暗い赤)
-  canvasCtx.strokeStyle = "rgba(255, 60, 60, 0.4)";
-  canvasCtx.setLineDash([4, 4]);
-  canvasCtx.beginPath();
-  canvasCtx.moveTo(fToX(GUARD_FREQ), 0);
-  canvasCtx.lineTo(fToX(GUARD_FREQ), h);
-  canvasCtx.stroke();
-
-  // 4. トリガーライン (19.95 kHz: 発光ゴールド実線)
+  // トリガーライン
   canvasCtx.setLineDash([]);
   canvasCtx.strokeStyle = "#ffb703";
   canvasCtx.lineWidth = 2;
@@ -412,24 +422,17 @@ function drawSpectrum() {
   canvasCtx.moveTo(fToX(TRIGGER_FREQ), 0);
   canvasCtx.lineTo(fToX(TRIGGER_FREQ), h);
   canvasCtx.stroke();
-
-  // ラベル描画
-  canvasCtx.fillStyle = "#ffb703";
-  canvasCtx.font = "10px monospace";
-  canvasCtx.fillText("TRIG 19.95k", fToX(TRIGGER_FREQ) - 68, 14);
 }
 
 document.getElementById("sendButton").onclick = () => {
   const id = Number(document.getElementById("sendId").value);
   if (id >= 0 && id < TOTAL_IDS) sendId(id);
 };
-
 document.getElementById("sendRandom").onclick = () => {
   const id = Math.floor(Math.random() * TOTAL_IDS);
   document.getElementById("sendId").value = id;
   sendId(id);
 };
-
 document.getElementById("startReceiver").onclick = startReceiver;
 document.getElementById("stopReceiver").onclick = stopReceiver;
 </script>
