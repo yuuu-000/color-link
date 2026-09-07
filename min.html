@@ -5,42 +5,39 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Ultrasonic ID Sender / Receiver</title>
 <style>
-body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:20px;max-width:900px}
-h1{font-size:24px}
-.box{border:1px solid #ccc;border-radius:12px;padding:16px;margin:14px 0}
-button{font-size:16px;padding:10px 16px;margin:4px;cursor:pointer}
-input{font-size:18px;padding:8px;width:280px;box-sizing:border-box}
-.value{font-size:30px;font-weight:bold;word-break:break-all}
-#status{white-space:pre-wrap;font-family:monospace;line-height:1.5}
-.small{font-size:13px;line-height:1.6}
-canvas{width:100%;height:180px;background:#111;border-radius:8px;display:block;margin:10px 0}
-#peakMonitor{font-family:monospace;background:#f5f5f7;padding:10px;border-radius:8px;margin:10px 0;font-size:13px;line-height:1.5;white-space:pre-wrap}
+body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:20px;max-width:900px;background:#0b0d12;color:#fff}
+h1{font-size:24px;margin-bottom:8px}
+.box{background:#151923;border:1px solid #2a3040;border-radius:12px;padding:16px;margin:14px 0}
+button{font-size:15px;font-weight:600;padding:10px 16px;margin:4px;cursor:pointer;border:0;border-radius:8px;background:#252b38;color:#fff}
+button:hover{background:#303848}
+input{font-size:18px;padding:8px 12px;width:320px;box-sizing:border-box;background:#0d1017;border:1px solid #2a3040;color:#77e3a2;border-radius:8px;font-family:monospace}
+.value{font-size:28px;font-weight:bold;color:#77e3a2;word-break:break-all}
+#status{white-space:pre-wrap;font-family:monospace;line-height:1.5;color:#c9d1e0;background:#080a0f;padding:12px;border-radius:8px;border:1px solid #1e2533;margin-top:8px}
+.small{font-size:13px;line-height:1.6;color:#aeb6c6}
+canvas{width:100%;height:180px;background:#090c11;border-radius:8px;border:1px solid #252b36;display:block;margin:10px 0}
+#peakMonitor{font-family:monospace;background:#0d1017;padding:12px;border-radius:8px;border:1px solid #252b36;margin:10px 0;font-size:13px;line-height:1.5;white-space:pre-wrap;color:#79c0ff}
 </style>
 </head>
 <body>
-<h1>音響ID送受信</h1>
+<h1>音響ID送受信 (高精度・耐干渉改良版)</h1>
 <div class="box">
 <h2>通信仕様</h2>
 <div class="small">
-<div>データ周波数: 17,300～19,400 Hz</div>
-<div>周波数間隔: 20 Hz</div>
-<div>周波数数: 106</div>
-<div>ペア数: 106C2 = 5,565</div>
-<div>データ: 2ペア</div>
-<div>チェックデジット: 1ペア</div>
-<div>ID数: 30,969,225</div>
-<div>ID範囲: 0～30,969,224</div>
-<div>トリガー: 19,500 Hz</div>
+<div>データ周波数: 17,300～19,400 Hz (20 Hz間隔 / 106スロット)</div>
+<div>最小トーン間隔ガード: 100 Hz (近接スペクトル合体防止)</div>
+<div>有効ペア数: <span id="pairCountText">-</span></div>
+<div>ID総数: <span id="idCountText">-</span></div>
+<div>トリガー: 19,500 Hz (単音同期)</div>
 </div>
 </div>
 
 <div class="box">
 <h2>送信</h2>
-<input id="sendId" type="number" min="0" max="30969224" value="0">
-<br>
+<input id="sendId" type="number" min="0" value="0">
+<br><br>
 <button id="sendButton">ID送信</button>
 <button id="sendRandom">ランダムID送信</button>
-<div>送信ID: <span id="sentId" class="value">-</span></div>
+<div style="margin-top:10px;">送信ID: <span id="sentId" class="value">-</span></div>
 <div id="sendInfo" class="small"></div>
 </div>
 
@@ -48,7 +45,7 @@ canvas{width:100%;height:180px;background:#111;border-radius:8px;display:block;m
 <h2>受信</h2>
 <button id="startReceiver">マイク受信開始</button>
 <button id="stopReceiver">停止</button>
-<div>受信ID: <span id="receivedId" class="value">-</span></div>
+<div style="margin-top:10px;">受信ID: <span id="receivedId" class="value">-</span></div>
 <canvas id="specCanvas" width="800" height="180"></canvas>
 <div id="peakMonitor">ピーク解析: 停止中</div>
 <div id="status">停止中</div>
@@ -56,435 +53,423 @@ canvas{width:100%;height:180px;background:#111;border-radius:8px;display:block;m
 
 <script>
 "use strict";
-const DATA_START_FREQ=17300;
-const DATA_STEP=20;
-const DATA_COUNT=106;
-const DATA_END_FREQ=DATA_START_FREQ+(DATA_COUNT-1)*DATA_STEP;
-const TRIGGER_FREQ=19500;
-const PAIR_COUNT=DATA_COUNT*(DATA_COUNT-1)/2;
-const ID_COUNT=PAIR_COUNT*PAIR_COUNT;
-const MAX_ID=ID_COUNT-1;
-const TRIGGER_DURATION=0.18;
-const SLOT_DURATION=0.14;
-const RAMP_TIME=0.008;
-const TX_GAIN=0.14;
-const FFT_SIZE=16384;
-const TRIGGER_MIN_DB=-75;
-const TRIGGER_MARGIN_DB=6;
-const TRIGGER_CONFIRM_FRAMES=3;
-const DATA_MIN_DB=-78;
-const PEAK_MARGIN_DB=2;
-const MIN_PEAK_DISTANCE_HZ=10;
-const SLOT_READ_START=0.30;
-const SLOT_READ_END=0.70;
-const TRIGGER_TIMEOUT=1.0;
 
-const FREQ_DATA=[];
-for(let i=0;i<DATA_COUNT;i++)FREQ_DATA.push(DATA_START_FREQ+i*DATA_STEP);
-const PAIRS=[];
-const PAIR_INDEX=new Map();
-for(let i=0;i<DATA_COUNT;i++){
-  for(let j=i+1;j<DATA_COUNT;j++){
-    const index=PAIRS.length;
-    PAIRS.push([i,j]);
-    PAIR_INDEX.set(i+","+j,index);
+// CONFIGURATION
+const DATA_START_FREQ = 17300;
+const DATA_STEP = 20;
+const DATA_COUNT = 106;
+const TRIGGER_FREQ = 19500;
+const MIN_SEPARATION_HZ = 100; // 近接による山合体を防ぐ最小周波数差
+
+const TRIGGER_DURATION = 0.16;
+const SLOT_DURATION = 0.14;
+const RAMP_TIME = 0.008;
+const TX_GAIN = 0.10; // 2音合計で音割れしない安全ゲイン
+
+// FFT 4096 = 48kHz時 分解能11.7Hz / 時間窓 85ms (140msスロットに完全追従)
+const FFT_SIZE = 4096;
+const TRIGGER_MIN_DB = -75;
+const TRIGGER_MARGIN_DB = 8;
+const TRIGGER_CONFIRM_FRAMES = 2;
+const DATA_MIN_DB = -80;
+
+const FREQ_DATA = [];
+for (let i = 0; i < DATA_COUNT; i++) FREQ_DATA.push(DATA_START_FREQ + i * DATA_STEP);
+
+// 近接ペアを除外した有効ペアの生成
+const PAIRS = [];
+const PAIR_INDEX = new Map();
+for (let i = 0; i < DATA_COUNT; i++) {
+  for (let j = i + 1; j < DATA_COUNT; j++) {
+    if (Math.abs(FREQ_DATA[i] - FREQ_DATA[j]) >= MIN_SEPARATION_HZ) {
+      const idx = PAIRS.length;
+      PAIRS.push([i, j]);
+      PAIR_INDEX.set(i + "," + j, idx);
+    }
   }
 }
 
-function idToPairs(id){
-  if(!Number.isInteger(id))throw new Error("IDは整数で指定してください");
-  if(id<0||id>MAX_ID)throw new Error("IDは0～"+MAX_ID+"です");
-  const pair1Index=Math.floor(id/PAIR_COUNT);
-  const pair2Index=id%PAIR_COUNT;
-  const checksum=(pair1Index+pair2Index)%PAIR_COUNT;
-  return{pair1Index,pair2Index,checksum,pair1:PAIRS[pair1Index],pair2:PAIRS[pair2Index],pair3:PAIRS[checksum]};
+const PAIR_COUNT = PAIRS.length;
+const ID_COUNT = PAIR_COUNT * PAIR_COUNT;
+const MAX_ID = ID_COUNT - 1;
+
+document.getElementById("sendId").max = MAX_ID;
+document.getElementById("pairCountText").textContent = PAIR_COUNT.toLocaleString() + " 通り";
+document.getElementById("idCountText").textContent = ID_COUNT.toLocaleString() + " 通り (0 ～ " + MAX_ID.toLocaleString() + ")";
+
+function idToPairs(id) {
+  if (!Number.isInteger(id)) throw new Error("IDは整数で指定してください");
+  if (id < 0 || id > MAX_ID) throw new Error("IDは0～" + MAX_ID + "です");
+  const pair1Index = Math.floor(id / PAIR_COUNT);
+  const pair2Index = id % PAIR_COUNT;
+  const checksum = (pair1Index + pair2Index) % PAIR_COUNT;
+  return { pair1Index, pair2Index, checksum, pair1: PAIRS[pair1Index], pair2: PAIRS[pair2Index], pair3: PAIRS[checksum] };
 }
 
-function pairsToId(pair1Index,pair2Index){
-  return pair1Index*PAIR_COUNT+pair2Index;
+function pairsToId(pair1Index, pair2Index) {
+  return pair1Index * PAIR_COUNT + pair2Index;
 }
 
-function pairToFreqs(pair){
-  return[FREQ_DATA[pair[0]],FREQ_DATA[pair[1]]];
+function pairToFreqs(pair) {
+  return [FREQ_DATA[pair[0]], FREQ_DATA[pair[1]]];
 }
 
-let txCtx=null;
-function initTx(){
-  if(!txCtx)txCtx=new(window.AudioContext||window.webkitAudioContext)();
-  if(txCtx.state==="suspended")txCtx.resume();
+// TRANSMITTER
+let txCtx = null;
+function initTx() {
+  if (!txCtx) txCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (txCtx.state === "suspended") txCtx.resume();
   return txCtx;
 }
 
-async function sendId(id){
-  const ctx=initTx();
-  const decoded=idToPairs(id);
-  const slots=[decoded.pair1,decoded.pair2,decoded.pair3];
-  const oscA=ctx.createOscillator();
-  const oscB=ctx.createOscillator();
-  const gainA=ctx.createGain();
-  const gainB=ctx.createGain();
-  oscA.type="sine";
-  oscB.type="sine";
-  oscA.connect(gainA);
-  oscB.connect(gainB);
-  gainA.connect(ctx.destination);
-  gainB.connect(ctx.destination);
+async function sendId(id) {
+  const ctx = initTx();
+  const decoded = idToPairs(id);
+  const slots = [decoded.pair1, decoded.pair2, decoded.pair3];
 
-  const now=ctx.currentTime;
-  gainA.gain.setValueAtTime(0,now);
-  gainB.gain.setValueAtTime(0,now);
-  oscA.frequency.setValueAtTime(TRIGGER_FREQ,now);
-  oscB.frequency.setValueAtTime(TRIGGER_FREQ,now);
-  gainA.gain.linearRampToValueAtTime(TX_GAIN,now+RAMP_TIME);
-  gainA.gain.setValueAtTime(TX_GAIN,now+TRIGGER_DURATION-RAMP_TIME);
-  gainA.gain.linearRampToValueAtTime(0,now+TRIGGER_DURATION);
+  const oscA = ctx.createOscillator();
+  const oscB = ctx.createOscillator();
+  const gainA = ctx.createGain();
+  const gainB = ctx.createGain();
 
-  let t=now+TRIGGER_DURATION;
-  for(const pair of slots){
-    const f1=FREQ_DATA[pair[0]];
-    const f2=FREQ_DATA[pair[1]];
-    oscA.frequency.setValueAtTime(f1,t);
-    oscB.frequency.setValueAtTime(f2,t);
-    gainA.gain.setValueAtTime(0,t);
-    gainB.gain.setValueAtTime(0,t);
-    gainA.gain.linearRampToValueAtTime(TX_GAIN,t+RAMP_TIME);
-    gainB.gain.linearRampToValueAtTime(TX_GAIN,t+RAMP_TIME);
-    gainA.gain.setValueAtTime(TX_GAIN,t+SLOT_DURATION-RAMP_TIME);
-    gainB.gain.setValueAtTime(TX_GAIN,t+SLOT_DURATION-RAMP_TIME);
-    gainA.gain.linearRampToValueAtTime(0,t+SLOT_DURATION);
-    gainB.gain.linearRampToValueAtTime(0,t+SLOT_DURATION);
-    t+=SLOT_DURATION;
+  oscA.type = "sine";
+  oscB.type = "sine";
+  oscA.connect(gainA).connect(ctx.destination);
+  oscB.connect(gainB).connect(ctx.destination);
+
+  const now = ctx.currentTime + 0.05;
+
+  // 1. TRIGGER
+  gainA.gain.setValueAtTime(0, now);
+  gainB.gain.setValueAtTime(0, now);
+  oscA.frequency.setValueAtTime(TRIGGER_FREQ, now);
+  oscB.frequency.setValueAtTime(TRIGGER_FREQ, now);
+
+  gainA.gain.linearRampToValueAtTime(TX_GAIN, now + RAMP_TIME);
+  gainA.gain.setValueAtTime(TX_GAIN, now + TRIGGER_DURATION - RAMP_TIME);
+  gainA.gain.linearRampToValueAtTime(0, now + TRIGGER_DURATION);
+
+  // 2. DATA SLOTS (SLOT 1, SLOT 2, CHECKSUM)
+  let t = now + TRIGGER_DURATION;
+  for (const pair of slots) {
+    const f1 = FREQ_DATA[pair[0]];
+    const f2 = FREQ_DATA[pair[1]];
+
+    oscA.frequency.setValueAtTime(f1, t);
+    oscB.frequency.setValueAtTime(f2, t);
+
+    gainA.gain.setValueAtTime(0, t);
+    gainB.gain.setValueAtTime(0, t);
+
+    gainA.gain.linearRampToValueAtTime(TX_GAIN * 0.5, t + RAMP_TIME);
+    gainB.gain.linearRampToValueAtTime(TX_GAIN * 0.5, t + RAMP_TIME);
+
+    gainA.gain.setValueAtTime(TX_GAIN * 0.5, t + SLOT_DURATION - RAMP_TIME);
+    gainB.gain.setValueAtTime(TX_GAIN * 0.5, t + SLOT_DURATION - RAMP_TIME);
+
+    gainA.gain.linearRampToValueAtTime(0, t + SLOT_DURATION);
+    gainB.gain.linearRampToValueAtTime(0, t + SLOT_DURATION);
+
+    t += SLOT_DURATION;
   }
+
   oscA.start(now);
   oscB.start(now);
-  oscA.stop(t+0.05);
-  oscB.stop(t+0.05);
-  document.getElementById("sentId").textContent=String(id);
-  document.getElementById("sendInfo").textContent="pair1="+decoded.pair1Index+" ["+pairToFreqs(decoded.pair1).join(" Hz + ")+" Hz], pair2="+decoded.pair2Index+" ["+pairToFreqs(decoded.pair2).join(" Hz + ")+" Hz], checksum="+decoded.checksum+" ["+pairToFreqs(decoded.pair3).join(" Hz + ")+" Hz]";
+  oscA.stop(t + 0.05);
+  oscB.stop(t + 0.05);
+
+  document.getElementById("sentId").textContent = String(id);
+  document.getElementById("sendInfo").textContent =
+    `pair1=${decoded.pair1Index} [${pairToFreqs(decoded.pair1).join(" + ")} Hz], ` +
+    `pair2=${decoded.pair2Index} [${pairToFreqs(decoded.pair2).join(" + ")} Hz], ` +
+    `checksum=${decoded.checksum} [${pairToFreqs(decoded.pair3).join(" + ")} Hz]`;
 }
 
-function randomId(){
-  return Math.floor(Math.random()*ID_COUNT);
+// RECEIVER
+let rxCtx = null;
+let rxStream = null;
+let rxSource = null;
+let analyser = null;
+let rxRunning = false;
+let rxState = "WAIT_TRIGGER";
+let triggerConfirmCount = 0;
+let dataStartAt = 0;
+let rxSlots = [];
+let currentSlotIndex = -1;
+let currentSlotVotes = [];
+let spectrum = null;
+
+const canvas = document.getElementById("specCanvas");
+const canvasCtx = canvas.getContext("2d");
+const peakMonitor = document.getElementById("peakMonitor");
+
+function setStatus(text) {
+  document.getElementById("status").textContent = text;
 }
 
-let rxCtx=null;
-let rxStream=null;
-let rxSource=null;
-let analyser=null;
-let rxRunning=false;
-let rxState="WAIT_TRIGGER";
-let triggerConfirmCount=0;
-let triggerDetectedAt=0;
-let dataStartAt=0;
-let nextSlotToRead=0;
-let rxSlots=[];
-let lastFrameTime=0;
-let spectrum=null;
-
-const canvas=document.getElementById("specCanvas");
-const canvasCtx=canvas.getContext("2d");
-const peakMonitor=document.getElementById("peakMonitor");
-
-function setStatus(text){
-  document.getElementById("status").textContent=text;
-}
-
-async function startReceiver(){
-  if(rxRunning)return;
-  try{
-    rxStream=await navigator.mediaDevices.getUserMedia({
-      audio:{
-        echoCancellation:false,
-        noiseSuppression:false,
-        autoGainControl:false,
-        channelCount:1
+async function startReceiver() {
+  if (rxRunning) return;
+  try {
+    rxStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+        channelCount: 1
       }
     });
-    rxCtx=new(window.AudioContext||window.webkitAudioContext)();
+
+    rxCtx = new (window.AudioContext || window.webkitAudioContext)();
     await rxCtx.resume();
-    rxSource=rxCtx.createMediaStreamSource(rxStream);
-    analyser=rxCtx.createAnalyser();
-    analyser.fftSize=FFT_SIZE;
-    analyser.smoothingTimeConstant=0;
-    analyser.minDecibels=-120;
-    analyser.maxDecibels=0;
+
+    rxSource = rxCtx.createMediaStreamSource(rxStream);
+    analyser = rxCtx.createAnalyser();
+    analyser.fftSize = FFT_SIZE;
+    analyser.smoothingTimeConstant = 0.1;
+
     rxSource.connect(analyser);
-    spectrum=new Float32Array(analyser.frequencyBinCount);
-    rxRunning=true;
-    rxState="WAIT_TRIGGER";
-    triggerConfirmCount=0;
-    nextSlotToRead=0;
-    rxSlots=[];
-    setStatus("受信中\nサンプルレート: "+rxCtx.sampleRate+" Hz\nFFT: "+FFT_SIZE+"\nトリガー待機...");
+    spectrum = new Float32Array(analyser.frequencyBinCount);
+
+    rxRunning = true;
+    resetReceiverState();
+    setStatus(`受信待機中...\nSampleRate: ${rxCtx.sampleRate} Hz | FFT: ${FFT_SIZE} | Bin: ${(rxCtx.sampleRate / FFT_SIZE).toFixed(2)} Hz`);
     requestAnimationFrame(receiverLoop);
-  }catch(err){
-    console.error(err);
-    setStatus("マイク開始失敗\n"+err.message);
+  } catch (err) {
+    setStatus("マイク開始失敗\n" + err.message);
   }
 }
 
-function stopReceiver(){
-  rxRunning=false;
-  if(rxStream){
-    for(const track of rxStream.getTracks())track.stop();
-    rxStream=null;
+function stopReceiver() {
+  rxRunning = false;
+  if (rxStream) {
+    rxStream.getTracks().forEach(t => t.stop());
+    rxStream = null;
   }
-  if(rxCtx){
+  if (rxCtx) {
     rxCtx.close();
-    rxCtx=null;
+    rxCtx = null;
   }
-  analyser=null;
-  spectrum=null;
-  peakMonitor.textContent="ピーク解析: 停止中";
-  canvasCtx.clearRect(0,0,canvas.width,canvas.height);
+  peakMonitor.textContent = "ピーク解析: 停止中";
+  canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
   setStatus("停止中");
 }
 
-function binToFreq(bin){
-  return bin*rxCtx.sampleRate/FFT_SIZE;
-}
-
-function dbAtBin(bin){
-  if(bin<0||bin>=spectrum.length)return-Infinity;
-  return spectrum[bin];
-}
-
-function getLocalPeakAround(freq){
-  const center=freq*FFT_SIZE/rxCtx.sampleRate;
-  const centerBin=Math.round(center);
-  let bestBin=centerBin;
-  let bestDb=-Infinity;
-  for(let d=-2;d<=2;d++){
-    const bin=centerBin+d;
-    const db=dbAtBin(bin);
-    if(db>bestDb){
-      bestDb=db;
-      bestBin=bin;
-    }
+// 放物線フィッティングによる高精度サブビン周波数推定
+function getInterpolatedPeak(centerBin) {
+  if (centerBin <= 0 || centerBin >= spectrum.length - 1) {
+    return { freq: centerBin * rxCtx.sampleRate / FFT_SIZE, db: spectrum[centerBin] };
   }
-  return{freq:binToFreq(bestBin),db:bestDb,bin:bestBin};
-}
-
-function detectTrigger(){
-  const triggerPeak=getLocalPeakAround(TRIGGER_FREQ);
-  let maxData=-Infinity;
-  for(let i=0;i<DATA_COUNT;i++){
-    const p=getLocalPeakAround(FREQ_DATA[i]);
-    if(p.db>maxData)maxData=p.db;
-  }
-  if(triggerPeak.db<TRIGGER_MIN_DB)return false;
-  if(triggerPeak.db<maxData+TRIGGER_MARGIN_DB)return false;
-  return true;
-}
-
-function getCandidatePeaks(){
-  const candidates=[];
-  for(let i=0;i<DATA_COUNT;i++){
-    const expected=FREQ_DATA[i];
-    const p=getLocalPeakAround(expected);
-    candidates.push({
-      index:i,
-      freq:p.freq,
-      db:p.db
-    });
-  }
-  candidates.sort((a,b)=>b.db-a.db);
-  return candidates;
-}
-
-function detectPair(){
-  const candidates=getCandidatePeaks();
-  if(candidates.length<2)return null;
-  const first=candidates[0];
-  if(first.db<DATA_MIN_DB)return null;
-  let second=null;
-  for(let k=1;k<candidates.length;k++){
-    const candidate=candidates[k];
-    if(Math.abs(candidate.freq-first.freq)>=MIN_PEAK_DISTANCE_HZ){
-      second=candidate;
-      break;
-    }
-  }
-  if(!second)return null;
-  if(second.db<DATA_MIN_DB)return null;
-  if(first.db-second.db>12)return null;
-  const a=Math.min(first.index,second.index);
-  const b=Math.max(first.index,second.index);
-  if(a===b)return null;
-  const pairIndex=PAIR_INDEX.get(a+","+b);
-  if(pairIndex===undefined)return null;
-  return{
-    pairIndex,
-    i:a,
-    j:b,
-    f1:FREQ_DATA[a],
-    f2:FREQ_DATA[b],
-    db1:first.db,
-    db2:second.db
+  const a = spectrum[centerBin - 1];
+  const b = spectrum[centerBin];
+  const c = spectrum[centerBin + 1];
+  const delta = 0.5 * (a - c) / (a - 2 * b + c);
+  const realBin = centerBin + (isNaN(delta) ? 0 : delta);
+  const realDb = b - 0.25 * (a - c) * delta;
+  return {
+    freq: realBin * rxCtx.sampleRate / FFT_SIZE,
+    db: isFinite(realDb) ? realDb : b
   };
 }
 
-function drawSpectrum(candidates,triggerPeak){
-  const w=canvas.width;
-  const h=canvas.height;
-  canvasCtx.fillStyle="#111";
-  canvasCtx.fillRect(0,0,w,h);
-
-  const minF=17000;
-  const maxF=19800;
-  const minDb=-110;
-  const maxDb=-30;
-
-  function fToX(f){return(f-minF)/(maxF-minF)*w;}
-  function dbToY(db){return h-(db-minDb)/(maxDb-minDb)*h;}
-
-  // ガイド線
-  canvasCtx.strokeStyle="#333";
-  canvasCtx.lineWidth=1;
-  for(let db=-100;db<=-40;db+=20){
-    const y=dbToY(db);
-    canvasCtx.beginPath();
-    canvasCtx.moveTo(0,y);
-    canvasCtx.lineTo(w,y);
-    canvasCtx.stroke();
+function getLocalPeakAround(freq) {
+  const bin = Math.round(freq * FFT_SIZE / rxCtx.sampleRate);
+  let bestBin = bin;
+  let bestDb = -Infinity;
+  for (let d = -2; d <= 2; d++) {
+    const cur = bin + d;
+    if (cur >= 0 && cur < spectrum.length && spectrum[cur] > bestDb) {
+      bestDb = spectrum[cur];
+      bestBin = cur;
+    }
   }
+  return getInterpolatedPeak(bestBin);
+}
 
-  // 閾値ライン
-  canvasCtx.strokeStyle="rgba(255, 60, 60, 0.4)";
-  canvasCtx.beginPath();
-  const thY=dbToY(DATA_MIN_DB);
-  canvasCtx.moveTo(0,thY);
-  canvasCtx.lineTo(w,thY);
-  canvasCtx.stroke();
-
-  // 周波数ビン描画
-  const startBin=Math.floor(minF*FFT_SIZE/rxCtx.sampleRate);
-  const endBin=Math.ceil(maxF*FFT_SIZE/rxCtx.sampleRate);
-
-  canvasCtx.strokeStyle="#00e5ff";
-  canvasCtx.lineWidth=1.5;
-  canvasCtx.beginPath();
-  let firstPt=true;
-  for(let b=startBin;b<=endBin;b++){
-    const freq=binToFreq(b);
-    const x=fToX(freq);
-    const db=Math.max(minDb,Math.min(maxDb,spectrum[b]));
-    const y=dbToY(db);
-    if(firstPt){canvasCtx.moveTo(x,y);firstPt=false;}
-    else{canvasCtx.lineTo(x,y);}
+function detectTrigger() {
+  const triggerPeak = getLocalPeakAround(TRIGGER_FREQ);
+  let maxData = -Infinity;
+  for (let i = 0; i < DATA_COUNT; i += 2) {
+    const p = getLocalPeakAround(FREQ_DATA[i]);
+    if (p.db > maxData) maxData = p.db;
   }
-  canvasCtx.stroke();
+  if (triggerPeak.db < TRIGGER_MIN_DB) return false;
+  if (triggerPeak.db < maxData + TRIGGER_MARGIN_DB) return false;
+  return true;
+}
 
-  // トリガー位置マーカー
-  const trigX=fToX(TRIGGER_FREQ);
-  canvasCtx.fillStyle="#ffff00";
-  canvasCtx.fillRect(trigX-1,0,2,h);
+// スロット内の2音判定
+function detectSlotPair() {
+  const candidates = [];
+  for (let i = 0; i < DATA_COUNT; i++) {
+    const p = getLocalPeakAround(FREQ_DATA[i]);
+    candidates.push({ index: i, freq: p.freq, db: p.db });
+  }
+  candidates.sort((a, b) => b.db - a.db);
 
-  // ピーク表示 (上位2件)
-  if(candidates.length>=2){
-    canvasCtx.fillStyle="#ff3366";
-    for(let k=0;k<2;k++){
-      const c=candidates[k];
-      const cx=fToX(c.freq);
-      const cy=dbToY(Math.max(minDb,Math.min(maxDb,c.db)));
-      canvasCtx.beginPath();
-      canvasCtx.arc(cx,cy,4,0,Math.PI*2);
-      canvasCtx.fill();
+  if (candidates.length < 2) return null;
+  const first = candidates[0];
+  if (first.db < DATA_MIN_DB) return null;
+
+  let second = null;
+  for (let k = 1; k < candidates.length; k++) {
+    const cand = candidates[k];
+    if (Math.abs(cand.freq - first.freq) >= MIN_SEPARATION_HZ - 20) {
+      second = cand;
+      break;
     }
   }
 
-  // テキストモニター更新
-  const c1=candidates[0];
-  const c2=candidates[1];
-  let text="【トリガー】 "+TRIGGER_FREQ+" Hz: "+triggerPeak.db.toFixed(1)+" dB (基準: "+TRIGGER_MIN_DB+" dB)\n";
-  if(c1&&c2){
-    text+="【Peak 1】 "+FREQ_DATA[c1.index]+" Hz ("+c1.db.toFixed(1)+" dB)\n";
-    text+="【Peak 2】 "+FREQ_DATA[c2.index]+" Hz ("+c2.db.toFixed(1)+" dB)\n";
-    text+="【差分/基準】 差: "+Math.abs(c1.db-c2.db).toFixed(1)+" dB (最大許容 12 dB) / 基準値: "+DATA_MIN_DB+" dB";
-  }else{
-    text+="データ帯域ピーク検出待機中...";
-  }
-  peakMonitor.textContent=text;
+  if (!second || second.db < DATA_MIN_DB) return null;
+  if (Math.abs(first.db - second.db) > 14) return null; // 音量バランス判定
+
+  const a = Math.min(first.index, second.index);
+  const b = Math.max(first.index, second.index);
+  const pairIndex = PAIR_INDEX.get(a + "," + b);
+  if (pairIndex === undefined) return null;
+
+  return { pairIndex, f1: FREQ_DATA[a], f2: FREQ_DATA[b], db1: first.db, db2: second.db };
 }
 
-function resetReceiverState(){
-  rxState="WAIT_TRIGGER";
-  triggerConfirmCount=0;
-  nextSlotToRead=0;
-  rxSlots=[];
-  triggerDetectedAt=0;
-  dataStartAt=0;
+function drawSpectrum(triggerPeak) {
+  const w = canvas.width;
+  const h = canvas.height;
+  canvasCtx.fillStyle = "#090c11";
+  canvasCtx.fillRect(0, 0, w, h);
+
+  const minF = 17000;
+  const maxF = 19800;
+  const minDb = -100;
+  const maxDb = -30;
+
+  const fToX = f => (f - minF) / (maxF - minF) * w;
+  const dbToY = db => h - (db - minDb) / (maxDb - minDb) * h;
+
+  // 周波数波形
+  const startBin = Math.floor(minF * FFT_SIZE / rxCtx.sampleRate);
+  const endBin = Math.ceil(maxF * FFT_SIZE / rxCtx.sampleRate);
+
+  canvasCtx.strokeStyle = "#00e5ff";
+  canvasCtx.lineWidth = 1.5;
+  canvasCtx.beginPath();
+  for (let b = startBin; b <= endBin; b++) {
+    const freq = b * rxCtx.sampleRate / FFT_SIZE;
+    const x = fToX(freq);
+    const db = Math.max(minDb, Math.min(maxDb, spectrum[b]));
+    const y = dbToY(db);
+    if (b === startBin) canvasCtx.moveTo(x, y);
+    else canvasCtx.lineTo(x, y);
+  }
+  canvasCtx.stroke();
+
+  // トリガーマーカー
+  canvasCtx.strokeStyle = "#ffcc00";
+  canvasCtx.beginPath();
+  canvasCtx.moveTo(fToX(TRIGGER_FREQ), 0);
+  canvasCtx.lineTo(fToX(TRIGGER_FREQ), h);
+  canvasCtx.stroke();
 }
 
-function processReceivedSlots(){
-  if(rxSlots.length!==3)return;
-  const pair1=rxSlots[0].pairIndex;
-  const pair2=rxSlots[1].pairIndex;
-  const receivedChecksum=rxSlots[2].pairIndex;
-  const expectedChecksum=(pair1+pair2)%PAIR_COUNT;
-  if(receivedChecksum!==expectedChecksum){
-    setStatus("チェックデジット不一致\npair1="+pair1+"\npair2="+pair2+"\n受信checksum="+receivedChecksum+"\n期待checksum="+expectedChecksum+"\n\n次のトリガー待機...");
-    resetReceiverState();
-    return;
+function resetReceiverState() {
+  rxState = "WAIT_TRIGGER";
+  triggerConfirmCount = 0;
+  dataStartAt = 0;
+  rxSlots = [];
+  currentSlotIndex = -1;
+  currentSlotVotes = [];
+}
+
+function processReceivedSlots() {
+  if (rxSlots.length !== 3) return;
+  const pair1 = rxSlots[0].pairIndex;
+  const pair2 = rxSlots[1].pairIndex;
+  const receivedChecksum = rxSlots[2].pairIndex;
+  const expectedChecksum = (pair1 + pair2) % PAIR_COUNT;
+
+  if (receivedChecksum !== expectedChecksum) {
+    setStatus(`チェックデジット不一致\npair1: ${pair1}, pair2: ${pair2}\n受信Check: ${receivedChecksum} (期待値: ${expectedChecksum})\nトリガー待機に戻ります`);
+  } else {
+    const id = pairsToId(pair1, pair2);
+    document.getElementById("receivedId").textContent = id.toLocaleString();
+    setStatus(`受信成功\npair1: ${pair1}, pair2: ${pair2}\nCheck: ${receivedChecksum}\n復号ID: ${id}\nトリガー待機中...`);
   }
-  const id=pairsToId(pair1,pair2);
-  document.getElementById("receivedId").textContent=String(id);
-  setStatus("受信成功\npair1="+pair1+"\npair2="+pair2+"\nchecksum="+receivedChecksum+"\nID="+id+"\n\n次のトリガー待機...");
   resetReceiverState();
 }
 
-function receiverLoop(){
-  if(!rxRunning)return;
+function receiverLoop() {
+  if (!rxRunning) return;
   analyser.getFloatFrequencyData(spectrum);
-  const now=performance.now()/1000;
+  const now = performance.now() / 1000;
 
-  const triggerPeak=getLocalPeakAround(TRIGGER_FREQ);
-  const candidates=getCandidatePeaks();
-  drawSpectrum(candidates,triggerPeak);
+  const triggerPeak = getLocalPeakAround(TRIGGER_FREQ);
+  drawSpectrum(triggerPeak);
 
-  if(rxState==="WAIT_TRIGGER"){
-    if(detectTrigger()){
+  if (rxState === "WAIT_TRIGGER") {
+    if (detectTrigger()) {
       triggerConfirmCount++;
-    }else{
-      triggerConfirmCount=0;
+    } else {
+      triggerConfirmCount = 0;
     }
-    if(triggerConfirmCount>=TRIGGER_CONFIRM_FRAMES){
-      triggerDetectedAt=now;
-      dataStartAt=now+TRIGGER_DURATION;
-      nextSlotToRead=0;
-      rxSlots=[];
-      rxState="READ_DATA";
-      triggerConfirmCount=0;
-      setStatus("トリガー検出\nデータ開始まで "+TRIGGER_DURATION.toFixed(2)+" 秒\n待機...");
+
+    if (triggerConfirmCount >= TRIGGER_CONFIRM_FRAMES) {
+      dataStartAt = now + (TRIGGER_DURATION * 0.7); // トリガー後縁付近を基準化
+      rxState = "READ_DATA";
+      triggerConfirmCount = 0;
+      currentSlotIndex = -1;
+      rxSlots = [];
+      setStatus("トリガー同期検知！ データ受信中...");
     }
-  }else if(rxState==="READ_DATA"){
-    const elapsed=now-dataStartAt;
-    if(elapsed<0){
-      requestAnimationFrame(receiverLoop);
-      return;
-    }
-    const slot=Math.floor(elapsed/SLOT_DURATION);
-    if(slot!==nextSlotToRead&&slot>=nextSlotToRead){
-      nextSlotToRead=slot;
-    }
-    if(nextSlotToRead<3){
-      const within=elapsed-nextSlotToRead*SLOT_DURATION;
-      if(within>=SLOT_DURATION*SLOT_READ_START&&within<=SLOT_DURATION*SLOT_READ_END){
-        const pair=detectPair();
-        if(pair){
-          rxSlots.push(pair);
-          setStatus("トリガーOK\nスロット "+rxSlots.length+"/3\n"+pair.f1+" Hz + "+pair.f2+" Hz\npairIndex="+pair.pairIndex);
-          nextSlotToRead++;
-          if(rxSlots.length===3){
-            processReceivedSlots();
+  } else if (rxState === "READ_DATA") {
+    const elapsed = now - dataStartAt;
+    const slotIdx = Math.floor(elapsed / SLOT_DURATION);
+
+    if (slotIdx >= 0 && slotIdx < 3) {
+      if (slotIdx !== currentSlotIndex) {
+        // 前スロットの集計完了
+        if (currentSlotIndex >= 0 && currentSlotVotes.length > 0) {
+          // 最頻値を確定
+          const voteCounts = {};
+          currentSlotVotes.forEach(v => voteCounts[v.pairIndex] = (voteCounts[v.pairIndex] || 0) + 1);
+          let bestPair = null, maxV = 0;
+          for (const k in voteCounts) {
+            if (voteCounts[k] > maxV) {
+              maxV = voteCounts[k];
+              bestPair = currentSlotVotes.find(v => v.pairIndex === Number(k));
+            }
           }
-        }else{
-          setStatus("トリガーOK\nスロット "+(nextSlotToRead+1)+"/3\nピーク解析中...");
+          rxSlots.push(bestPair);
+        }
+        currentSlotIndex = slotIdx;
+        currentSlotVotes = [];
+      }
+
+      // スロット中心の安定区間（25%〜75%）のみ投票サンプリング
+      const slotPhase = elapsed - slotIdx * SLOT_DURATION;
+      if (slotPhase >= SLOT_DURATION * 0.25 && slotPhase <= SLOT_DURATION * 0.75) {
+        const detected = detectSlotPair();
+        if (detected) {
+          currentSlotVotes.push(detected);
+          peakMonitor.textContent = `[Slot ${slotIdx + 1}/3 検出中] ${detected.f1} Hz + ${detected.f2} Hz (Pair: ${detected.pairIndex})`;
         }
       }
+    } else if (slotIdx >= 3) {
+      // 最終スロット集計
+      if (currentSlotVotes.length > 0) {
+        const voteCounts = {};
+        currentSlotVotes.forEach(v => voteCounts[v.pairIndex] = (voteCounts[v.pairIndex] || 0) + 1);
+        let bestPair = null, maxV = 0;
+        for (const k in voteCounts) {
+          if (voteCounts[k] > maxV) {
+            maxV = voteCounts[k];
+            bestPair = currentSlotVotes.find(v => v.pairIndex === Number(k));
+          }
+        }
+        rxSlots.push(bestPair);
+      }
+      processReceivedSlots();
     }
-    if(elapsed>TRIGGER_DURATION+SLOT_DURATION*3+TRIGGER_TIMEOUT){
-      setStatus("データ受信タイムアウト\n次のトリガー待機...");
+
+    if (elapsed > SLOT_DURATION * 4) {
+      setStatus("受信タイムアウト\nトリガー待機に戻ります");
       resetReceiverState();
     }
   }
@@ -492,34 +477,24 @@ function receiverLoop(){
   requestAnimationFrame(receiverLoop);
 }
 
-document.getElementById("sendButton").addEventListener("click",async()=>{
-  const id=Number(document.getElementById("sendId").value);
-  if(!Number.isInteger(id)||id<0||id>MAX_ID){
-    alert("IDは0～"+MAX_ID+"で指定してください");
+// EVENT HANDLERS
+document.getElementById("sendButton").addEventListener("click", async () => {
+  const id = Number(document.getElementById("sendId").value);
+  if (!Number.isInteger(id) || id < 0 || id > MAX_ID) {
+    alert("IDは0～" + MAX_ID + "の範囲で指定してください");
     return;
   }
-  try{
-    await sendId(id);
-  }catch(err){
-    console.error(err);
-    alert(err.message);
-  }
+  await sendId(id);
 });
 
-document.getElementById("sendRandom").addEventListener("click",async()=>{
-  const id=randomId();
-  document.getElementById("sendId").value=id;
-  try{
-    await sendId(id);
-  }catch(err){
-    console.error(err);
-    alert(err.message);
-  }
+document.getElementById("sendRandom").addEventListener("click", async () => {
+  const id = Math.floor(Math.random() * ID_COUNT);
+  document.getElementById("sendId").value = id;
+  await sendId(id);
 });
 
-document.getElementById("startReceiver").addEventListener("click",startReceiver);
-document.getElementById("stopReceiver").addEventListener("click",stopReceiver);
-setStatus("停止中");
+document.getElementById("startReceiver").addEventListener("click", startReceiver);
+document.getElementById("stopReceiver").addEventListener("click", stopReceiver);
 </script>
 </body>
 </html>
