@@ -13,8 +13,8 @@ input{font-size:18px;padding:8px;width:280px;box-sizing:border-box}
 .value{font-size:30px;font-weight:bold;word-break:break-all}
 #status{white-space:pre-wrap;font-family:monospace;line-height:1.5}
 .small{font-size:13px;line-height:1.6}
-canvas{width:100%;height:180px;background:#1a1a1a;border-radius:6px;display:block;margin-top:10px}
-#peakInfo{font-family:monospace;background:#f4f4f4;padding:8px;border-radius:6px;margin-top:8px;font-size:13px}
+canvas{width:100%;height:180px;background:#111;border-radius:8px;display:block;margin:10px 0}
+#peakMonitor{font-family:monospace;background:#f5f5f7;padding:10px;border-radius:8px;margin:10px 0;font-size:13px;line-height:1.5;white-space:pre-wrap}
 </style>
 </head>
 <body>
@@ -22,9 +22,15 @@ canvas{width:100%;height:180px;background:#1a1a1a;border-radius:6px;display:bloc
 <div class="box">
 <h2>通信仕様</h2>
 <div class="small">
-<div>データ周波数: 17,300～19,400 Hz (間隔: 20 Hz, 数: 106)</div>
-<div>ペア数: 106C2 = 5,565 / データ: 2ペア + チェックデジット: 1ペア</div>
-<div>ID範囲: 0～30,969,224 / トリガー: 19,500 Hz</div>
+<div>データ周波数: 17,300～19,400 Hz</div>
+<div>周波数間隔: 20 Hz</div>
+<div>周波数数: 106</div>
+<div>ペア数: 106C2 = 5,565</div>
+<div>データ: 2ペア</div>
+<div>チェックデジット: 1ペア</div>
+<div>ID数: 30,969,225</div>
+<div>ID範囲: 0～30,969,224</div>
+<div>トリガー: 19,500 Hz</div>
 </div>
 </div>
 
@@ -44,7 +50,7 @@ canvas{width:100%;height:180px;background:#1a1a1a;border-radius:6px;display:bloc
 <button id="stopReceiver">停止</button>
 <div>受信ID: <span id="receivedId" class="value">-</span></div>
 <canvas id="specCanvas" width="800" height="180"></canvas>
-<div id="peakInfo">ピーク情報: 停止中</div>
+<div id="peakMonitor">ピーク解析: 停止中</div>
 <div id="status">停止中</div>
 </div>
 
@@ -140,175 +146,380 @@ async function sendId(id){
     oscA.frequency.setValueAtTime(f1,t);
     oscB.frequency.setValueAtTime(f2,t);
     gainA.gain.setValueAtTime(0,t);
-    gainB.具体的な用途の指定がないため、レスポンシブ対応・モダンデザインを施した汎用的なランディングページ（LP）の単一HTMLフルコードを出力します。
+    gainB.gain.setValueAtTime(0,t);
+    gainA.gain.linearRampToValueAtTime(TX_GAIN,t+RAMP_TIME);
+    gainB.gain.linearRampToValueAtTime(TX_GAIN,t+RAMP_TIME);
+    gainA.gain.setValueAtTime(TX_GAIN,t+SLOT_DURATION-RAMP_TIME);
+    gainB.gain.setValueAtTime(TX_GAIN,t+SLOT_DURATION-RAMP_TIME);
+    gainA.gain.linearRampToValueAtTime(0,t+SLOT_DURATION);
+    gainB.gain.linearRampToValueAtTime(0,t+SLOT_DURATION);
+    t+=SLOT_DURATION;
+  }
+  oscA.start(now);
+  oscB.start(now);
+  oscA.stop(t+0.05);
+  oscB.stop(t+0.05);
+  document.getElementById("sentId").textContent=String(id);
+  document.getElementById("sendInfo").textContent="pair1="+decoded.pair1Index+" ["+pairToFreqs(decoded.pair1).join(" Hz + ")+" Hz], pair2="+decoded.pair2Index+" ["+pairToFreqs(decoded.pair2).join(" Hz + ")+" Hz], checksum="+decoded.checksum+" ["+pairToFreqs(decoded.pair3).join(" Hz + ")+" Hz]";
+}
 
-```html
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>モダンWebテンプレート</title>
-  <style>
-    :root {
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --bg: #f8fafc;
-      --surface: #ffffff;
-      --text: #0f172a;
-      --text-muted: #64748b;
-      --border: #e2e8f0;
+function randomId(){
+  return Math.floor(Math.random()*ID_COUNT);
+}
+
+let rxCtx=null;
+let rxStream=null;
+let rxSource=null;
+let analyser=null;
+let rxRunning=false;
+let rxState="WAIT_TRIGGER";
+let triggerConfirmCount=0;
+let triggerDetectedAt=0;
+let dataStartAt=0;
+let nextSlotToRead=0;
+let rxSlots=[];
+let lastFrameTime=0;
+let spectrum=null;
+
+const canvas=document.getElementById("specCanvas");
+const canvasCtx=canvas.getContext("2d");
+const peakMonitor=document.getElementById("peakMonitor");
+
+function setStatus(text){
+  document.getElementById("status").textContent=text;
+}
+
+async function startReceiver(){
+  if(rxRunning)return;
+  try{
+    rxStream=await navigator.mediaDevices.getUserMedia({
+      audio:{
+        echoCancellation:false,
+        noiseSuppression:false,
+        autoGainControl:false,
+        channelCount:1
+      }
+    });
+    rxCtx=new(window.AudioContext||window.webkitAudioContext)();
+    await rxCtx.resume();
+    rxSource=rxCtx.createMediaStreamSource(rxStream);
+    analyser=rxCtx.createAnalyser();
+    analyser.fftSize=FFT_SIZE;
+    analyser.smoothingTimeConstant=0;
+    analyser.minDecibels=-120;
+    analyser.maxDecibels=0;
+    rxSource.connect(analyser);
+    spectrum=new Float32Array(analyser.frequencyBinCount);
+    rxRunning=true;
+    rxState="WAIT_TRIGGER";
+    triggerConfirmCount=0;
+    nextSlotToRead=0;
+    rxSlots=[];
+    setStatus("受信中\nサンプルレート: "+rxCtx.sampleRate+" Hz\nFFT: "+FFT_SIZE+"\nトリガー待機...");
+    requestAnimationFrame(receiverLoop);
+  }catch(err){
+    console.error(err);
+    setStatus("マイク開始失敗\n"+err.message);
+  }
+}
+
+function stopReceiver(){
+  rxRunning=false;
+  if(rxStream){
+    for(const track of rxStream.getTracks())track.stop();
+    rxStream=null;
+  }
+  if(rxCtx){
+    rxCtx.close();
+    rxCtx=null;
+  }
+  analyser=null;
+  spectrum=null;
+  peakMonitor.textContent="ピーク解析: 停止中";
+  canvasCtx.clearRect(0,0,canvas.width,canvas.height);
+  setStatus("停止中");
+}
+
+function binToFreq(bin){
+  return bin*rxCtx.sampleRate/FFT_SIZE;
+}
+
+function dbAtBin(bin){
+  if(bin<0||bin>=spectrum.length)return-Infinity;
+  return spectrum[bin];
+}
+
+function getLocalPeakAround(freq){
+  const center=freq*FFT_SIZE/rxCtx.sampleRate;
+  const centerBin=Math.round(center);
+  let bestBin=centerBin;
+  let bestDb=-Infinity;
+  for(let d=-2;d<=2;d++){
+    const bin=centerBin+d;
+    const db=dbAtBin(bin);
+    if(db>bestDb){
+      bestDb=db;
+      bestBin=bin;
     }
+  }
+  return{freq:binToFreq(bestBin),db:bestDb,bin:bestBin};
+}
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+function detectTrigger(){
+  const triggerPeak=getLocalPeakAround(TRIGGER_FREQ);
+  let maxData=-Infinity;
+  for(let i=0;i<DATA_COUNT;i++){
+    const p=getLocalPeakAround(FREQ_DATA[i]);
+    if(p.db>maxData)maxData=p.db;
+  }
+  if(triggerPeak.db<TRIGGER_MIN_DB)return false;
+  if(triggerPeak.db<maxData+TRIGGER_MARGIN_DB)return false;
+  return true;
+}
+
+function getCandidatePeaks(){
+  const candidates=[];
+  for(let i=0;i<DATA_COUNT;i++){
+    const expected=FREQ_DATA[i];
+    const p=getLocalPeakAround(expected);
+    candidates.push({
+      index:i,
+      freq:p.freq,
+      db:p.db
+    });
+  }
+  candidates.sort((a,b)=>b.db-a.db);
+  return candidates;
+}
+
+function detectPair(){
+  const candidates=getCandidatePeaks();
+  if(candidates.length<2)return null;
+  const first=candidates[0];
+  if(first.db<DATA_MIN_DB)return null;
+  let second=null;
+  for(let k=1;k<candidates.length;k++){
+    const candidate=candidates[k];
+    if(Math.abs(candidate.freq-first.freq)>=MIN_PEAK_DISTANCE_HZ){
+      second=candidate;
+      break;
     }
+  }
+  if(!second)return null;
+  if(second.db<DATA_MIN_DB)return null;
+  if(first.db-second.db>12)return null;
+  const a=Math.min(first.index,second.index);
+  const b=Math.max(first.index,second.index);
+  if(a===b)return null;
+  const pairIndex=PAIR_INDEX.get(a+","+b);
+  if(pairIndex===undefined)return null;
+  return{
+    pairIndex,
+    i:a,
+    j:b,
+    f1:FREQ_DATA[a],
+    f2:FREQ_DATA[b],
+    db1:first.db,
+    db2:second.db
+  };
+}
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background-color: var(--bg);
-      color: var(--text);
-      line-height: 1.6;
+function drawSpectrum(candidates,triggerPeak){
+  const w=canvas.width;
+  const h=canvas.height;
+  canvasCtx.fillStyle="#111";
+  canvasCtx.fillRect(0,0,w,h);
+
+  const minF=17000;
+  const maxF=19800;
+  const minDb=-110;
+  const maxDb=-30;
+
+  function fToX(f){return(f-minF)/(maxF-minF)*w;}
+  function dbToY(db){return h-(db-minDb)/(maxDb-minDb)*h;}
+
+  // ガイド線
+  canvasCtx.strokeStyle="#333";
+  canvasCtx.lineWidth=1;
+  for(let db=-100;db<=-40;db+=20){
+    const y=dbToY(db);
+    canvasCtx.beginPath();
+    canvasCtx.moveTo(0,y);
+    canvasCtx.lineTo(w,y);
+    canvasCtx.stroke();
+  }
+
+  // 閾値ライン
+  canvasCtx.strokeStyle="rgba(255, 60, 60, 0.4)";
+  canvasCtx.beginPath();
+  const thY=dbToY(DATA_MIN_DB);
+  canvasCtx.moveTo(0,thY);
+  canvasCtx.lineTo(w,thY);
+  canvasCtx.stroke();
+
+  // 周波数ビン描画
+  const startBin=Math.floor(minF*FFT_SIZE/rxCtx.sampleRate);
+  const endBin=Math.ceil(maxF*FFT_SIZE/rxCtx.sampleRate);
+
+  canvasCtx.strokeStyle="#00e5ff";
+  canvasCtx.lineWidth=1.5;
+  canvasCtx.beginPath();
+  let firstPt=true;
+  for(let b=startBin;b<=endBin;b++){
+    const freq=binToFreq(b);
+    const x=fToX(freq);
+    const db=Math.max(minDb,Math.min(maxDb,spectrum[b]));
+    const y=dbToY(db);
+    if(firstPt){canvasCtx.moveTo(x,y);firstPt=false;}
+    else{canvasCtx.lineTo(x,y);}
+  }
+  canvasCtx.stroke();
+
+  // トリガー位置マーカー
+  const trigX=fToX(TRIGGER_FREQ);
+  canvasCtx.fillStyle="#ffff00";
+  canvasCtx.fillRect(trigX-1,0,2,h);
+
+  // ピーク表示 (上位2件)
+  if(candidates.length>=2){
+    canvasCtx.fillStyle="#ff3366";
+    for(let k=0;k<2;k++){
+      const c=candidates[k];
+      const cx=fToX(c.freq);
+      const cy=dbToY(Math.max(minDb,Math.min(maxDb,c.db)));
+      canvasCtx.beginPath();
+      canvasCtx.arc(cx,cy,4,0,Math.PI*2);
+      canvasCtx.fill();
     }
+  }
 
-    header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      position: sticky;
-      top: 0;
-      z-index: 10;
+  // テキストモニター更新
+  const c1=candidates[0];
+  const c2=candidates[1];
+  let text="【トリガー】 "+TRIGGER_FREQ+" Hz: "+triggerPeak.db.toFixed(1)+" dB (基準: "+TRIGGER_MIN_DB+" dB)\n";
+  if(c1&&c2){
+    text+="【Peak 1】 "+FREQ_DATA[c1.index]+" Hz ("+c1.db.toFixed(1)+" dB)\n";
+    text+="【Peak 2】 "+FREQ_DATA[c2.index]+" Hz ("+c2.db.toFixed(1)+" dB)\n";
+    text+="【差分/基準】 差: "+Math.abs(c1.db-c2.db).toFixed(1)+" dB (最大許容 12 dB) / 基準値: "+DATA_MIN_DB+" dB";
+  }else{
+    text+="データ帯域ピーク検出待機中...";
+  }
+  peakMonitor.textContent=text;
+}
+
+function resetReceiverState(){
+  rxState="WAIT_TRIGGER";
+  triggerConfirmCount=0;
+  nextSlotToRead=0;
+  rxSlots=[];
+  triggerDetectedAt=0;
+  dataStartAt=0;
+}
+
+function processReceivedSlots(){
+  if(rxSlots.length!==3)return;
+  const pair1=rxSlots[0].pairIndex;
+  const pair2=rxSlots[1].pairIndex;
+  const receivedChecksum=rxSlots[2].pairIndex;
+  const expectedChecksum=(pair1+pair2)%PAIR_COUNT;
+  if(receivedChecksum!==expectedChecksum){
+    setStatus("チェックデジット不一致\npair1="+pair1+"\npair2="+pair2+"\n受信checksum="+receivedChecksum+"\n期待checksum="+expectedChecksum+"\n\n次のトリガー待機...");
+    resetReceiverState();
+    return;
+  }
+  const id=pairsToId(pair1,pair2);
+  document.getElementById("receivedId").textContent=String(id);
+  setStatus("受信成功\npair1="+pair1+"\npair2="+pair2+"\nchecksum="+receivedChecksum+"\nID="+id+"\n\n次のトリガー待機...");
+  resetReceiverState();
+}
+
+function receiverLoop(){
+  if(!rxRunning)return;
+  analyser.getFloatFrequencyData(spectrum);
+  const now=performance.now()/1000;
+
+  const triggerPeak=getLocalPeakAround(TRIGGER_FREQ);
+  const candidates=getCandidatePeaks();
+  drawSpectrum(candidates,triggerPeak);
+
+  if(rxState==="WAIT_TRIGGER"){
+    if(detectTrigger()){
+      triggerConfirmCount++;
+    }else{
+      triggerConfirmCount=0;
     }
-
-    .nav-container {
-      max-width: 1024px;
-      margin: 0 auto;
-      padding: 1rem 1.5rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    if(triggerConfirmCount>=TRIGGER_CONFIRM_FRAMES){
+      triggerDetectedAt=now;
+      dataStartAt=now+TRIGGER_DURATION;
+      nextSlotToRead=0;
+      rxSlots=[];
+      rxState="READ_DATA";
+      triggerConfirmCount=0;
+      setStatus("トリガー検出\nデータ開始まで "+TRIGGER_DURATION.toFixed(2)+" 秒\n待機...");
     }
-
-    .logo {
-      font-weight: 700;
-      font-size: 1.25rem;
-      color: var(--text);
-      text-decoration: none;
+  }else if(rxState==="READ_DATA"){
+    const elapsed=now-dataStartAt;
+    if(elapsed<0){
+      requestAnimationFrame(receiverLoop);
+      return;
     }
-
-    main {
-      max-width: 1024px;
-      margin: 0 auto;
-      padding: 3rem 1.5rem;
+    const slot=Math.floor(elapsed/SLOT_DURATION);
+    if(slot!==nextSlotToRead&&slot>=nextSlotToRead){
+      nextSlotToRead=slot;
     }
-
-    .hero {
-      text-align: center;
-      padding: 4rem 1rem;
+    if(nextSlotToRead<3){
+      const within=elapsed-nextSlotToRead*SLOT_DURATION;
+      if(within>=SLOT_DURATION*SLOT_READ_START&&within<=SLOT_DURATION*SLOT_READ_END){
+        const pair=detectPair();
+        if(pair){
+          rxSlots.push(pair);
+          setStatus("トリガーOK\nスロット "+rxSlots.length+"/3\n"+pair.f1+" Hz + "+pair.f2+" Hz\npairIndex="+pair.pairIndex);
+          nextSlotToRead++;
+          if(rxSlots.length===3){
+            processReceivedSlots();
+          }
+        }else{
+          setStatus("トリガーOK\nスロット "+(nextSlotToRead+1)+"/3\nピーク解析中...");
+        }
+      }
     }
-
-    .hero h1 {
-      font-size: 2.5rem;
-      font-weight: 800;
-      margin-bottom: 1rem;
-      line-height: 1.2;
+    if(elapsed>TRIGGER_DURATION+SLOT_DURATION*3+TRIGGER_TIMEOUT){
+      setStatus("データ受信タイムアウト\n次のトリガー待機...");
+      resetReceiverState();
     }
+  }
 
-    .hero p {
-      font-size: 1.125rem;
-      color: var(--text-muted);
-      max-width: 600px;
-      margin: 0 auto 2rem;
-    }
+  requestAnimationFrame(receiverLoop);
+}
 
-    .btn {
-      display: inline-block;
-      background-color: var(--primary);
-      color: #fff;
-      padding: 0.75rem 1.75rem;
-      border-radius: 0.375rem;
-      text-decoration: none;
-      font-weight: 600;
-      border: none;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
+document.getElementById("sendButton").addEventListener("click",async()=>{
+  const id=Number(document.getElementById("sendId").value);
+  if(!Number.isInteger(id)||id<0||id>MAX_ID){
+    alert("IDは0～"+MAX_ID+"で指定してください");
+    return;
+  }
+  try{
+    await sendId(id);
+  }catch(err){
+    console.error(err);
+    alert(err.message);
+  }
+});
 
-    .btn:hover {
-      background-color: var(--primary-hover);
-    }
+document.getElementById("sendRandom").addEventListener("click",async()=>{
+  const id=randomId();
+  document.getElementById("sendId").value=id;
+  try{
+    await sendId(id);
+  }catch(err){
+    console.error(err);
+    alert(err.message);
+  }
+});
 
-    .features {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1.5rem;
-      margin-top: 3rem;
-    }
-
-    .card {
-      background: var(--surface);
-      padding: 1.5rem;
-      border-radius: 0.5rem;
-      border: 1px solid var(--border);
-    }
-
-    .card h2 {
-      font-size: 1.25rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .card p {
-      color: var(--text-muted);
-      font-size: 0.95rem;
-    }
-
-    footer {
-      text-align: center;
-      padding: 2rem 1.5rem;
-      color: var(--text-muted);
-      font-size: 0.875rem;
-      border-top: 1px solid var(--border);
-      background: var(--surface);
-      margin-top: 4rem;
-    }
-  </style>
-</head>
-<body>
-
-  <header>
-    <div class="nav-container">
-      <a href="#" class="logo">Brand</a>
-      <a href="#contact" class="btn">お問い合わせ</a>
-    </div>
-  </header>
-
-  <main>
-    <section class="hero">
-      <h1>シンプルで拡張性の高い<br>Webサイト構築</h1>
-      <p>HTMLとCSSのみで構成された軽量な基本テンプレートです。レスポンシブデザインに対応しており、自由に変更・拡張が可能です。</p>
-      <button class="btn" onclick="alert('アクションが実行されました')">はじめる</button>
-    </section>
-
-    <section class="features">
-      <div class="card">
-        <h2>高速な読み込み</h2>
-        <p>外部フレームワークや重いライブラリに依存しないプレーンなコードにより、高速な表示を実現します。</p>
-      </div>
-      <div class="card">
-        <h2>モバイル対応</h2>
-        <p>CSS GridとFlexboxを活用し、スマートフォンからPCまで画面幅に合わせて自動的に最適化されます。</p>
-      </div>
-      <div class="card">
-        <h2>カスタム性</h2>
-        <p>CSS変数を採用しているため、カラーパレットや余白の変更を一括で簡単に行うことができます。</p>
-      </div>
-    </section>
-  </main>
-
-  <footer>
-    <p>&copy; 2026 Brand. All rights reserved.</p>
-  </footer>
-
+document.getElementById("startReceiver").addEventListener("click",startReceiver);
+document.getElementById("stopReceiver").addEventListener("click",stopReceiver);
+setStatus("停止中");
+</script>
 </body>
 </html>
