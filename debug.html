@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>OTOSYN 43ch Deep Diagnostics Engine</title>
+  <style>
+    :root {
+      --bg: #0b0e14; --panel: #151b23; --border: #30363d;
+      --text: #e6edf3; --accent: #58a6ff; --green: #3fb950; --red: #f85149;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      padding: 10px; max-width: 1300px; margin: 0 auto; font-size: 0.85rem;
+    }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; }
+    h2 { font-size: 0.9rem; color: var(--accent); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+    button {
+      background: #238636; color: #fff; border: 1px solid rgba(240,246,252,0.1);
+      border-radius: 6px; padding: 6px 12px; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 0.8rem;
+    }
+    button:hover { background: #2ea043; }
+    button.sec { background: #21262d; border-color: var(--border); }
+    button.sec:hover { background: #30363d; }
+    button.copy { background: #1f6feb; }
+    input[type="number"], select {
+      background: #0d1117; border: 1px solid var(--border); color: #fff;
+      padding: 4px 6px; border-radius: 4px; font-family: inherit; font-size: 0.8rem;
+    }
+    canvas { width: 100%; height: 380px; background: #050505; border: 1px solid var(--border); border-radius: 6px; display: block; }
+    #jsonOutput {
+      width: 100%; height: 110px; background: #050505; border: 1px solid var(--border);
+      border-radius: 6px; color: #7ee787; font-family: inherit; font-size: 0.72rem; padding: 6px; resize: vertical;
+    }
+    .badge { font-size: 0.75rem; padding: 3px 6px; border-radius: 4px; background: #30363d; color: #8b949e; }
+    .badge.active { background: #1f6feb; color: #fff; }
+    .badge.rec { background: #b62324; color: #fff; animation: pulse 0.8s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-top: 6px; }
+    .metric-card { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+    .metric-val { font-size: 1.1rem; font-weight: bold; color: #fff; }
+    .metric-val.green { color: var(--green); }
+    .metric-val.warn { color: #d29922; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>1. 送信テスト環境 (43ch 非隣接 Triplet)</h2>
+    <div class="row">
+      <label>プリセット:
+        <select id="selPreset">
+          <option value="std">標準バランス (分散配置)</option>
+          <option value="high">高周波ストレステスト (19kHz帯集中)</option>
+          <option value="wide">最大帯域スパン (17.5k〜19.8k)</option>
+          <option value="custom">カスタム設定</option>
+        </select>
+      </label>
+      <label>スロット幅: <input type="number" id="txSlotMs" value="100" style="width:55px;"> ms</label>
+      <label>ゲイン: <input type="number" id="txGain" value="0.10" step="0.01" style="width:55px;"></label>
+    </div>
+    <div class="row">
+      <label>T1 CH:
+        <input type="number" id="t1_a" value="2" min="0" max="42" style="width:40px;">
+        <input type="number" id="t1_b" value="10" min="0" max="42" style="width:40px;">
+        <input type="number" id="t1_c" value="20" min="0" max="42" style="width:40px;">
+      </label>
+      <label>T2 CH:
+        <input type="number" id="t2_a" value="6" min="0" max="42" style="width:40px;">
+        <input type="number" id="t2_b" value="16" min="0" max="42" style="width:40px;">
+        <input type="number" id="t2_c" value="32" min="0" max="42" style="width:40px;">
+      </label>
+      <button id="btnTx">送信実行</button>
+      <span id="txStatus" style="font-size:0.75rem; color:#8b949e;">待機中</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>
+      <span>2. 受信 & タイムラインマトリクス</span>
+      <span class="badge" id="rxStatus">停止中</span>
+    </h2>
+    <div class="row">
+      <button id="btnRx" class="sec">マイク監視 開始</button>
+      <button id="btnClear" class="sec">消去</button>
+      <span style="font-size:0.75rem; color:#8b949e;" id="deviceSummary">端末情報: 未取得</span>
+    </div>
+    <canvas id="matrixCanvas" width="1000" height="380"></canvas>
+  </div>
+
+  <div class="card">
+    <h2>3. 自動ハードウェア解析メトリクス</h2>
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div style="font-size:0.7rem; color:#8b949e;">推奨スロット1窓 (T1)</div>
+        <div class="metric-val green" id="calcT1Win">--</div>
+      </div>
+      <div class="metric-card">
+        <div style="font-size:0.7rem; color:#8b949e;">推奨スロット2窓 (T2)</div>
+        <div class="metric-val green" id="calcT2Win">--</div>
+      </div>
+      <div class="metric-card">
+        <div style="font-size:0.7rem; color:#8b949e;">高域減衰スロープ (感度低下)</div>
+        <div class="metric-val" id="calcSlope">--</div>
+      </div>
+      <div class="metric-card">
+        <div style="font-size:0.7rem; color:#8b949e;">隣接CH分離マージン (Leakage)</div>
+        <div class="metric-val" id="calcLeakage">--</div>
+      </div>
+      <div class="metric-card">
+        <div style="font-size:0.7rem; color:#8b949e;">IMD(歪み) ゴースト検出</div>
+        <div class="metric-val" id="calcImd">--</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>
+      <span>4. 診断データ (Minified JSON)</span>
+      <button class="copy" id="btnCopyJson">Minify JSON コピー</button>
+    </h2>
+    <textarea id="jsonOutput" readonly placeholder="トリガー検知後、ここに圧縮JSONが生成されます。そのまま共有してください。"></textarea>
+  </div>
+
+  <script>
+    "use strict";
+
+    const NUM_CH = 43;
+    const BASE_FREQ = 17500;
+    const STEP_FREQ = 56;
+    const TRIGGER_FREQ = 20200;
+    const GUARD_FREQ = 20000;
+    const FFT_SIZE = 2048;
+    const RECORD_WINDOW_MS = 550;
+
+    const FREQS = Array.from({ length: NUM_CH }, (_, i) => BASE_FREQ + i * STEP_FREQ);
+
+    // プリセット
+    document.getElementById("selPreset").onchange = (e) => {
+      const p = e.target.value;
+      if (p === "std") {
+        setCh([2, 10, 20], [6, 16, 32]);
+      } else if (p === "high") {
+        setCh([24, 28, 34], [26, 32, 40]);
+      } else if (p === "wide") {
+        setCh([0, 18, 38], [4, 22, 42]);
+      }
+    };
+
+    function setCh(t1, t2) {
+      document.getElementById("t1_a").value = t1[0];
+      document.getElementById("t1_b").value = t1[1];
+      document.getElementById("t1_c").value = t1[2];
+      document.getElementById("t2_a").value = t2[0];
+      document.getElementById("t2_b").value = t2[1];
+      document.getElementById("t2_c").value = t2[2];
+    }
+
+    // 送信
+    let txCtx = null;
+    document.getElementById("btnTx").onclick = () => {
+      if (!txCtx) txCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (txCtx.state === "suspended") txCtx.resume();
+
+      const slotMs = parseInt(document.getElementById("txSlotMs").value, 10);
+      const slotSec = slotMs / 1000.0;
+      const gainVal = parseFloat(document.getElementById("txGain").value);
+      const trigSec = 0.09;
+      const ramp = 0.005;
+
+      const t1 = [
+        parseInt(document.getElementById("t1_a").value, 10),
+        parseInt(document.getElementById("t1_b").value, 10),
+        parseInt(document.getElementById("t1_c").value, 10)
+      ];
+      const t2 = [
+        parseInt(document.getElementById("t2_a").value, 10),
+        parseInt(document.getElementById("t2_b").value, 10),
+        parseInt(document.getElementById("t2_c").value, 10)
+      ];
+
+      const now = txCtx.currentTime + 0.04;
+      const oscs = [txCtx.createOscillator(), txCtx.createOscillator(), txCtx.createOscillator()];
+      const gains = [txCtx.createGain(), txCtx.createGain(), txCtx.createGain()];
+
+      for (let i = 0; i < 3; i++) {
+        oscs[i].connect(gains[i]);
+        gains[i].connect(txCtx.destination);
+      }
+
+      let t = now;
+      // Trigger
+      oscs[0].frequency.setValueAtTime(TRIGGER_FREQ, t);
+      gains[0].gain.setValueAtTime(0, t);
+      gains[0].gain.linearRampToValueAtTime(gainVal, t + ramp);
+      gains[0].gain.setValueAtTime(gainVal, t + trigSec - ramp);
+      gains[0].gain.linearRampToValueAtTime(0, t + trigSec);
+      gains[1].gain.setValueAtTime(0, t);
+      gains[2].gain.setValueAtTime(0, t);
+      t += trigSec;
+
+      // T1
+      for (let i = 0; i < 3; i++) {
+        oscs[i].frequency.setValueAtTime(FREQS[t1[i]], t);
+        gains[i].gain.setValueAtTime(0, t);
+        gains[i].gain.linearRampToValueAtTime(gainVal / 3, t + ramp);
+        gains[i].gain.setValueAtTime(gainVal / 3, t + slotSec - ramp);
+        gains[i].gain.linearRampToValueAtTime(0, t + slotSec);
+      }
+      t += slotSec;
+
+      // T2
+      for (let i = 0; i < 3; i++) {
+        oscs[i].frequency.setValueAtTime(FREQS[t2[i]], t);
+        gains[i].gain.setValueAtTime(0, t);
+        gains[i].gain.linearRampToValueAtTime(gainVal / 3, t + ramp);
+        gains[i].gain.setValueAtTime(gainVal / 3, t + slotSec - ramp);
+        gains[i].gain.linearRampToValueAtTime(0, t + slotSec);
+      }
+      t += slotSec;
+
+      for (let i = 0; i < 3; i++) {
+        oscs[i].start(now);
+        oscs[i].stop(t + 0.05);
+      }
+      document.getElementById("txStatus").textContent = `送信完了 (全${Math.round((t - now)*1000)}ms)`;
+    };
+
+    // 受信 & 解析
+    let rxCtx = null, analyser = null, rxStream = null;
+    let isListening = false, recording = false;
+    let triggerTime = 0, trigConfirmCount = 0, trigFloor = -100;
+    let recordedFrames = [];
+    let deviceInfo = {};
+
+    const rxStatus = document.getElementById("rxStatus");
+    const jsonOutput = document.getElementById("jsonOutput");
+
+    document.getElementById("btnRx").onclick = async () => {
+      if (isListening) {
+        if (rxStream) rxStream.getTracks().forEach(t => t.stop());
+        if (rxCtx) rxCtx.close();
+        isListening = false;
+        document.getElementById("btnRx").textContent = "マイク監視 開始";
+        rxStatus.className = "badge";
+        rxStatus.textContent = "停止中";
+        return;
+      }
+
+      try {
+        rxStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 }
+        });
+        rxCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = rxCtx.createAnalyser();
+        analyser.fftSize = FFT_SIZE;
+        analyser.smoothingTimeConstant = 0.0;
+        rxCtx.createMediaStreamSource(rxStream).connect(analyser);
+
+        deviceInfo = {
+          ua: navigator.userAgent,
+          sr: rxCtx.sampleRate,
+          bin: parseFloat((rxCtx.sampleRate / FFT_SIZE).toFixed(2)),
+          cores: navigator.hardwareConcurrency || 0
+        };
+
+        document.getElementById("deviceSummary").textContent = `${deviceInfo.sr}Hz | Bin: ${deviceInfo.bin}Hz | iOS/WebKit`;
+
+        isListening = true;
+        document.getElementById("btnRx").textContent = "マイク監視 停止";
+        rxStatus.className = "badge active";
+        rxStatus.textContent = "トリガー待機中...";
+        requestAnimationFrame(profileLoop);
+      } catch (err) {
+        alert("マイクエラー: " + err.message);
+      }
+    };
+
+    document.getElementById("btnClear").onclick = () => {
+      recordedFrames = [];
+      drawMatrix();
+      jsonOutput.value = "";
+    };
+
+    function getCleanPeak(dataArray, freq, binWidth) {
+      const bin = Math.round(freq / binWidth);
+      return Math.max(dataArray[bin - 1] || -999, dataArray[bin], dataArray[bin + 1] || -999);
+    }
+
+    function profileLoop() {
+      if (!isListening) return;
+
+      const dataArray = new Float32Array(analyser.frequencyBinCount);
+      analyser.getFloatFrequencyData(dataArray);
+      const binWidth = rxCtx.sampleRate / analyser.fftSize;
+      const now = performance.now();
+
+      const trigDb = getCleanPeak(dataArray, TRIGGER_FREQ, binWidth);
+      const guardDb = getCleanPeak(dataArray, GUARD_FREQ, binWidth);
+
+      if (!recording) {
+        trigFloor = trigFloor * 0.98 + trigDb * 0.02;
+        if (trigDb > Math.max(-95, trigFloor + 12) && (trigDb - guardDb) > 8) {
+          trigConfirmCount++;
+        } else {
+          trigConfirmCount = 0;
+        }
+
+        if (trigConfirmCount >= 2) {
+          trigConfirmCount = 0;
+          recording = true;
+          triggerTime = now;
+          recordedFrames = [];
+          rxStatus.className = "badge rec";
+          rxStatus.textContent = "記録中";
+        }
+      } else {
+        const elapsed = now - triggerTime;
+        if (elapsed <= RECORD_WINDOW_MS) {
+          rxStatus.textContent = `記録中 (${elapsed.toFixed(0)}ms)`;
+          const chPowers = [];
+          for (let i = 0; i < NUM_CH; i++) {
+            chPowers.push(parseFloat(getCleanPeak(dataArray, FREQS[i], binWidth).toFixed(1)));
+          }
+          // 軽量配列化: [経過ms, TrigDb, GuardDb, [43ch...]]
+          recordedFrames.push([
+            parseFloat(elapsed.toFixed(1)),
+            parseFloat(trigDb.toFixed(1)),
+            parseFloat(guardDb.toFixed(1)),
+            chPowers
+          ]);
+        } else {
+          recording = false;
+          rxStatus.className = "badge active";
+          rxStatus.textContent = "解析完了";
+          analyzeMetrics();
+        }
+      }
+
+      requestAnimationFrame(profileLoop);
+    }
+
+    // --- メトリクス自動解析 & Minify JSON生成 ---
+    function analyzeMetrics() {
+      drawMatrix();
+
+      const t1Chs = [
+        parseInt(document.getElementById("t1_a").value, 10),
+        parseInt(document.getElementById("t1_b").value, 10),
+        parseInt(document.getElementById("t1_c").value, 10)
+      ];
+      const t2Chs = [
+        parseInt(document.getElementById("t2_a").value, 10),
+        parseInt(document.getElementById("t2_b").value, 10),
+        parseInt(document.getElementById("t2_c").value, 10)
+      ];
+
+      // 1. T1 / T2 エネルギー重心から最適窓を算出
+      const findWindow = (chs, searchStart, searchEnd) => {
+        let maxEnergy = -999;
+        let peakTime = searchStart;
+        recordedFrames.forEach(f => {
+          const t = f[0];
+          if (t >= searchStart && t <= searchEnd) {
+            const energy = chs.reduce((acc, c) => acc + f[3][c], 0);
+            if (energy > maxEnergy) { maxEnergy = energy; peakTime = t; }
+          }
+        });
+        return { start: Math.max(0, Math.round(peakTime - 45)), end: Math.round(peakTime + 45), center: Math.round(peakTime) };
+      };
+
+      const winT1 = findWindow(t1Chs, 30, 160);
+      const winT2 = findWindow(t2Chs, 150, 300);
+
+      document.getElementById("calcT1Win").textContent = `${winT1.start}ms 〜 ${winT1.end}ms (中心${winT1.center}ms)`;
+      document.getElementById("calcT2Win").textContent = `${winT2.start}ms 〜 ${winT2.end}ms (中心${winT2.center}ms)`;
+
+      // 2. 高域減衰スロープ (低周波CHと高周波CHのdB差)
+      let lowMax = -999, highMax = -999;
+      recordedFrames.forEach(f => {
+        t1Chs.concat(t2Chs).forEach(ch => {
+          if (ch < 10 && f[3][ch] > lowMax) lowMax = f[3][ch];
+          if (ch > 30 && f[3][ch] > highMax) highMax = f[3][ch];
+        });
+      });
+      const slopeVal = (lowMax > -900 && highMax > -900) ? (lowMax - highMax).toFixed(1) : "N/A";
+      document.getElementById("calcSlope").textContent = slopeVal !== "N/A" ? `-${slopeVal} dB (高域減衰)` : "測定不能";
+
+      // 3. 隣接CH分離マージン (Leakage)
+      let minSeparation = 999;
+      t2Chs.forEach(c => {
+        recordedFrames.forEach(f => {
+          if (f[0] >= winT2.start && f[0] <= winT2.end) {
+            const mainDb = f[3][c];
+            const leftDb = c > 0 ? f[3][c - 1] : -999;
+            const rightDb = c < NUM_CH - 1 ? f[3][c + 1] : -999;
+            const sep = mainDb - Math.max(leftDb, rightDb);
+            if (sep < minSeparation) minSeparation = sep;
+          }
+        });
+      });
+      const leakEl = document.getElementById("calcLeakage");
+      leakEl.textContent = `${minSeparation.toFixed(1)} dB`;
+      leakEl.className = `metric-val ${minSeparation >= 4.0 ? 'green' : 'warn'}`;
+
+      // 4. IMD (ゴーストピーク) 検知: 鳴らしていない全CHの中で最大dB
+      let maxGhostDb = -999;
+      let ghostCh = -1;
+      const allActive = new Set([...t1Chs, ...t2Chs]);
+      recordedFrames.forEach(f => {
+        if (f[0] >= winT1.start && f[0] <= winT2.end) {
+          f[3].forEach((db, ch) => {
+            if (!allActive.has(ch) && db > maxGhostDb) {
+              maxGhostDb = db;
+              ghostCh = ch;
+            }
+          });
+        }
+      });
+      const imdEl = document.getElementById("calcImd");
+      imdEl.textContent = `CH${ghostCh}: ${maxGhostDb.toFixed(1)}dB`;
+      imdEl.className = `metric-val ${maxGhostDb < -110 ? 'green' : 'warn'}`;
+
+      // 5. Minify JSON生成
+      const minReport = {
+        d: deviceInfo,
+        tx: { slot: parseInt(document.getElementById("txSlotMs").value, 10), t1: t1Chs, t2: t2Chs },
+        res: { t1Win: [winT1.start, winT1.end], t2Win: [winT2.start, winT2.end], slope: slopeVal, leak: parseFloat(minSeparation.toFixed(1)), ghost: [ghostCh, parseFloat(maxGhostDb.toFixed(1))] },
+        f: recordedFrames
+      };
+      jsonOutput.value = JSON.stringify(minReport);
+    }
+
+    document.getElementById("btnCopyJson").onclick = () => {
+      if (!jsonOutput.value) return;
+      navigator.clipboard.writeText(jsonOutput.value).then(() => {
+        const btn = document.getElementById("btnCopyJson");
+        btn.textContent = "コピー完了!";
+        setTimeout(() => { btn.textContent = "Minify JSON コピー"; }, 1500);
+      });
+    };
+
+    // Canvas 描画
+    const canvas = document.getElementById("matrixCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function drawMatrix() {
+      const w = canvas.width, h = canvas.height;
+      ctx.fillStyle = "#050505";
+      ctx.fillRect(0, 0, w, h);
+
+      const rowH = h / (NUM_CH + 1);
+
+      // グリッド (50ms)
+      ctx.strokeStyle = "#1a202c";
+      for (let ms = 0; ms <= RECORD_WINDOW_MS; ms += 50) {
+        const x = (ms / RECORD_WINDOW_MS) * w;
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+        if (ms % 100 === 0) {
+          ctx.fillStyle = "#4a5568"; ctx.font = "9px monospace";
+          ctx.fillText(`${ms}ms`, x + 2, h - 3);
+        }
+      }
+
+      // CHラベル
+      ctx.fillStyle = "#718096"; ctx.font = "8px monospace";
+      for (let ch = 0; ch < NUM_CH; ch += 5) {
+        const y = h - (ch + 1) * rowH;
+        ctx.fillText(`C${ch}`, 2, y + rowH - 2);
+      }
+      ctx.fillText("TRG", 2, rowH - 2);
+
+      if (recordedFrames.length === 0) return;
+
+      const sampleW = Math.max(2, w / recordedFrames.length);
+      recordedFrames.forEach(f => {
+        const x = (f[0] / RECORD_WINDOW_MS) * w;
+        for (let ch = 0; ch < NUM_CH; ch++) {
+          const db = f[3][ch];
+          const y = h - (ch + 1) * rowH;
+          const norm = Math.min(1.0, Math.max(0.0, (db + 110) / 45));
+          if (norm > 0.15) {
+            ctx.fillStyle = `hsl(${(1.0 - norm) * 240}, 100%, ${norm * 50}%)`;
+            ctx.fillRect(x, y, sampleW + 1, rowH - 1);
+          }
+        }
+        // Trigger
+        const normTrig = Math.min(1.0, Math.max(0.0, (f[1] + 110) / 45));
+        if (normTrig > 0.15) {
+          ctx.fillStyle = `hsl(${(1.0 - normTrig) * 240}, 100%, ${normTrig * 50}%)`;
+          ctx.fillRect(x, 0, sampleW + 1, rowH - 1);
+        }
+      });
+    }
+    drawMatrix();
+  </script>
+</body>
+</html>
