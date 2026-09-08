@@ -4,11 +4,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>超音波 Dual-Triplet (CD切り替え・低ノイズ・高速化版)</title>
+  <title>超音波 Dual-Triplet (スマホ高感度検出版)</title>
   <style>
     body {
       font-family: sans-serif;
-      max-width: 980px;
+      max-width: 1300px;
       margin: 20px auto;
       padding: 0 15px;
       line-height: 1.5;
@@ -162,23 +162,22 @@
     <h2>物理層・プロトコル & 受信感度設定</h2>
     <div class="settings-grid">
       <div class="slider-group">
-        <label>送信ゲイン: <span id="label-gain">0.15</span></label>
-        <input type="range" id="input-gain" min="0.01" max="0.5" step="0.01" value="0.15">
+        <label>送信ゲイン: <span id="label-gain">0.25</span></label>
+        <input type="range" id="input-gain" min="0.01" max="0.5" step="0.01" value="0.25">
       </div>
       <div class="slider-group">
-        <label>バースト時間 (スロット幅): <span id="label-slot">100</span> ms</label>
-        <input type="range" id="input-slot" min="50" max="200" step="5" value="100">
+        <label>バースト時間 (スロット幅): <span id="label-slot">120</span> ms</label>
+        <input type="range" id="input-slot" min="60" max="250" step="5" value="120">
       </div>
       <div class="slider-group">
-        <label>ピーク検出 最小dB閾値: <span id="label-min-db">-100</span> dB</label>
-        <input type="range" id="input-min-db" min="-120" max="-40" step="1" value="-100">
+        <label>ピーク検出 最小dB閾値: <span id="label-min-db">-95</span> dB</label>
+        <input type="range" id="input-min-db" min="-120" max="-40" step="1" value="-95">
       </div>
       <div class="slider-group">
-        <label>トリガー検出 閾値 (19.8kHz): <span id="label-trig-db">-100</span> dB</label>
-        <input type="range" id="input-trig-db" min="-120" max="-40" step="1" value="-100">
+        <label>トリガー検出 閾値 (19.8kHz): <span id="label-trig-db">-80</span> dB</label>
+        <input type="range" id="input-trig-db" min="-120" max="-40" step="1" value="-80">
       </div>
     </div>
-    <!-- 復活したCDオプション -->
     <div class="option-row">
       <label>
         <input type="checkbox" id="check-enable-cd" checked>
@@ -213,7 +212,7 @@
   </div>
 
   <div class="card">
-    <h2>FFTスペクトラム (全41ch + 19.8kHzトリガー / 4096点高速モード)</h2>
+    <h2>FFTスペクトラム (全41ch + 19.8kHzトリガー / スマホ最適化)</h2>
     <canvas id="spectrumCanvas" width="900" height="300"></canvas>
     <div style="font-family:monospace;font-size:0.85em;color:#666;margin-top:5px;" id="fft-info">停止中</div>
   </div>
@@ -225,7 +224,6 @@
     const BASE_FREQ = 17500;
     const STEP_FREQ = 52;
     const TRIGGER_FREQ = 19800;
-    const GUARD_FREQ = 19600;
     const COMBINATIONS = 10660; // 41C3
     const MAX_TOTAL_ID = (COMBINATIONS * COMBINATIONS) - 1;
 
@@ -313,17 +311,16 @@
       const targetGain = parseFloat(inputGain.value);
       const slotMs = parseInt(inputSlot.value, 10);
       const slotSec = slotMs / 1000.0;
-      const trigSec = 0.12;
-      const ramp = 0.012;
+      const trigSec = 0.14; // スマホ検知を確実にするためわずかに拡大
+      const ramp = 0.010;
 
       if (!txAudioCtx) txAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (txAudioCtx.state === "suspended") txAudioCtx.resume();
 
-      // CDオプションに応じてスロット列を動的に決定
       const sequence = [trip1, trip2];
       if (useCD) sequence.push(tripCD);
 
-      const now = txAudioCtx.currentTime + 0.04;
+      const now = txAudioCtx.currentTime + 0.05;
 
       const oscs = [txAudioCtx.createOscillator(), txAudioCtx.createOscillator(), txAudioCtx.createOscillator()];
       const gains = [txAudioCtx.createGain(), txAudioCtx.createGain(), txAudioCtx.createGain()];
@@ -377,12 +374,12 @@
       const t2Freqs = trip2.map(ch => FREQS[ch]);
 
       let logStr =
-        `[${timeStr}] 高速連続送信開始: Full ID ${totalId}
+        `[${timeStr}] 連続送信開始: Full ID ${totalId}
 --------------------------------------------------
-スロット構成: ${sequence.length + 1}連装 (${useCD ? 'Trigger + T1 + T2 + CD' : 'Trigger + T1 + T2'})
-合計伝送時間: ${totalDurationMs} ms (スロット幅: ${slotMs} ms)
+構成: ${useCD ? 'Trigger + T1 + T2 + CD (4発音)' : 'Trigger + T1 + T2 (3発音)'}
+伝送時間: ${totalDurationMs} ms (スロット幅: ${slotMs} ms)
 [1. Trigger]
-  Freq: ${TRIGGER_FREQ} Hz (120 ms)
+  Freq: ${TRIGGER_FREQ} Hz (${Math.round(trigSec * 1000)} ms)
 [2. Triplet 1 (High ID: ${id1})]
   CH: [${trip1.join(", ")}]
   Freqs: ${t1Freqs.map((f, idx) => `CH${trip1[idx]}=${f}Hz`).join(", ")}
@@ -431,8 +428,8 @@
 
     let rxState = "IDLE";
     let triggerStartTime = 0;
-    let slotEnergy = [];
-    let lastSpectrumData = null;
+    let slotMaxDb = [];
+    let slotSampleCount = [];
 
     btnRxToggle.addEventListener("click", async () => {
       if (isListening) stopListening();
@@ -478,9 +475,22 @@
       rxStatus.innerText = "停止中";
     }
 
-    function getPeakDb(dataArray, freq, binWidth) {
-      const bin = Math.round(freq / binWidth);
-      return Math.max(dataArray[bin - 1] || -999, dataArray[bin], dataArray[bin + 1] || -999);
+    // 周波数周辺の極大ピークと実測周波数を探索（スマホのサンプリング誤差を吸収）
+    function getPeakInfo(dataArray, centerFreq, binWidth, searchSpanHz = 26) {
+      const centerBin = Math.round(centerFreq / binWidth);
+      const spanBins = Math.max(1, Math.round(searchSpanHz / binWidth));
+      let maxDb = -999;
+      let peakBin = centerBin;
+
+      for (let b = centerBin - spanBins; b <= centerBin + spanBins; b++) {
+        if (b >= 0 && b < dataArray.length) {
+          if (dataArray[b] > maxDb) {
+            maxDb = dataArray[b];
+            peakBin = b;
+          }
+        }
+      }
+      return { db: maxDb, freq: peakBin * binWidth };
     }
 
     function processRx() {
@@ -489,30 +499,30 @@
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Float32Array(bufferLength);
       analyser.getFloatFrequencyData(dataArray);
-      lastSpectrumData = dataArray;
 
       const binWidth = rxAudioCtx.sampleRate / analyser.fftSize;
       const now = performance.now();
 
       const slotMs = parseInt(inputSlot.value, 10);
-      const trigSecMs = 120;
+      const trigSecMs = 140;
       const trigThreshold = parseFloat(inputTrigDb.value);
       const minDbThreshold = parseFloat(inputMinDb.value);
       const useCD = checkEnableCd.checked;
-      const expectedSlots = useCD ? 3 : 2; // T1, T2 または T1, T2, CD
+      const expectedSlots = useCD ? 3 : 2;
 
-      const trigDb = getPeakDb(dataArray, TRIGGER_FREQ, binWidth);
-      const guardDb = getPeakDb(dataArray, GUARD_FREQ, binWidth);
+      const trigInfo = getPeakInfo(dataArray, TRIGGER_FREQ, binWidth, 30);
 
       if (rxState === "IDLE") {
-        if (trigDb > trigThreshold && (trigDb - guardDb) > 10) {
+        if (trigInfo.db > trigThreshold) {
           triggerStartTime = now;
           rxState = "READING";
-          slotEnergy = [];
+          slotMaxDb = [];
+          slotSampleCount = [];
           for (let i = 0; i < expectedSlots; i++) {
-            slotEnergy.push(new Float32Array(NUM_CHANNELS));
+            slotMaxDb.push(Array.from({ length: NUM_CHANNELS }, () => ({ db: -999, freq: 0 })));
+            slotSampleCount.push(0);
           }
-          rxStatus.innerText = `トリガー検知 (${trigDb.toFixed(1)} dB) -> 積算受信中...`;
+          rxStatus.innerText = `トリガー検知 (${trigInfo.db.toFixed(1)} dB) -> 受信中...`;
         }
       } else if (rxState === "READING") {
         const elapsed = now - (triggerStartTime + trigSecMs);
@@ -520,17 +530,19 @@
 
         if (slotIdx >= 0 && slotIdx < expectedSlots) {
           const phase = elapsed - (slotIdx * slotMs);
-          if (phase > slotMs * 0.15 && phase < slotMs * 0.85) {
+          // スマホのタイミング遅延に対応するため窓を10%〜90%に拡大
+          if (phase > slotMs * 0.10 && phase < slotMs * 0.90) {
+            slotSampleCount[slotIdx]++;
             for (let ch = 0; ch < NUM_CHANNELS; ch++) {
-              const db = getPeakDb(dataArray, FREQS[ch], binWidth);
-              if (db > minDbThreshold) {
-                slotEnergy[slotIdx][ch] += Math.pow(10, db / 20);
+              const peak = getPeakInfo(dataArray, FREQS[ch], binWidth, 24);
+              if (peak.db > slotMaxDb[slotIdx][ch].db) {
+                slotMaxDb[slotIdx][ch] = peak;
               }
             }
           }
-          rxStatus.innerText = `スロット ${slotIdx + 1}/${expectedSlots} 積算受信中...`;
+          rxStatus.innerText = `スロット ${slotIdx + 1}/${expectedSlots} 蓄積中...`;
         } else if (slotIdx >= expectedSlots) {
-          decodePacket(binWidth, useCD);
+          decodePacket(binWidth, useCD, minDbThreshold);
           rxState = "IDLE";
         }
       }
@@ -539,37 +551,63 @@
       animFrameId = requestAnimationFrame(processRx);
     }
 
-    function decodePacket(binWidth, useCD) {
+    function decodePacket(binWidth, useCD, minDbThreshold) {
       const expectedSlots = useCD ? 3 : 2;
       const resolvedSlots = [];
 
       for (let s = 0; s < expectedSlots; s++) {
-        const scores = Array.from(slotEnergy[s]).map((p, idx) => ({ idx, p }));
-        scores.sort((a, b) => b.p - a.p);
+        const channelsData = slotMaxDb[s].map((item, ch) => ({
+          ch,
+          targetFreq: FREQS[ch],
+          measuredFreq: item.freq,
+          diffHz: item.freq - FREQS[ch],
+          db: item.db
+        }));
 
-        if (scores[2].p > 0.0001 && scores[0].p > scores[3].p * 1.35) {
-          const top3 = [scores[0].idx, scores[1].idx, scores[2].idx].sort((a, b) => a - b);
-          const tripId = TRIPLET_MAP.get(`${top3[0]},${top3[1]},${top3[2]}`);
+        // dB強度で降順ソート
+        channelsData.sort((a, b) => b.db - a.db);
 
-          const details = top3.map(ch => {
-            const targetFreq = FREQS[ch];
-            const currentDb = getPeakDb(lastSpectrumData, targetFreq, binWidth);
-            return {
-              channel: ch,
-              targetFreq: targetFreq,
-              measuredFreq: targetFreq,
-              diffHz: 0.0,
-              power: currentDb
-            };
-          });
+        const candidate1 = channelsData[0];
+        const candidate2 = channelsData[1];
+        const candidate3 = channelsData[2];
+        const candidate4 = channelsData[3]; // ノイズフロア基準
+
+        // スマホ向け局所S/N比判定:
+        // 1. 3位のピークが最小dB閾値をクリアしていること
+        // 2. 3位のピークが4位(未送信ch/ノイズ)より最低2.5dB以上明確に浮いていること
+        const hasMinDb = candidate3.db > minDbThreshold;
+        const hasContrast = (candidate3.db - candidate4.db) >= 2.5;
+
+        if (hasMinDb && hasContrast) {
+          const top3 = [candidate1, candidate2, candidate3].sort((a, b) => a.ch - b.ch);
+          const chIndices = top3.map(x => x.ch);
+          const tripId = TRIPLET_MAP.get(chIndices.join(","));
 
           resolvedSlots.push({
             id: tripId !== undefined ? tripId : null,
-            channels: top3,
-            details: details
+            channels: chIndices,
+            details: top3.map(x => ({
+              channel: x.ch,
+              targetFreq: x.targetFreq,
+              measuredFreq: x.measuredFreq,
+              diffHz: x.diffHz,
+              power: x.db
+            }))
           });
         } else {
-          resolvedSlots.push({ id: null, channels: [], details: [] });
+          // デバッグ表示用（取得できた上位3つを入れておく）
+          const top3 = [candidate1, candidate2, candidate3].sort((a, b) => a.ch - b.ch);
+          resolvedSlots.push({
+            id: null,
+            channels: top3.map(x => x.ch),
+            details: top3.map(x => ({
+              channel: x.ch,
+              targetFreq: x.targetFreq,
+              measuredFreq: x.measuredFreq,
+              diffHz: x.diffHz,
+              power: x.db
+            }))
+          });
         }
       }
 
@@ -616,26 +654,26 @@
           rxStatus.innerText = `受信成功: ID ${fullId} ${useCD ? '(CD検証OK)' : ''}`;
           logText += `>> デコード完了: Full ID = ${fullId}`;
           rxBadges.innerHTML = `
-        <div class="badge" style="background:#d4edda;border-color:#28a745;font-size:1.15em;">
-          受信成功 ID: <b>${fullId}</b>
-        </div>
-        <div class="badge">T1: <b>${t1.id}</b></div>
-        <div class="badge">T2: <b>${t2.id}</b></div>
-        ${useCD ? '<div class="badge" style="background:#cce5ff;border-color:#b8daff;">CD検証: <b>PASS</b></div>' : ''}
-      `;
+            <div class="badge" style="background:#d4edda;border-color:#28a745;font-size:1.15em;">
+              受信成功 ID: <b>${fullId}</b>
+            </div>
+            <div class="badge">T1: <b>${t1.id}</b></div>
+            <div class="badge">T2: <b>${t2.id}</b></div>
+            ${useCD ? '<div class="badge" style="background:#cce5ff;border-color:#b8daff;">CD検証: <b>PASS</b></div>' : ''}
+          `;
         } else {
           rxStatus.innerText = `パリティエラー (ID ${fullId} は検出されましたがCD不一致)`;
-          logText += `>> エラー: チェックデジットが一致しません。誤りが発生した可能性があります。`;
+          logText += `>> エラー: チェックデジットが一致しません。`;
           rxBadges.innerHTML = `
-        <div class="badge" style="background:#fff3cd;border-color:#ffeeba;font-size:1.15em;color:#856404;">
-          仮受領ID: <b>${fullId}</b> (CD不一致)
-        </div>
-      `;
+            <div class="badge" style="background:#fff3cd;border-color:#ffeeba;font-size:1.15em;color:#856404;">
+              仮受領ID: <b>${fullId}</b> (CD不一致)
+            </div>
+          `;
         }
       } else {
-        rxStatus.innerText = "デコード失敗 (ピーク取得漏れ または 認識エラー)";
+        rxStatus.innerText = "デコード失敗 (ピーク特定不可)";
         logText += `--------------------------------------------------\n`;
-        logText += `>> デコード失敗: 正常に特定できませんでした。最小dB閾値やゲインを調整してください。`;
+        logText += `>> デコード失敗: 3周波数を分離できませんでした。最小dB閾値、または送信ゲインを調整してください。`;
         rxBadges.innerHTML = `<span class="badge" style="background:#f8d7da;color:#721c24;">デコード失敗</span>`;
       }
 
