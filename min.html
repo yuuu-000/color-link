@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <title>超音波 Dual-Triplet (CD切り替え・低ノイズ・高速化版)</title>
+    <title>超音波 Dual-Triplet (冗長多数決・適応校正・高信頼版)</title>
     <style>
       body {
          font-family: sans-serif;
@@ -36,39 +36,16 @@
          color: #e0e0e0;
       }
 
-      button:hover {
-         background: #444;
-      }
+      button:hover { background: #444; }
 
-      button.primary {
-         background: #555;
-         color: #fff;
-         border-color: #444;
-      }
-
-      button.primary:hover {
-         background: #666;
-      }
-
-      button.accent {
-         background: #666;
-         color: #fff;
-         border-color: #555;
-      }
-
-      button.accent:hover {
-         background: #777;
-      }
-
-      button.danger {
-         background: #444;
-         color: #fff;
-         border-color: #333;
-      }
-
-      button.danger:hover {
-         background: #555;
-      }
+      button.primary { background: #0066cc; color: #fff; border-color: #0055aa; }
+      button.primary:hover { background: #0055b3; }
+      button.accent { background: #28a745; color: #fff; border-color: #218838; }
+      button.accent:hover { background: #218838; }
+      button.danger { background: #dc3545; color: #fff; border-color: #bd2130; }
+      button.danger:hover { background: #c82333; }
+      button.warn { background: #d39e00; color: #1a1a1a; border-color: #b58600; }
+      button.warn:hover { background: #b58600; }
 
       .settings-grid {
          display: grid;
@@ -78,69 +55,72 @@
       }
 
       .slider-group {
-         background: #2a2a2a;
+         background: #252525;
          padding: 10px;
          border-radius: 6px;
          border: 1px solid #444;
       }
 
-      .slider-group label {
-         display: block;
-         font-size: 0.9em;
-         font-weight: bold;
-         margin-bottom: 5px;
-      }
-
-      .slider-group input[type="range"] {
-         width: 100%;
-      }
+      .slider-group label { display: block; font-size: 0.9em; font-weight: bold; margin-bottom: 5px; }
+      .slider-group input[type="range"] { width: 100%; }
 
       .option-row {
          margin-top: 10px;
          padding: 10px;
-         background: #2a2a2a;
+         background: #1a2433;
          border-radius: 6px;
-         border: 1px solid #444;
+         border: 1px solid #2a3d54;
       }
 
-      .option-row label {
-         font-weight: bold;
-         cursor: pointer;
-      }
+      .option-row label { font-weight: bold; cursor: pointer; }
 
-      /* HTMLのインラインスタイルを上書き */
-      .option-row div {
-         color: #aaa !important;
-      }
+      .status { font-weight: bold; margin-top: 10px; color: #66b3ff; }
 
-      .status {
-         font-weight: bold;
+      .confirmed-banner {
          margin-top: 10px;
-         color: #ccc;
+         padding: 14px;
+         border-radius: 8px;
+         background: #103018;
+         border: 2px solid #28a745;
+         color: #a3e4b7;
+         font-size: 1.25em;
+         font-weight: bold;
+         display: none;
       }
+      .confirmed-banner.show { display: block; }
+
+      .vote-track {
+         display: flex;
+         gap: 6px;
+         margin-top: 8px;
+         flex-wrap: wrap;
+      }
+      .vote-chip {
+         font-family: monospace;
+         font-size: 0.8em;
+         padding: 4px 8px;
+         border-radius: 12px;
+         border: 1px solid #444;
+         background: #222;
+         color: #999;
+      }
+      .vote-chip.ok { border-color: #28a745; color: #a3e4b7; background: #103018; }
+      .vote-chip.fail { border-color: #dc3545; color: #fca5a5; background: #401519; }
 
       .badge {
          display: inline-block;
-         background: #333;
-         border: 1px solid #555;
+         background: #2a2a2a;
+         border: 1px solid #444;
          padding: 6px 10px;
          border-radius: 4px;
          margin: 4px;
          font-size: .85em;
-         color: #e0e0e0;
-      }
-
-      /* JSから動的付与されるインラインカラーをグレースケールに強制上書き */
-      .badge[style] {
-         background: #333 !important;
-         border-color: #555 !important;
-         color: #e0e0e0 !important;
       }
 
       .log-box {
          font-family: monospace;
-         background: #111;
-         color: #ddd;
+         background: #181818;
+         color: #00ff66;
          border-radius: 6px;
          padding: 12px;
          margin-top: 10px;
@@ -170,6 +150,12 @@
          color: #e0e0e0;
          border: 1px solid #555;
       }
+
+      .note {
+         font-size: 0.85em;
+         color: #aaa;
+         margin-top: 4px;
+      }
     </style>
 </head>
 
@@ -187,25 +173,42 @@
                 <input type="range" id="input-slot" min="50" max="2000" step="5" value="100">
             </div>
             <div class="slider-group">
-                <label>ピーク検出 最小dB閾値: <span id="label-min-db">-100</span> dB</label>
+                <label>ピーク検出 最小dB閾値 (下限フロア): <span id="label-min-db">-100</span> dB</label>
                 <input type="range" id="input-min-db" min="-120" max="-40" step="1" value="-100">
+                <div class="note">実際の判定には、この値と「chごとの実測ノイズフロア＋マージン」の高い方が使われます。</div>
             </div>
             <div class="slider-group">
-                <label>トリガー検出 閾値 (19.8kHz): <span id="label-trig-db">-100</span> dB</label>
+                <label>トリガー検出 閾値 (19.8kHz・下限フロア): <span id="label-trig-db">-100</span> dB</label>
                 <input type="range" id="input-trig-db" min="-120" max="-40" step="1" value="-100">
             </div>
+            <div class="slider-group">
+                <label>冗長送信回数（多数決の母数）: <span id="label-redundancy">3</span> 回</label>
+                <input type="range" id="input-redundancy" min="1" max="5" step="1" value="3">
+                <div class="note">同一IDを連続送信。回数を増やすほど信頼性は上がりますが伝送時間も伸びます。</div>
+            </div>
+            <div class="slider-group">
+                <label>多数決 必要一致数: <span id="label-vote-required">2</span> 回</label>
+                <input type="range" id="input-vote-required" min="1" max="5" step="1" value="2">
+                <div class="note">冗長送信回数以下に自動でクランプされます。1にすると単発即確定（速度優先）。</div>
+            </div>
         </div>
-        <!-- 復活したCDオプション -->
         <div class="option-row">
             <label>
                 <input type="checkbox" id="check-enable-cd" checked>
                 【Option】チェックデジット(パリティTriplet)を付加する
             </label>
-            <div style="font-size:0.85em;color:#555;margin-top:4px;">
-                ON: 合計4回発音 (Trigger &rarr; T1 &rarr; T2 &rarr; CD) / 誤り検出あり<br>
-                OFF: 合計3回発音 (Trigger &rarr; T1 &rarr; T2) / 最速伝送
+            <div style="font-size:0.85em;color:#aaa;margin-top:4px;">
+                ON: 毎回4回発音 (Trigger &rarr; T1 &rarr; T2 &rarr; CD) / 誤り検出あり。多数決は「CD照合に成功したパケットのみ」を対象にします。<br>
+                OFF: 毎回3回発音 (Trigger &rarr; T1 &rarr; T2) / 最速伝送。多数決のみで信頼性を担保します。
             </div>
         </div>
+    </div>
+
+    <div class="card">
+        <h2>デバイス校正 (環境ノイズ実測)</h2>
+        <button id="btn-calibrate" class="warn">この端末・この場所で2秒間キャリブレーション</button>
+        <div class="status" id="calib-status">未実施（マイク受信を開始してから実行してください）</div>
+        <div class="note">機種ごとのマイク特性・会場ノイズは大きく異なります。校正するとチャンネルごとの実測ノイズフロアを学習し、以後の判定に自動反映します。</div>
     </div>
 
     <div class="card">
@@ -225,14 +228,20 @@
         <h2>受信側 (Receiver)</h2>
         <button id="btn-rx-toggle">マイク受信を開始</button>
         <div class="status" id="rx-status">停止中</div>
+
+        <div class="confirmed-banner" id="rx-confirmed"></div>
+
+        <div style="font-size:0.85em;color:#999;margin-top:10px;">直近の受信試行（多数決の材料。緑=CD照合OK/赤=NG）</div>
+        <div class="vote-track" id="vote-track"></div>
+
         <div id="rx-badges" style="margin-top:10px;"></div>
         <div class="log-box" id="rx-log">[受信デバッグログ待機中]</div>
     </div>
 
     <div class="card">
-        <h2>FFTスペクトラム (全41ch + 19.8kHzトリガー / 4096点高速モード)</h2>
+        <h2>FFTスペクトラム (全41ch + 19.8kHzトリガー / 4096点)</h2>
         <canvas id="spectrumCanvas" width="900" height="300"></canvas>
-        <div style="font-family:monospace;font-size:0.85em;color:#666;margin-top:5px;" id="fft-info">停止中</div>
+        <div style="font-family:monospace;font-size:0.85em;color:#888;margin-top:5px;" id="fft-info">停止中</div>
     </div>
 
     <script>
@@ -244,12 +253,21 @@
       const TRIGGER_FREQ = 19800;
       const GUARD_FREQ = 19600;
       const COMBINATIONS = 10660; // 41C3
-      const MAX_TOTAL_ID = (COMBINATIONS * COMBINATIONS) - 1;
+      const MAX_TOTAL_ID = (COMBINATIONS * COMBINATIONS) - 1; // 113,635,599 > 1億 (維持)
 
       const FREQS = Array.from({ length: NUM_CHANNELS }, (_, i) => BASE_FREQ + i * STEP_FREQ);
       const DISPLAY_MIN_FREQ = 17300;
       const DISPLAY_MAX_FREQ = 20000;
       const FFT_SIZE = 4096;
+
+      // --- 信頼性パラメータ ---
+      const ADAPTIVE_CH_MARGIN_DB = 10;     // ch別ノイズフロアからのマージン
+      const ADAPTIVE_TRIG_MARGIN_DB = 15;   // トリガーのノイズフロアからのマージン
+      const TRIGGER_CONFIRM_FRAMES = 3;     // トリガー確定に必要な連続フレーム数
+      const NOISE_EMA_ALPHA = 0.02;         // 適応ノイズフロアの追従速度
+      const VOTE_WINDOW_MS = 6000;          // 多数決の集計ウィンドウ
+      const CONFIRM_COOLDOWN_MS = 2500;     // 同一ID再確定の抑制時間
+      const SILENCE_GAP_SEC = 0.15;         // 冗長送信の各パケット間の無音ギャップ
 
       const TRIPLETS = [];
       const TRIPLET_MAP = new Map();
@@ -275,17 +293,29 @@
       const inputSlot = document.getElementById("input-slot");
       const inputMinDb = document.getElementById("input-min-db");
       const inputTrigDb = document.getElementById("input-trig-db");
+      const inputRedundancy = document.getElementById("input-redundancy");
+      const inputVoteRequired = document.getElementById("input-vote-required");
       const checkEnableCd = document.getElementById("check-enable-cd");
 
       const labelGain = document.getElementById("label-gain");
       const labelSlot = document.getElementById("label-slot");
       const labelMinDb = document.getElementById("label-min-db");
       const labelTrigDb = document.getElementById("label-trig-db");
+      const labelRedundancy = document.getElementById("label-redundancy");
+      const labelVoteRequired = document.getElementById("label-vote-required");
 
       inputGain.addEventListener("input", () => labelGain.innerText = parseFloat(inputGain.value).toFixed(2));
       inputSlot.addEventListener("input", () => labelSlot.innerText = inputSlot.value);
       inputMinDb.addEventListener("input", () => labelMinDb.innerText = inputMinDb.value);
       inputTrigDb.addEventListener("input", () => labelTrigDb.innerText = inputTrigDb.value);
+      inputRedundancy.addEventListener("input", () => {
+         labelRedundancy.innerText = inputRedundancy.value;
+         if (parseInt(inputVoteRequired.value, 10) > parseInt(inputRedundancy.value, 10)) {
+            inputVoteRequired.value = inputRedundancy.value;
+            labelVoteRequired.innerText = inputVoteRequired.value;
+         }
+      });
+      inputVoteRequired.addEventListener("input", () => labelVoteRequired.innerText = inputVoteRequired.value);
 
       /* 送信モジュール */
       let txAudioCtx = null;
@@ -332,11 +362,11 @@
          const slotSec = slotMs / 1000.0;
          const trigSec = 0.12;
          const ramp = 0.012;
+         const repeatCount = parseInt(inputRedundancy.value, 10) || 1;
 
          if (!txAudioCtx) txAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
          if (txAudioCtx.state === "suspended") txAudioCtx.resume();
 
-         // CDオプションに応じてスロット列を動的に決定
          const sequence = [trip1, trip2];
          if (useCD) sequence.push(tripCD);
 
@@ -351,33 +381,44 @@
             gains[i].connect(txAudioCtx.destination);
          }
 
-         // 1. Trigger
-         oscs[0].frequency.setValueAtTime(TRIGGER_FREQ, now);
-         gains[0].gain.setValueAtTime(0, now);
-         gains[0].gain.linearRampToValueAtTime(targetGain, now + ramp);
-         gains[0].gain.setValueAtTime(targetGain, now + trigSec - ramp);
-         gains[0].gain.linearRampToValueAtTime(0, now + trigSec);
+         // 冗長送信：同一パケットをrepeatCount回、単一のオーディオタイムラインに
+         // 焼き込むことで setTimeout のジッターなしに正確な間隔で連続送信する。
+         let tCursor = now;
+         for (let rep = 0; rep < repeatCount; rep++) {
+            // 1. Trigger
+            oscs[0].frequency.setValueAtTime(TRIGGER_FREQ, tCursor);
+            gains[0].gain.setValueAtTime(0, tCursor);
+            gains[0].gain.linearRampToValueAtTime(targetGain, tCursor + ramp);
+            gains[0].gain.setValueAtTime(targetGain, tCursor + trigSec - ramp);
+            gains[0].gain.linearRampToValueAtTime(0, tCursor + trigSec);
+            gains[1].gain.setValueAtTime(0, tCursor);
+            gains[2].gain.setValueAtTime(0, tCursor);
 
-         gains[1].gain.setValueAtTime(0, now);
-         gains[2].gain.setValueAtTime(0, now);
+            tCursor += trigSec;
 
-         // 2. Data Slots
-         let tCursor = now + trigSec;
-         for (let s = 0; s < sequence.length; s++) {
-            const trip = sequence[s];
-            const sStart = tCursor;
-            const sEnd = tCursor + slotSec;
+            // 2. Data Slots
+            for (let s = 0; s < sequence.length; s++) {
+               const trip = sequence[s];
+               const sStart = tCursor;
+               const sEnd = tCursor + slotSec;
 
-            for (let i = 0; i < 3; i++) {
-               const freq = FREQS[trip[i]];
-               oscs[i].frequency.setValueAtTime(freq, sStart);
+               for (let i = 0; i < 3; i++) {
+                  const freq = FREQS[trip[i]];
+                  oscs[i].frequency.setValueAtTime(freq, sStart);
 
-               gains[i].gain.setValueAtTime(0, sStart);
-               gains[i].gain.linearRampToValueAtTime(targetGain / 3.0, sStart + ramp);
-               gains[i].gain.setValueAtTime(targetGain / 3.0, sEnd - ramp);
-               gains[i].gain.linearRampToValueAtTime(0, sEnd);
+                  gains[i].gain.setValueAtTime(0, sStart);
+                  gains[i].gain.linearRampToValueAtTime(targetGain / 3.0, sStart + ramp);
+                  gains[i].gain.setValueAtTime(targetGain / 3.0, sEnd - ramp);
+                  gains[i].gain.linearRampToValueAtTime(0, sEnd);
+               }
+               tCursor += slotSec;
             }
-            tCursor += slotSec;
+
+            // パケット間の無音ギャップ（最後の繰り返しの後は不要）
+            if (rep < repeatCount - 1) {
+               for (let i = 0; i < 3; i++) gains[i].gain.setValueAtTime(0, tCursor);
+               tCursor += SILENCE_GAP_SEC;
+            }
          }
 
          for (let i = 0; i < 3; i++) {
@@ -387,19 +428,22 @@
 
          currentTxNodes = { oscs, gains };
          const totalDurationMs = Math.round((tCursor - now) * 1000);
-         txStatus.innerText = `送信中: ID ${totalId} (${useCD ? '4回構成: CDあり' : '3回構成: CDなし'})`;
+         txStatus.innerText = `送信中: ID ${totalId} (${useCD ? '4連装' : '3連装'} × 冗長${repeatCount}回)`;
 
          const timeStr = new Date().toLocaleTimeString();
          const t1Freqs = trip1.map(ch => FREQS[ch]);
          const t2Freqs = trip2.map(ch => FREQS[ch]);
 
          let logStr =
-            `[${timeStr}] 高速連続送信開始: Full ID ${totalId}\n--------------------------------------------------\nスロット構成: ${sequence.length + 1}連装 (${useCD ? 'Trigger + T1 + T2 + CD' : 'Trigger + T1 + T2'})\n合計伝送時間: ${totalDurationMs} ms (スロット幅: ${slotMs} ms)\n[1. Trigger]\n  Freq: ${TRIGGER_FREQ} Hz (120 ms)\n[2. Triplet 1 (High ID: ${id1})]\n  CH: [${trip1.join(", ")}]\n  Freqs: ${t1Freqs.map((f, idx) => `CH${trip1[idx]}=${f}Hz`).join(", ")}\n[3. Triplet 2 (Low ID: ${id2})]\n  CH: [${trip2.join(", ")}]\n  Freqs: ${t2Freqs.map((f, idx) => `CH${trip2[idx]}=${f}Hz`).join(", ")}\n`;
+            `[${timeStr}] 冗長送信開始: Full ID ${totalId}\n--------------------------------------------------\n` +
+            `パケット構成: ${sequence.length + 1}連装 (${useCD ? 'Trigger + T1 + T2 + CD' : 'Trigger + T1 + T2'}) × ${repeatCount}回連続\n` +
+            `合計伝送時間: ${totalDurationMs} ms (スロット幅: ${slotMs} ms, ギャップ: ${SILENCE_GAP_SEC * 1000} ms)\n` +
+            `[Triplet 1 (High ID: ${id1})] CH: [${trip1.join(", ")}] Freqs: ${t1Freqs.map((f, idx) => `CH${trip1[idx]}=${f}Hz`).join(", ")}\n` +
+            `[Triplet 2 (Low ID: ${id2})] CH: [${trip2.join(", ")}] Freqs: ${t2Freqs.map((f, idx) => `CH${trip2[idx]}=${f}Hz`).join(", ")}\n`;
 
          if (useCD) {
             const cdFreqs = tripCD.map(ch => FREQS[ch]);
-            logStr +=
-               `[4. CheckDigit (CD ID: ${cdId})]\n  CH: [${tripCD.join(", ")}]\n  Freqs: ${cdFreqs.map((f, idx) => `CH${tripCD[idx]}=${f}Hz`).join(", ")}\n`;
+            logStr += `[CheckDigit (CD ID: ${cdId})] CH: [${tripCD.join(", ")}] Freqs: ${cdFreqs.map((f, idx) => `CH${tripCD[idx]}=${f}Hz`).join(", ")}\n`;
          }
 
          logStr += `--------------------------------------------------`;
@@ -429,12 +473,31 @@
       const rxStatus = document.getElementById("rx-status");
       const rxLog = document.getElementById("rx-log");
       const rxBadges = document.getElementById("rx-badges");
+      const rxConfirmed = document.getElementById("rx-confirmed");
+      const voteTrack = document.getElementById("vote-track");
       const fftInfo = document.getElementById("fft-info");
+      const calibStatus = document.getElementById("calib-status");
 
       let rxState = "IDLE";
       let triggerStartTime = 0;
       let slotEnergy = [];
       let lastSpectrumData = null;
+      let triggerConfirmCount = 0;
+
+      // --- 適応ノイズフロア（chごと + トリガー/ガード） ---
+      let chNoiseFloor = new Array(NUM_CHANNELS).fill(-100);
+      let trigNoiseFloor = -100;
+      let noiseFloorInitialized = false;
+
+      // --- 多数決履歴 ---
+      let voteHistory = []; // {id, timestamp}
+      let lastConfirmedId = null;
+      let lastConfirmedTime = 0;
+
+      // --- 校正 ---
+      let isCalibrating = false;
+      let calibChSamples = [];
+      let calibTrigSamples = [];
 
       btnRxToggle.addEventListener("click", async () => {
          if (isListening) stopListening();
@@ -459,8 +522,15 @@
 
             isListening = true;
             rxState = "IDLE";
+            triggerConfirmCount = 0;
+            noiseFloorInitialized = false;
+            voteHistory = [];
+            lastConfirmedId = null;
+            renderVoteTrack();
+            rxConfirmed.classList.remove("show");
+
             btnRxToggle.innerText = "マイク受信を停止";
-            rxStatus.innerText = "トリガー待機中...";
+            rxStatus.innerText = "トリガー待機中... (ノイズフロア学習中)";
             fftInfo.innerText = `SampleRate: ${rxAudioCtx.sampleRate} Hz | FFT Size: ${FFT_SIZE} | Bin: ${(rxAudioCtx.sampleRate / FFT_SIZE).toFixed(2)} Hz`;
 
             processRx();
@@ -485,6 +555,35 @@
          return Math.max(dataArray[bin - 1] || -999, dataArray[bin], dataArray[bin + 1] || -999);
       }
 
+      // --- デバイス校正：2秒間、環境ノイズを実測してノイズフロアを直接セット ---
+      document.getElementById("btn-calibrate").addEventListener("click", () => {
+         if (!isListening) { alert("先にマイク受信を開始してください"); return; }
+         isCalibrating = true;
+         calibChSamples = Array.from({ length: NUM_CHANNELS }, () => []);
+         calibTrigSamples = [];
+         calibStatus.innerText = "測定中... (2秒間、できるだけ静かにしてください)";
+
+         setTimeout(() => {
+            isCalibrating = false;
+
+            const mean = arr => arr.reduce((a, b) => a + b, 0) / (arr.length || 1);
+            const chMeans = calibChSamples.map(samples => samples.length ? mean(samples) : -100);
+            const trigMean = calibTrigSamples.length ? mean(calibTrigSamples) : -100;
+
+            chNoiseFloor = chMeans;
+            trigNoiseFloor = trigMean;
+            noiseFloorInitialized = true;
+
+            const worstCh = chMeans.reduce((a, b) => Math.max(a, b), -999);
+            const recommendedMinDb = Math.ceil(worstCh + ADAPTIVE_CH_MARGIN_DB);
+            const recommendedTrigDb = Math.ceil(trigMean + ADAPTIVE_TRIG_MARGIN_DB);
+
+            calibStatus.innerText =
+               `校正完了。ch別ノイズフロア平均: ${mean(chMeans).toFixed(1)}dB / 最大: ${worstCh.toFixed(1)}dB / トリガー帯: ${trigMean.toFixed(1)}dB。` +
+               ` 推奨閾値 → 最小dB: ${recommendedMinDb}dB、トリガーdB: ${recommendedTrigDb}dB（ch別の実測値は自動的に判定へ反映済み）`;
+         }, 2000);
+      });
+
       function processRx() {
          if (!isListening) return;
 
@@ -498,23 +597,62 @@
 
          const slotMs = parseInt(inputSlot.value, 10);
          const trigSecMs = 120;
-         const trigThreshold = parseFloat(inputTrigDb.value);
-         const minDbThreshold = parseFloat(inputMinDb.value);
+         const trigThresholdFloor = parseFloat(inputTrigDb.value);
+         const minDbThresholdFloor = parseFloat(inputMinDb.value);
          const useCD = checkEnableCd.checked;
-         const expectedSlots = useCD ? 3 : 2; // T1, T2 または T1, T2, CD
+         const expectedSlots = useCD ? 3 : 2;
 
          const trigDb = getPeakDb(dataArray, TRIGGER_FREQ, binWidth);
          const guardDb = getPeakDb(dataArray, GUARD_FREQ, binWidth);
 
+         // --- 校正モード中はサンプルを集めるだけ ---
+         if (isCalibrating) {
+            for (let ch = 0; ch < NUM_CHANNELS; ch++) {
+               calibChSamples[ch].push(getPeakDb(dataArray, FREQS[ch], binWidth));
+            }
+            calibTrigSamples.push(trigDb);
+         }
+
+         // --- 待機中のみ、適応ノイズフロアをゆっくり更新 ---
+         if (rxState === "IDLE" && !isCalibrating) {
+            if (!noiseFloorInitialized) {
+               for (let ch = 0; ch < NUM_CHANNELS; ch++) {
+                  chNoiseFloor[ch] = getPeakDb(dataArray, FREQS[ch], binWidth);
+               }
+               trigNoiseFloor = trigDb;
+               noiseFloorInitialized = true;
+            } else {
+               for (let ch = 0; ch < NUM_CHANNELS; ch++) {
+                  const chDb = getPeakDb(dataArray, FREQS[ch], binWidth);
+                  chNoiseFloor[ch] = chNoiseFloor[ch] * (1 - NOISE_EMA_ALPHA) + chDb * NOISE_EMA_ALPHA;
+               }
+               trigNoiseFloor = trigNoiseFloor * (1 - NOISE_EMA_ALPHA) + trigDb * NOISE_EMA_ALPHA;
+            }
+         }
+
+         const effectiveTrigThreshold = Math.max(trigThresholdFloor, trigNoiseFloor + ADAPTIVE_TRIG_MARGIN_DB);
+
          if (rxState === "IDLE") {
-            if (trigDb > trigThreshold && (trigDb - guardDb) > 10) {
+            const passesTrig = trigDb > effectiveTrigThreshold && (trigDb - guardDb) > 10;
+
+            if (passesTrig) {
+               triggerConfirmCount++;
+            } else {
+               triggerConfirmCount = 0;
+            }
+
+            // --- 連続フレームで確認できて初めてトリガー確定（単発ノイズを無視） ---
+            if (triggerConfirmCount >= TRIGGER_CONFIRM_FRAMES) {
+               triggerConfirmCount = 0;
                triggerStartTime = now;
                rxState = "READING";
                slotEnergy = [];
                for (let i = 0; i < expectedSlots; i++) {
                   slotEnergy.push(new Float32Array(NUM_CHANNELS));
                }
-               rxStatus.innerText = `トリガー検知 (${trigDb.toFixed(1)} dB) -> 積算受信中...`;
+               rxStatus.innerText = `トリガー確定 (${trigDb.toFixed(1)} dB) -> 積算受信中...`;
+            } else if (!isCalibrating) {
+               rxStatus.innerText = `トリガー待機中... (適応閾値: ${effectiveTrigThreshold.toFixed(0)}dB)`;
             }
          } else if (rxState === "READING") {
             const elapsed = now - (triggerStartTime + trigSecMs);
@@ -525,7 +663,8 @@
                if (phase > slotMs * 0.15 && phase < slotMs * 0.85) {
                   for (let ch = 0; ch < NUM_CHANNELS; ch++) {
                      const db = getPeakDb(dataArray, FREQS[ch], binWidth);
-                     if (db > minDbThreshold) {
+                     const effectiveChThreshold = Math.max(minDbThresholdFloor, chNoiseFloor[ch] + ADAPTIVE_CH_MARGIN_DB);
+                     if (db > effectiveChThreshold) {
                         slotEnergy[slotIdx][ch] += Math.pow(10, db / 20);
                      }
                   }
@@ -556,20 +695,10 @@
                const details = top3.map(ch => {
                   const targetFreq = FREQS[ch];
                   const currentDb = getPeakDb(lastSpectrumData, targetFreq, binWidth);
-                  return {
-                     channel: ch,
-                     targetFreq: targetFreq,
-                     measuredFreq: targetFreq,
-                     diffHz: 0.0,
-                     power: currentDb
-                  };
+                  return { channel: ch, targetFreq: targetFreq, measuredFreq: targetFreq, diffHz: 0.0, power: currentDb };
                });
 
-               resolvedSlots.push({
-                  id: tripId !== undefined ? tripId : null,
-                  channels: top3,
-                  details: details
-               });
+               resolvedSlots.push({ id: tripId !== undefined ? tripId : null, channels: top3, details: details });
             } else {
                resolvedSlots.push({ id: null, channels: [], details: [] });
             }
@@ -579,11 +708,62 @@
       }
 
       function formatDetailLog(details) {
-         if (!details || details.length === 0) return "    (信号未検出: 設定dB以下の可能性)\n";
+         if (!details || details.length === 0) return "    (信号未検出: 実効閾値以下の可能性)\n";
          return details.map(d => {
             const sign = d.diffHz >= 0 ? "+" : "";
             return `    CH${d.channel.toString().padStart(2, ' ')}: 実測 ${d.measuredFreq.toFixed(1)}Hz (目標 ${d.targetFreq}Hz, ズレ ${sign}${d.diffHz.toFixed(1)}Hz) | 強度: ${d.power.toFixed(1)} dB`;
          }).join("\n") + "\n";
+      }
+
+      // --- 多数決管理 ---
+      function pushVoteAttempt(id, cdOk) {
+         const now = performance.now();
+         voteHistory.push({ id, cdOk, timestamp: now });
+         voteHistory = voteHistory.filter(v => now - v.timestamp < VOTE_WINDOW_MS);
+         renderVoteTrack();
+         checkVote();
+      }
+
+      function renderVoteTrack() {
+         voteTrack.innerHTML = voteHistory.map(v => {
+            const cls = v.id === null ? "fail" : (v.cdOk ? "ok" : "fail");
+            const label = v.id === null ? "検出失敗" : `ID ${v.id}${v.cdOk ? "" : "(CD-NG)"}`;
+            return `<div class="vote-chip ${cls}">${label}</div>`;
+         }).join("");
+      }
+
+      function checkVote() {
+         const useCD = checkEnableCd.checked;
+         const requiredVotes = Math.min(
+            parseInt(inputVoteRequired.value, 10) || 1,
+            parseInt(inputRedundancy.value, 10) || 1
+         );
+
+         // CD有効時は「照合成功したパケット」のみを多数決の対象にする（信頼度を最大化）
+         const eligible = voteHistory.filter(v => v.id !== null && (!useCD || v.cdOk));
+
+         const counts = {};
+         eligible.forEach(v => { counts[v.id] = (counts[v.id] || 0) + 1; });
+
+         let bestId = null, bestCount = 0;
+         for (const idKey in counts) {
+            if (counts[idKey] > bestCount) { bestCount = counts[idKey]; bestId = idKey; }
+         }
+
+         if (bestId !== null && bestCount >= requiredVotes) {
+            const now = performance.now();
+            if (bestId !== lastConfirmedId || (now - lastConfirmedTime) > CONFIRM_COOLDOWN_MS) {
+               lastConfirmedId = bestId;
+               lastConfirmedTime = now;
+               onConfirmed(parseInt(bestId, 10), bestCount, requiredVotes);
+            }
+         }
+      }
+
+      function onConfirmed(id, count, required) {
+         rxConfirmed.classList.add("show");
+         rxConfirmed.innerText = `✅ 確定受信: ID ${id} （${count}/${required}回一致で多数決成立）`;
+         rxStatus.innerText = `確定受信: ID ${id}`;
       }
 
       function evaluateFullPacket(slots, useCD) {
@@ -592,7 +772,7 @@
          const cd = useCD ? slots[2] : null;
 
          const timeStr = new Date().toLocaleTimeString();
-         let logText = `[${timeStr}] 受信解析完了 (${useCD ? '4回構成: CDあり' : '3回構成: CDなし'})\n--------------------------------------------------\n`;
+         let logText = `[${timeStr}] 受信解析 (試行) (${useCD ? '4連装' : '3連装'})\n--------------------------------------------------\n`;
          logText += `[Triplet 1 検出結果]\n` + formatDetailLog(t1 ? t1.details : []);
          logText += `[Triplet 2 検出結果]\n` + formatDetailLog(t2 ? t2.details : []);
          if (useCD) {
@@ -614,31 +794,34 @@
                logText += `>> チェックデジット照合: 期待値=${expectedCd} / 受信値=${cdOk ? cd.id : 'NG'} -> ${cdValid ? '一致(PASS)' : '不一致(FAIL)'}\n`;
             }
 
+            pushVoteAttempt(fullId, !useCD || cdValid);
+
             if (!useCD || cdValid) {
-               rxStatus.innerText = `受信成功: ID ${fullId} ${useCD ? '(CD検証OK)' : ''}`;
-               logText += `>> デコード完了: Full ID = ${fullId}`;
+               rxStatus.innerText = `試行受信OK: ID ${fullId} (多数決判定待ち)`;
+               logText += `>> この試行は多数決の対象になります。`;
                rxBadges.innerHTML = `
-        <div class="badge" style="background:#d4edda;border-color:#28a745;font-size:1.15em;">
-          受信成功 ID: <b>${fullId}</b>
+        <div class="badge" style="background:#103018;border-color:#28a745;color:#a3e4b7;">
+          試行成功 ID: <b>${fullId}</b>
         </div>
         <div class="badge">T1: <b>${t1.id}</b></div>
         <div class="badge">T2: <b>${t2.id}</b></div>
-        ${useCD ? '<div class="badge" style="background:#cce5ff;border-color:#b8daff;">CD検証: <b>PASS</b></div>' : ''}
+        ${useCD ? '<div class="badge" style="background:#102540;border-color:#3b82f6;color:#93c5fd;">CD検証: <b>PASS</b></div>' : ''}
       `;
             } else {
-               rxStatus.innerText = `パリティエラー (ID ${fullId} は検出されましたがCD不一致)`;
-               logText += `>> エラー: チェックデジットが一致しません。誤りが発生した可能性があります。`;
+               rxStatus.innerText = `パリティエラー (ID ${fullId} 検出、CD不一致・多数決対象外)`;
+               logText += `>> この試行はチェックデジット不一致のため多数決から除外されます。`;
                rxBadges.innerHTML = `
-        <div class="badge" style="background:#fff3cd;border-color:#ffeeba;font-size:1.15em;color:#856404;">
-          仮受領ID: <b>${fullId}</b> (CD不一致)
+        <div class="badge" style="background:#3d2f10;border-color:#d39e00;color:#fde047;">
+          仮ID: <b>${fullId}</b> (CD不一致・破棄)
         </div>
       `;
             }
          } else {
+            pushVoteAttempt(null, false);
             rxStatus.innerText = "デコード失敗 (ピーク取得漏れ または 認識エラー)";
             logText += `--------------------------------------------------\n`;
-            logText += `>> デコード失敗: 正常に特定できませんでした。最小dB閾値やゲインを調整してください。`;
-            rxBadges.innerHTML = `<span class="badge" style="background:#f8d7da;color:#721c24;">デコード失敗</span>`;
+            logText += `>> デコード失敗: この試行は多数決から除外されます。`;
+            rxBadges.innerHTML = `<span class="badge" style="background:#401519;border-color:#dc3545;color:#fca5a5;">デコード失敗</span>`;
          }
 
          rxLog.innerText = logText;
@@ -672,6 +855,19 @@
             canvasCtx.fillText(id, x - 5, yOffset);
          });
 
+         // ch別の適応ノイズフロア(実効閾値)ラインを表示
+         if (noiseFloorInitialized) {
+            canvasCtx.strokeStyle = "rgba(0, 229, 255, 0.35)";
+            canvasCtx.beginPath();
+            FREQS.forEach((freq, id) => {
+               const x = freqToX(freq);
+               const eff = Math.max(parseFloat(inputMinDb.value), chNoiseFloor[id] + ADAPTIVE_CH_MARGIN_DB);
+               const y = dbToY(eff);
+               if (id === 0) canvasCtx.moveTo(x, y); else canvasCtx.lineTo(x, y);
+            });
+            canvasCtx.stroke();
+         }
+
          const minDb = parseFloat(inputMinDb.value);
          const minDbY = dbToY(minDb);
          canvasCtx.strokeStyle = "rgba(255, 200, 0, 0.4)";
@@ -683,10 +879,10 @@
          canvasCtx.setLineDash([]);
          canvasCtx.fillStyle = "rgba(255, 200, 0, 0.8)";
          canvasCtx.font = "9px monospace";
-         canvasCtx.fillText(`Min Thr: ${minDb} dB`, 5, minDbY - 3);
+         canvasCtx.fillText(`下限フロア: ${minDb} dB (水色線=chごとの実効閾値)`, 5, minDbY - 3);
 
          const trigX = freqToX(TRIGGER_FREQ);
-         canvasCtx.strokeStyle = "#ff3333"; // キャンバス内の描画はJS側なので変更せずそのままです
+         canvasCtx.strokeStyle = "#ff3333";
          canvasCtx.lineWidth = 1.5;
          canvasCtx.beginPath();
          canvasCtx.moveTo(trigX, 0);
@@ -706,7 +902,7 @@
             if (i === minBin) canvasCtx.moveTo(x, y);
             else canvasCtx.lineTo(x, y);
          }
-         canvasCtx.strokeStyle = "#00e5ff"; // これもJS管理のためそのままです
+         canvasCtx.strokeStyle = "#00e5ff";
          canvasCtx.lineWidth = 1.5;
          canvasCtx.stroke();
       }
