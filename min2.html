@@ -2,167 +2,124 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>OTOSYN 43ch Hardware Latency & IMD Profiler</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>43ch Dual-Triplet 送受信テスト</title>
   <style>
-    :root {
-      --bg: #0b0e14;
-      --panel: #151b23;
-      --border: #30363d;
-      --text: #e6edf3;
-      --accent: #58a6ff;
-      --accent-green: #3fb950;
-      --accent-red: #f85149;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      padding: 12px;
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 12px;
-    }
-    h2 { font-size: 0.95rem; color: var(--accent); margin-bottom: 8px; }
-    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
-    button {
-      background: #238636;
-      color: #fff;
-      border: 1px solid rgba(240,246,252,0.1);
-      border-radius: 6px;
-      padding: 8px 14px;
-      font-weight: bold;
-      cursor: pointer;
-      font-size: 0.85rem;
-    }
-    button:hover { background: #2ea043; }
-    button.sec { background: #21262d; border-color: var(--border); }
-    button.sec:hover { background: #30363d; }
-    button.copy { background: #1f6feb; }
-    input[type="number"] {
-      background: #0d1117;
-      border: 1px solid var(--border);
-      color: #fff;
-      padding: 5px 8px;
-      border-radius: 4px;
-      font-family: inherit;
-    }
-    canvas {
-      width: 100%;
-      height: 440px;
-      background: #050505;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      display: block;
-    }
-    #jsonOutput {
-      width: 100%;
-      height: 180px;
-      background: #050505;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: #7ee787;
-      font-family: inherit;
-      font-size: 0.75rem;
-      padding: 8px;
-      resize: vertical;
-      white-space: pre;
-    }
-    .status-badge {
-      font-size: 0.8rem;
-      padding: 4px 8px;
-      border-radius: 4px;
-      background: #30363d;
-      color: #8b949e;
-    }
-    .status-badge.active { background: #1f6feb; color: #fff; }
-    .status-badge.rec { background: #b62324; color: #fff; animation: pulse 1s infinite; }
-    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    body { font-family: monospace; background: #121212; color: #eee; padding: 15px; max-width: 800px; margin: 0 auto; }
+    .box { background: #1e1e1e; border: 1px solid #333; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
+    button { background: #0066cc; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    button:hover { background: #0052a3; }
+    button.rx { background: #28a745; }
+    button.rx.active { background: #dc3545; }
+    input[type="number"] { background: #222; border: 1px solid #555; color: #fff; padding: 6px; width: 140px; }
+    .status { margin-top: 8px; font-weight: bold; color: #66b3ff; }
+    .result { margin-top: 10px; padding: 10px; border-radius: 6px; font-size: 1.1em; font-weight: bold; display: none; }
+    .result.ok { background: #103018; border: 1px solid #28a745; color: #a3e4b7; display: block; }
+    .result.fail { background: #401519; border: 1px solid #dc3545; color: #fca5a5; display: block; }
+    #log { background: #080808; border: 1px solid #333; padding: 8px; font-size: 0.8em; height: 120px; overflow-y: auto; white-space: pre-wrap; color: #7ee787; margin-top: 8px; }
   </style>
 </head>
 <body>
 
-  <div class="card">
-    <h2>1. 送信テスト (43ch 非隣接 Triplet 発信)</h2>
-    <div class="row">
-      <label>スロット幅: <input type="number" id="txSlotMs" value="100" style="width:65px;"> ms</label>
-      <label>ゲイン: <input type="number" id="txGain" value="0.10" step="0.01" style="width:60px;"></label>
-      <label>T1:
-        <input type="number" id="t1_a" value="2" min="0" max="42" style="width:45px;">
-        <input type="number" id="t1_b" value="10" min="0" max="42" style="width:45px;">
-        <input type="number" id="t1_c" value="20" min="0" max="42" style="width:45px;">
-      </label>
-      <label>T2:
-        <input type="number" id="t2_a" value="6" min="0" max="42" style="width:45px;">
-        <input type="number" id="t2_b" value="16" min="0" max="42" style="width:45px;">
-        <input type="number" id="t2_c" value="32" min="0" max="42" style="width:45px;">
-      </label>
-      <button id="btnTx">送信実行</button>
-    </div>
+  <!-- 送信部 -->
+  <div class="box">
+    <h3>送信側 (Transmitter)</h3>
+    <label>送信ID (0 〜 113,635,599): </label>
+    <input type="number" id="txId" value="12345678" min="0" max="113635599">
+    <button id="btnSend">送信</button>
+    <button id="btnRandom" style="background:#444;">ランダム送信</button>
+    <label style="margin-left:10px;">
+      <input type="checkbox" id="checkCd" checked> チェックデジット付与
+    </label>
+    <div class="status" id="txStatus">待機中</div>
   </div>
 
-  <div class="card">
-    <h2>2. マイク受信 & リアルタイム・タイムラインマトリクス</h2>
-    <div class="row">
-      <button id="btnRx" class="sec">マイク監視 開始</button>
-      <span class="status-badge" id="rxStatus">停止中</span>
-      <span style="font-size:0.75rem; color:#8b949e;" id="deviceSummary">端末情報: 取得待機中</span>
-    </div>
-    <canvas id="matrixCanvas" width="1000" height="440"></canvas>
+  <!-- 受信部 -->
+  <div class="box">
+    <h3>受信側 (Receiver)</h3>
+    <button id="btnRx" class="rx">マイク受信 開始</button>
+    <div class="status" id="rxStatus">停止中</div>
+    <div class="result" id="rxResult"></div>
   </div>
 
-  <div class="card">
-    <div class="row" style="justify-content: space-between;">
-      <h2>3. 診断ログ & JSON エクスポート (解析用)</h2>
-      <button class="copy" id="btnCopyJson">JSONをコピー</button>
-    </div>
-    <textarea id="jsonOutput" readonly placeholder="トリガー検知後、ここに端末情報・フレーム別エネルギー・遅延解析結果のJSONが自動生成されます。"></textarea>
+  <div class="box">
+    <h3>デバッグログ</h3>
+    <div id="log">Ready...</div>
   </div>
 
   <script>
     "use strict";
 
+    // --- 物理層パラメータ (iPhone 17実測チューニング値) ---
     const NUM_CH = 43;
     const BASE_FREQ = 17500;
     const STEP_FREQ = 56;
     const TRIGGER_FREQ = 20200;
     const GUARD_FREQ = 20000;
     const FFT_SIZE = 2048;
-    const RECORD_WINDOW_MS = 600;
+
+    // スロット幅: 70ms、実測サンプリング窓
+    const SLOT_MS = 70;
+    const WIN_T1 = [93, 173];
+    const WIN_T2 = [213, 313];
+    const WIN_CD = [333, 433]; // CDあり時用
 
     const FREQS = Array.from({ length: NUM_CH }, (_, i) => BASE_FREQ + i * STEP_FREQ);
 
-    // --- 送信部 ---
+    // 43ch 非隣接Triplet (41C3 = 10,660通り)
+    const TRIPLETS = [];
+    const TRIPLET_MAP = new Map();
+    for (let i = 0; i < NUM_CH; i++) {
+      for (let j = i + 2; j < NUM_CH; j++) {
+        for (let k = j + 2; k < NUM_CH; k++) {
+          const id = TRIPLETS.length;
+          TRIPLETS.push([i, j, k]);
+          TRIPLET_MAP.set(`${i},${j},${k}`, id);
+        }
+      }
+    }
+    const COMBINATIONS = TRIPLETS.length; // 10660
+    const MAX_ID = (COMBINATIONS * COMBINATIONS) - 1;
+
+    function calcCheckDigit(id1, id2) {
+      return (id1 * 31 + id2 * 17) % COMBINATIONS;
+    }
+
+    const logEl = document.getElementById("log");
+    function appendLog(msg) {
+      logEl.textContent = `[${new Date().toLocaleTimeString()}] ${msg}\n` + logEl.textContent;
+    }
+
+    // ==========================================
+    // 送信ロジック
+    // ==========================================
     let txCtx = null;
-    document.getElementById("btnTx").onclick = () => {
+
+    function sendId(totalId) {
+      if (isNaN(totalId) || totalId < 0 || totalId > MAX_ID) {
+        alert("有効なID範囲: 0 〜 " + MAX_ID);
+        return;
+      }
+
+      const useCD = document.getElementById("checkCd").checked;
+      const id1 = Math.floor(totalId / COMBINATIONS);
+      const id2 = totalId % COMBINATIONS;
+      const trip1 = TRIPLETS[id1];
+      const trip2 = TRIPLETS[id2];
+      const tripCD = useCD ? TRIPLETS[calcCheckDigit(id1, id2)] : null;
+
+      const sequence = [trip1, trip2];
+      if (useCD) sequence.push(tripCD);
+
       if (!txCtx) txCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (txCtx.state === "suspended") txCtx.resume();
 
-      const slotMs = parseInt(document.getElementById("txSlotMs").value, 10);
-      const slotSec = slotMs / 1000.0;
-      const gainVal = parseFloat(document.getElementById("txGain").value);
+      const targetGain = 0.10;
+      const slotSec = SLOT_MS / 1000.0;
       const trigSec = 0.09;
       const ramp = 0.005;
+      const now = txCtx.currentTime + 0.04;
 
-      const t1 = [
-        parseInt(document.getElementById("t1_a").value, 10),
-        parseInt(document.getElementById("t1_b").value, 10),
-        parseInt(document.getElementById("t1_c").value, 10)
-      ];
-      const t2 = [
-        parseInt(document.getElementById("t2_a").value, 10),
-        parseInt(document.getElementById("t2_b").value, 10),
-        parseInt(document.getElementById("t2_c").value, 10)
-      ];
-
-      const now = txCtx.currentTime + 0.05;
       const oscs = [txCtx.createOscillator(), txCtx.createOscillator(), txCtx.createOscillator()];
       const gains = [txCtx.createGain(), txCtx.createGain(), txCtx.createGain()];
 
@@ -172,63 +129,70 @@
       }
 
       let t = now;
-      // Trigger (20.2k)
+      // Trigger
       oscs[0].frequency.setValueAtTime(TRIGGER_FREQ, t);
       gains[0].gain.setValueAtTime(0, t);
-      gains[0].gain.linearRampToValueAtTime(gainVal, t + ramp);
-      gains[0].gain.setValueAtTime(gainVal, t + trigSec - ramp);
+      gains[0].gain.linearRampToValueAtTime(targetGain, t + ramp);
+      gains[0].gain.setValueAtTime(targetGain, t + trigSec - ramp);
       gains[0].gain.linearRampToValueAtTime(0, t + trigSec);
       gains[1].gain.setValueAtTime(0, t);
       gains[2].gain.setValueAtTime(0, t);
       t += trigSec;
 
-      // T1
-      for (let i = 0; i < 3; i++) {
-        oscs[i].frequency.setValueAtTime(FREQS[t1[i]], t);
-        gains[i].gain.setValueAtTime(0, t);
-        gains[i].gain.linearRampToValueAtTime(gainVal / 3, t + ramp);
-        gains[i].gain.setValueAtTime(gainVal / 3, t + slotSec - ramp);
-        gains[i].gain.linearRampToValueAtTime(0, t + slotSec);
+      // Data Slots
+      for (let s = 0; s < sequence.length; s++) {
+        const trip = sequence[s];
+        for (let i = 0; i < 3; i++) {
+          oscs[i].frequency.setValueAtTime(FREQS[trip[i]], t);
+          gains[i].gain.setValueAtTime(0, t);
+          gains[i].gain.linearRampToValueAtTime(targetGain / 3, t + ramp);
+          gains[i].gain.setValueAtTime(targetGain / 3, t + slotSec - ramp);
+          gains[i].gain.linearRampToValueAtTime(0, t + slotSec);
+        }
+        t += slotSec;
       }
-      t += slotSec;
-
-      // T2
-      for (let i = 0; i < 3; i++) {
-        oscs[i].frequency.setValueAtTime(FREQS[t2[i]], t);
-        gains[i].gain.setValueAtTime(0, t);
-        gains[i].gain.linearRampToValueAtTime(gainVal / 3, t + ramp);
-        gains[i].gain.setValueAtTime(gainVal / 3, t + slotSec - ramp);
-        gains[i].gain.linearRampToValueAtTime(0, t + slotSec);
-      }
-      t += slotSec;
 
       for (let i = 0; i < 3; i++) {
         oscs[i].start(now);
         oscs[i].stop(t + 0.05);
       }
+
+      const durMs = Math.round((t - now) * 1000);
+      document.getElementById("txStatus").textContent = `送信中: ID ${totalId} (${durMs}ms)`;
+      appendLog(`送信: ID ${totalId} (T1:[${trip1}], T2:[${trip2}]${useCD ? ', CD:[${tripCD}]' : ''})`);
+
+      setTimeout(() => {
+        document.getElementById("txStatus").textContent = "送信完了";
+      }, durMs + 50);
+    }
+
+    document.getElementById("btnSend").onclick = () => sendId(parseInt(document.getElementById("txId").value, 10));
+    document.getElementById("btnRandom").onclick = () => {
+      const rid = Math.floor(Math.random() * (MAX_ID + 1));
+      document.getElementById("txId").value = rid;
+      sendId(rid);
     };
 
-    // --- 受信部 & プロファイラ ---
+    // ==========================================
+    // 受信ロジック (実測窓フィッティング)
+    // ==========================================
     let rxCtx = null, analyser = null, rxStream = null;
     let isListening = false;
-    let recording = false;
-    let triggerTime = 0;
-    let trigConfirmCount = 0;
-    let trigFloor = -100;
-    let recordedFrames = [];
-    let deviceInfo = {};
+    let rxState = "IDLE";
+    let triggerTime = 0, trigConfirm = 0, trigFloor = -100;
+    let slotPeakHold = [];
 
+    const btnRx = document.getElementById("btnRx");
     const rxStatus = document.getElementById("rxStatus");
-    const jsonOutput = document.getElementById("jsonOutput");
-    const deviceSummary = document.getElementById("deviceSummary");
+    const rxResult = document.getElementById("rxResult");
 
-    document.getElementById("btnRx").onclick = async () => {
+    btnRx.onclick = async () => {
       if (isListening) {
         if (rxStream) rxStream.getTracks().forEach(t => t.stop());
         if (rxCtx) rxCtx.close();
         isListening = false;
-        document.getElementById("btnRx").textContent = "マイク監視 開始";
-        rxStatus.className = "status-badge";
+        btnRx.textContent = "マイク受信 開始";
+        btnRx.classList.remove("active");
         rxStatus.textContent = "停止中";
         return;
       }
@@ -243,36 +207,22 @@
         analyser.smoothingTimeConstant = 0.0;
         rxCtx.createMediaStreamSource(rxStream).connect(analyser);
 
-        deviceInfo = {
-          userAgent: navigator.userAgent,
-          platform: navigator.userAgentData ? navigator.userAgentData.platform : navigator.platform,
-          sampleRate: rxCtx.sampleRate,
-          fftSize: FFT_SIZE,
-          binWidthHz: parseFloat((rxCtx.sampleRate / FFT_SIZE).toFixed(2)),
-          hardwareConcurrency: navigator.hardwareConcurrency || "unknown",
-          screen: `${window.screen.width}x${window.screen.height} (dpr: ${window.devicePixelRatio})`,
-          timestamp: new Date().toISOString()
-        };
-
-        deviceSummary.textContent = `${deviceInfo.sampleRate}Hz | Bin: ${deviceInfo.binWidthHz}Hz | ${deviceInfo.platform}`;
-
         isListening = true;
-        document.getElementById("btnRx").textContent = "マイク監視 停止";
-        rxStatus.className = "status-badge active";
+        btnRx.textContent = "マイク受信 停止";
+        btnRx.classList.add("active");
         rxStatus.textContent = "トリガー待機中...";
-        requestAnimationFrame(profileLoop);
-      } catch (err) {
-        alert("マイク初期化失敗: " + err.message);
+        requestAnimationFrame(rxLoop);
+      } catch (e) {
+        alert("マイク起動失敗: " + e.message);
       }
     };
 
-    // 左右1ビンのみ探索（他CHの巻き込みを防止）
     function getStrictPeak(dataArray, freq, binWidth) {
       const bin = Math.round(freq / binWidth);
       return Math.max(dataArray[bin - 1] || -999, dataArray[bin], dataArray[bin + 1] || -999);
     }
 
-    function profileLoop() {
+    function rxLoop() {
       if (!isListening) return;
 
       const dataArray = new Float32Array(analyser.frequencyBinCount);
@@ -282,193 +232,107 @@
 
       const trigDb = getStrictPeak(dataArray, TRIGGER_FREQ, binWidth);
       const guardDb = getStrictPeak(dataArray, GUARD_FREQ, binWidth);
+      const useCD = document.getElementById("checkCd").checked;
+      const expectedSlots = useCD ? 3 : 2;
 
-      if (!recording) {
+      if (rxState === "IDLE") {
         trigFloor = trigFloor * 0.98 + trigDb * 0.02;
         if (trigDb > Math.max(-95, trigFloor + 12) && (trigDb - guardDb) > 8) {
-          trigConfirmCount++;
+          trigConfirm++;
         } else {
-          trigConfirmCount = 0;
+          trigConfirm = 0;
         }
 
-        if (trigConfirmCount >= 2) {
-          trigConfirmCount = 0;
-          recording = true;
+        if (trigConfirm >= 2) {
+          trigConfirm = 0;
+          rxState = "READING";
           triggerTime = now;
-          recordedFrames = [];
-          rxStatus.className = "status-badge rec";
-          rxStatus.textContent = "記録中 (0ms)";
+          slotPeakHold = [
+            new Float32Array(NUM_CH).fill(-999),
+            new Float32Array(NUM_CH).fill(-999),
+            new Float32Array(NUM_CH).fill(-999)
+          ];
+          rxStatus.textContent = `トリガー検知 (${trigDb.toFixed(1)}dB) → スロット解析中`;
+        }
+      } else if (rxState === "READING") {
+        const elapsed = now - triggerTime;
+
+        // 実測サンプリング窓によるピークホールド
+        const windows = [WIN_T1, WIN_T2, WIN_CD];
+        for (let s = 0; s < expectedSlots; s++) {
+          if (elapsed >= windows[s][0] && elapsed <= windows[s][1]) {
+            for (let ch = 0; ch < NUM_CH; ch++) {
+              const db = getStrictPeak(dataArray, FREQS[ch], binWidth);
+              if (db > slotPeakHold[s][ch]) slotPeakHold[s][ch] = db;
+            }
+          }
+        }
+
+        const endTime = useCD ? WIN_CD[1] + 20 : WIN_T2[1] + 20;
+        if (elapsed > endTime) {
+          decodeResult(useCD);
+          rxState = "IDLE";
+          rxStatus.textContent = "トリガー待機中...";
+        }
+      }
+
+      requestAnimationFrame(rxLoop);
+    }
+
+    function decodeResult(useCD) {
+      const expectedSlots = useCD ? 3 : 2;
+      const resolved = [];
+
+      for (let s = 0; s < expectedSlots; s++) {
+        const scores = Array.from(slotPeakHold[s]).map((peakDb, idx) => ({ idx, peakDb }));
+        scores.sort((a, b) => b.peakDb - a.peakDb);
+
+        // 非隣接条件 (差分 >= 2) の上位3波を抽出
+        const top3 = [];
+        for (let i = 0; i < scores.length && top3.length < 3; i++) {
+          const cand = scores[i].idx;
+          if (top3.every(c => Math.abs(c - cand) >= 2)) {
+            top3.push(cand);
+          }
+        }
+
+        if (top3.length === 3) {
+          top3.sort((a, b) => a - b);
+          const tripId = TRIPLET_MAP.get(`${top3[0]},${top3[1]},${top3[2]}`);
+          resolved.push({ id: tripId !== undefined ? tripId : null, chs: top3 });
+        } else {
+          resolved.push({ id: null, chs: [] });
+        }
+      }
+
+      const t1 = resolved[0];
+      const t2 = resolved[1];
+      const cd = useCD ? resolved[2] : null;
+
+      if (t1.id !== null && t2.id !== null) {
+        const fullId = t1.id * COMBINATIONS + t2.id;
+        let valid = true;
+
+        if (useCD) {
+          const expectCd = calcCheckDigit(t1.id, t2.id);
+          valid = (cd.id === expectCd);
+        }
+
+        if (valid) {
+          rxResult.className = "result ok";
+          rxResult.textContent = `✅ 受信成功: ID ${fullId} (T1:[${t1.chs}] T2:[${t2.chs}]${useCD ? ' CD:PASS' : ''})`;
+          appendLog(`受信成功: ID ${fullId}`);
+        } else {
+          rxResult.className = "result fail";
+          rxResult.textContent = `❌ CD照合エラー (仮ID ${fullId})`;
+          appendLog(`CD不一致: 期待値=${calcCheckDigit(t1.id, t2.id)}, 受信=${cd.id}`);
         }
       } else {
-        const elapsed = now - triggerTime;
-        if (elapsed <= RECORD_WINDOW_MS) {
-          rxStatus.textContent = `記録中 (${elapsed.toFixed(0)}ms)`;
-          const chPowers = [];
-          for (let i = 0; i < NUM_CH; i++) {
-            chPowers.push(parseFloat(getStrictPeak(dataArray, FREQS[i], binWidth).toFixed(1)));
-          }
-          recordedFrames.push({
-            tMs: parseFloat(elapsed.toFixed(1)),
-            trigDb: parseFloat(trigDb.toFixed(1)),
-            guardDb: parseFloat(guardDb.toFixed(1)),
-            ch: chPowers
-          });
-        } else {
-          recording = false;
-          rxStatus.className = "status-badge active";
-          rxStatus.textContent = "記録完了 -> 待機中";
-          finalizeProfile();
-        }
+        rxResult.className = "result fail";
+        rxResult.textContent = `❌ デコード失敗 (ピーク未成立)`;
+        appendLog(`デコード失敗: T1=${t1.id}, T2=${t2.id}`);
       }
-
-      requestAnimationFrame(profileLoop);
     }
-
-    // --- 診断解析 & JSON生成 ---
-    function finalizeProfile() {
-      drawMatrix();
-
-      // 各スロット（理論: T1=90-190ms, T2=190-290ms）で最強のCH Top5を算出
-      const slotMs = parseInt(document.getElementById("txSlotMs").value, 10);
-      const analyzeSlot = (startMs, endMs) => {
-        const frames = recordedFrames.filter(f => f.tMs >= startMs && f.tMs <= endMs);
-        if (frames.length === 0) return [];
-        const peakPerCh = Array(NUM_CH).fill(-999);
-        frames.forEach(f => {
-          f.ch.forEach((db, i) => { if (db > peakPerCh[i]) peakPerCh[i] = db; });
-        });
-        return peakPerCh
-          .map((db, ch) => ({ ch, freq: FREQS[ch], maxDb: db }))
-          .sort((a, b) => b.maxDb - a.maxDb)
-          .slice(0, 5);
-      };
-
-      const txT1 = [
-        parseInt(document.getElementById("t1_a").value, 10),
-        parseInt(document.getElementById("t1_b").value, 10),
-        parseInt(document.getElementById("t1_c").value, 10)
-      ];
-      const txT2 = [
-        parseInt(document.getElementById("t2_a").value, 10),
-        parseInt(document.getElementById("t2_b").value, 10),
-        parseInt(document.getElementById("t2_c").value, 10)
-      ];
-
-      const report = {
-        device: deviceInfo,
-        txConfig: {
-          slotMs: slotMs,
-          gain: parseFloat(document.getElementById("txGain").value),
-          t1ExpectedCh: txT1,
-          t2ExpectedCh: txT2
-        },
-        diagnostics: {
-          totalFrames: recordedFrames.length,
-          measuredLatencyOffsetEstimateMs: estimateLatencyOffset(txT1),
-          slot1ObservedTop5: analyzeSlot(90, 90 + slotMs),
-          slot2ObservedTop5: analyzeSlot(90 + slotMs, 90 + slotMs * 2)
-        },
-        rawFrames: recordedFrames
-      };
-
-      jsonOutput.value = JSON.stringify(report, null, 2);
-    }
-
-    // 送信T1のピークが実際に何msで極大を迎えたかから遅延オフセットを推定
-    function estimateLatencyOffset(targetChs) {
-      let maxEnergy = -999;
-      let peakTimeMs = 90;
-      recordedFrames.forEach(f => {
-        const sum = targetChs.reduce((acc, ch) => acc + f.ch[ch], 0);
-        if (sum > maxEnergy) {
-          maxEnergy = sum;
-          peakTimeMs = f.tMs;
-        }
-      });
-      // 理論上の中心 (90 + slotMs/2) からのズレ
-      const theoreticalCenter = 90 + (parseInt(document.getElementById("txSlotMs").value, 10) / 2);
-      return parseFloat((peakTimeMs - theoreticalCenter).toFixed(1));
-    }
-
-    document.getElementById("btnCopyJson").onclick = () => {
-      if (!jsonOutput.value) return;
-      navigator.clipboard.writeText(jsonOutput.value).then(() => {
-        const btn = document.getElementById("btnCopyJson");
-        btn.textContent = "コピー完了!";
-        setTimeout(() => { btn.textContent = "JSONをコピー"; }, 2000);
-      });
-    };
-
-    // --- ヒートマップ描画 ---
-    const canvas = document.getElementById("matrixCanvas");
-    const ctx = canvas.getContext("2d");
-
-    function drawMatrix() {
-      const w = canvas.width;
-      const h = canvas.height;
-      ctx.fillStyle = "#050505";
-      ctx.fillRect(0, 0, w, h);
-
-      const rowH = h / (NUM_CH + 1);
-      const slotMs = parseInt(document.getElementById("txSlotMs").value, 10);
-
-      // 時間グリッド
-      ctx.strokeStyle = "#1f242c";
-      for (let ms = 0; ms <= RECORD_WINDOW_MS; ms += 50) {
-        const x = (ms / RECORD_WINDOW_MS) * w;
-        ctx.beginPath();
-        ctx.moveTo(x, 0); ctx.lineTo(x, h);
-        ctx.stroke();
-        if (ms % 100 === 0) {
-          ctx.fillStyle = "#6e7681";
-          ctx.font = "9px monospace";
-          ctx.fillText(`${ms}ms`, x + 3, h - 4);
-        }
-      }
-
-      // 理論スロット枠 (水色)
-      ctx.strokeStyle = "rgba(88, 166, 255, 0.45)";
-      ctx.lineWidth = 1.5;
-      const tEndX = (90 / RECORD_WINDOW_MS) * w;
-      const s1EndX = ((90 + slotMs) / RECORD_WINDOW_MS) * w;
-      const s2EndX = ((90 + slotMs * 2) / RECORD_WINDOW_MS) * w;
-      ctx.strokeRect(0, 0, tEndX, h);
-      ctx.strokeRect(tEndX, 0, s1EndX - tEndX, h);
-      ctx.strokeRect(s1EndX, 0, s2EndX - s1EndX, h);
-
-      // 行ラベル
-      ctx.fillStyle = "#8b949e";
-      ctx.font = "8px monospace";
-      for (let ch = 0; ch < NUM_CH; ch++) {
-        const y = h - (ch + 1) * rowH;
-        if (ch % 5 === 0) ctx.fillText(`C${ch}`, 2, y + rowH - 2);
-      }
-      ctx.fillText("TRG", 2, rowH - 2);
-
-      if (recordedFrames.length === 0) return;
-
-      const sampleW = Math.max(2, w / recordedFrames.length);
-      recordedFrames.forEach(f => {
-        const x = (f.tMs / RECORD_WINDOW_MS) * w;
-        for (let ch = 0; ch < NUM_CH; ch++) {
-          const db = f.ch[ch];
-          const y = h - (ch + 1) * rowH;
-          const norm = Math.min(1.0, Math.max(0.0, (db + 95) / 55));
-          if (norm > 0.15) {
-            const hue = (1.0 - norm) * 240;
-            ctx.fillStyle = `hsl(${hue}, 100%, ${norm * 50}%)`;
-            ctx.fillRect(x, y, sampleW + 1, rowH - 1);
-          }
-        }
-        // Trigger
-        const normTrig = Math.min(1.0, Math.max(0.0, (f.trigDb + 95) / 55));
-        if (normTrig > 0.15) {
-          ctx.fillStyle = `hsl(${(1.0 - normTrig) * 240}, 100%, ${normTrig * 50}%)`;
-          ctx.fillRect(x, 0, sampleW + 1, rowH - 1);
-        }
-      });
-    }
-    drawMatrix();
   </script>
 </body>
 </html>
