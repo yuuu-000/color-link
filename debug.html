@@ -1,500 +1,613 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>OTOSYN Acoustic Path Benchmark v3</title>
-  <style>
-    :root {
-      --bg: #0d1117; --panel: #161b22; --border: #30363d;
-      --text: #c9d1d9; --accent: #58a6ff; --green: #3fb950; --warn: #d29922; --red: #f85149;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: var(--bg); color: var(--text);
-      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-      padding: 16px; max-width: 1100px; margin: 0 auto; font-size: 0.85rem; line-height: 1.5;
-    }
-    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 14px; }
-    h2 { font-size: 1rem; color: var(--accent); margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
-    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
-    
-    input[type="text"] {
-      background: #010409; border: 1px solid var(--border); color: #fff;
-      padding: 6px; border-radius: 4px; font-family: inherit; width: 100px;
-    }
-    button {
-      background: #238636; color: #fff; border: 1px solid rgba(240,246,252,0.1);
-      border-radius: 6px; padding: 10px 16px; font-weight: bold; cursor: pointer; transition: 0.2s;
-    }
-    button:hover { background: #2ea043; }
-    button:disabled { background: #21262d; color: #8b949e; cursor: not-allowed; border-color: var(--border); }
-    button.rx { background: #1f6feb; } button.rx:hover { background: #388bfd; }
-    button.tx { background: #8957e5; } button.tx:hover { background: #9a67ea; }
-    
-    .table-wrap { max-height: 250px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; margin-top: 8px; background: #010409; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.76rem; text-align: left; }
-    th, td { border-bottom: 1px solid var(--border); padding: 5px 8px; }
-    th { background: #161b22; color: #8b949e; position: sticky; top: 0; z-index: 2; box-shadow: 0 1px 0 var(--border); }
-    
-    .pass { color: var(--green); font-weight: bold; }
-    .fail { color: var(--red); font-weight: bold; }
-    textarea { width: 100%; height: 160px; background: #010409; border: 1px solid var(--border); border-radius: 6px; color: #7ee787; font-family: inherit; font-size: 0.75rem; padding: 8px; resize: vertical; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Ultrasonic Audio Test 16-22kHz</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#111;color:#eee;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{max-width:1100px;margin:auto;padding:20px}
+h1{font-size:22px;margin:0 0 8px}
+h2{font-size:17px;margin:22px 0 10px}
+p{line-height:1.6;color:#bbb}
+button,select,input{font:inherit}
+button{border:0;border-radius:7px;padding:10px 15px;background:#2d6cdf;color:#fff;cursor:pointer}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.danger{background:#b83232}
+button.secondary{background:#444}
+select,input{background:#222;color:#eee;border:1px solid #555;border-radius:6px;padding:9px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.card{background:#1b1b1b;border:1px solid #333;border-radius:9px;padding:14px}
+.label{font-size:12px;color:#999;margin-bottom:5px}
+.value{font-size:18px;font-weight:600}
+.status{padding:12px;border-radius:7px;background:#202020;border:1px solid #333;margin:12px 0}
+.status.ok{border-color:#357a45}
+.status.warn{border-color:#96762b}
+.status.err{border-color:#9b3434}
+.progress{height:12px;background:#292929;border-radius:8px;overflow:hidden;margin:10px 0}
+.progress>div{height:100%;width:0;background:#4d8df7;transition:width .1s}
+canvas{width:100%;height:180px;background:#080808;border:1px solid #333;border-radius:7px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.small{font-size:12px;color:#999}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:6px;border-bottom:1px solid #333;text-align:right}
+th:first-child,td:first-child{text-align:left}
+pre{white-space:pre-wrap;word-break:break-all;background:#080808;border:1px solid #333;border-radius:7px;padding:12px;max-height:350px;overflow:auto;font-size:11px}
+#results{max-height:450px;overflow:auto}
+.good{color:#63d27d}
+.bad{color:#ff7777}
+</style>
 </head>
 <body>
+<main>
+<h1>16kHz〜22kHz 音響送受信テスト</h1>
+<p>受信レベルは端末やマイク固有の感度が分からへんため、絶対音圧dB SPLではなく相対dBとして記録するで。</p>
 
-  <div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-      <h1 style="font-size: 1.2rem; margin: 0;">OTOSYN Acoustic Path Benchmark v3 (Goertzel Engine)</h1>
-      <span id="statusTxt" style="color:var(--accent); font-weight:bold;">Ready</span>
-    </div>
-    
-    <div class="row" style="margin-top: 12px; background: #0d1117; padding: 10px; border-radius: 6px; border: 1px solid var(--border);">
-      <label>送信音量: <input type="text" id="inpVol" value="80%"></label>
-      <label>端末間距離: <input type="text" id="inpDist" value="30cm"></label>
-      <div style="flex-grow:1; text-align:right;">
-        <button id="btnLoop">【1台】ループバック実行</button>
-        <button id="btnRx" class="rx">【2台】受信機 (RX) 待機</button>
-        <button id="btnTx" class="tx">【2台】送信機 (TX) 発射</button>
-      </div>
-    </div>
-  </div>
+<section class="card">
+<h2>1. モード選択</h2>
+<div class="row">
+<select id="mode">
+<option value="tx">送信側</option>
+<option value="rx">受信側</option>
+<option value="both">送受信同時</option>
+</select>
+<button id="start">テスト準備</button>
+<button id="stop" class="danger" disabled>停止</button>
+</div>
+<div id="status" class="status">モードを選んで「テスト準備」を押してや。</div>
+</section>
 
-  <div class="card">
-    <h2>A. Frequency Response (17k-21kHz / 20Hz step) - Goertzel:4096</h2>
-    <div class="table-wrap">
-      <table id="tblA">
-        <thead><tr><th>Freq (Hz)</th><th>preNoise (dBFS)</th><th>peak (dBFS)</th><th>SNR (dB)</th><th>Result</th></tr></thead>
-        <tbody id="bodyA"></tbody>
-      </table>
-    </div>
-  </div>
+<section class="card">
+<h2>2. 3波テスト用周波数</h2>
+<div class="row">
+<label>周波数1 <input id="f1" type="number" min="16000" max="22000" step="20" value="17000"></label>
+<label>周波数2 <input id="f2" type="number" min="16000" max="22000" step="20" value="18500"></label>
+<label>周波数3 <input id="f3" type="number" min="16000" max="22000" step="20" value="20500"></label>
+</div>
+<p class="small">16,000〜22,000Hzの範囲内で指定してや。20Hz刻み以外でも解析自体は可能やけど、標準テストは20Hz刻みや。</p>
+</section>
 
-  <div class="card">
-    <h2>B. Multi-tone Detection (2-5 waves) - Goertzel:4096</h2>
-    <div class="table-wrap">
-      <table id="tblB">
-        <thead><tr><th>Tones</th><th>Frequencies (Hz)</th><th>Avg Peak (dBFS)</th><th>Result</th></tr></thead>
-        <tbody id="bodyB"></tbody>
-      </table>
-    </div>
-  </div>
+<section class="grid">
+<div class="card"><div class="label">現在の状態</div><div class="value" id="phase">待機中</div></div>
+<div class="card"><div class="label">入力sampleRate</div><div class="value" id="sampleRate">-</div></div>
+<div class="card"><div class="label">現在周波数</div><div class="value" id="currentFreq">-</div></div>
+<div class="card"><div class="label">受信レベル</div><div class="value" id="currentDb">-</div></div>
+<div class="card"><div class="label">環境ノイズ</div><div class="value" id="noiseDb">-</div></div>
+<div class="card"><div class="label">SNR</div><div class="value" id="snr">-</div></div>
+</section>
 
-  <div class="card">
-    <h2>C. Temporal Separation (150ms-50ms slots) - Goertzel:1024</h2>
-    <div class="table-wrap">
-      <table id="tblC">
-        <thead><tr><th>Slot (ms)</th><th>A Dominance (dB)</th><th>B Dominance (dB)</th><th>Min Dominance (dB)</th><th>Result</th></tr></thead>
-        <tbody id="bodyC"></tbody>
-      </table>
-    </div>
-  </div>
+<div class="progress"><div id="bar"></div></div>
+<div class="small" id="progressText">0%</div>
 
-  <div class="card">
-    <h2>D. Nonlinearity / Saturation (17.5k + 18.5k) - Goertzel:4096</h2>
-    <div class="table-wrap">
-      <table id="tblD">
-        <thead><tr><th>Gain</th><th>Signal Peak (dBFS)</th><th>IMD Ghost (Max dBFS)</th><th>SFDR (dB)</th><th>Details</th></tr></thead>
-        <tbody id="bodyD"></tbody>
-      </table>
-    </div>
-  </div>
+<section class="card">
+<h2>受信スペクトラム</h2>
+<canvas id="spectrum" width="1000" height="300"></canvas>
+</section>
 
-  <div class="card">
-    <h2>Benchmark Report (JSON v3) <button id="btnCopy" style="padding:4px 8px; font-size:0.75rem; float:right;">Copy JSON</button></h2>
-    <textarea id="jsonOut" readonly placeholder="Results will be exported here..."></textarea>
-  </div>
+<section class="card">
+<h2>リアルタイム解析</h2>
+<table>
+<thead><tr><th>周波数</th><th>レベル</th><th>周辺ノイズ</th><th>SNR</th><th>認識</th></tr></thead>
+<tbody id="liveTable"></tbody>
+</table>
+</section>
 
-  <script>
-    "use strict";
+<section class="card">
+<h2>テスト結果</h2>
+<div id="summary" class="small">まだ結果はないで。</div>
+<div id="results"></div>
+</section>
 
-    let audioCtx = null;
-    let analyser = null;
-    let micStream = null;
-    let micSettings = {};
+<section class="card">
+<h2>LLM解析用minify JSON</h2>
+<div class="row">
+<button id="copy" class="secondary">JSONをコピー</button>
+<button id="download" class="secondary">JSON保存</button>
+</div>
+<pre id="json">{"status":"not_started"}</pre>
+</section>
+</main>
 
-    const statusTxt = document.getElementById("statusTxt");
-    const jsonOut = document.getElementById("jsonOut");
+<script>
+"use strict";
 
-    async function initAudio(needMic = true) {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (audioCtx.state === "suspended") await audioCtx.resume();
+const CFG={
+minFreq:16000,maxFreq:22000,step:20,
+toneMs:260,gapMs:90,
+triggerFreq:18000,triggerMs:350,
+triggerThresholdDb:10,
+analysisWindowMs:80,
+multiToneMs:420,
+multiGapMs:100,
+intervals:[50,80,100,120,150],
+repetitions:3
+};
 
-      if (needMic && !micStream) {
-        micStream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 }
-        });
-        const track = micStream.getAudioTracks()[0];
-        micSettings = track.getSettings ? track.getSettings() : {};
-        
-        analyser = audioCtx.createAnalyser();
-        analyser.smoothingTimeConstant = 0.0;
-        audioCtx.createMediaStreamSource(micStream).connect(analyser);
-      }
-    }
+let audioCtx=null,stream=null,source=null,analyser=null,gainNode=null;
+let running=false,stopRequested=false;
+let testData=null,noiseDb=-120;
+let animationId=null;
 
-    // 一般化Goertzelアルゴリズム (ピンポイント周波数のdBFSを算出)
-    function runGoertzel(samples, sampleRate, freq) {
-      const N = samples.length;
-      const omega = (2 * Math.PI * freq) / sampleRate;
-      const cosine = Math.cos(omega);
-      const coeff = 2 * cosine;
+const $=id=>document.getElementById(id);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
-      let q1 = 0, q2 = 0, q0 = 0;
-      for (let i = 0; i < N; i++) {
-        q0 = coeff * q1 - q2 + samples[i];
-        q2 = q1;
-        q1 = q0;
-      }
-      const magnitude = Math.sqrt(q1 * q1 + q2 * q2 - q1 * q2 * coeff);
-      const amplitude = (2 * magnitude) / N; // フルスケール正弦波振幅=1.0基準
-      return 20 * Math.log10(amplitude + 1e-12);
-    }
+function setStatus(text,type=""){
+$("status").textContent=text;
+$("status").className="status "+type;
+}
+function setPhase(v){$("phase").textContent=v}
+function setProgress(v,text){
+v=Math.max(0,Math.min(100,v));
+$("bar").style.width=v+"%";
+$("progressText").textContent=(text||v.toFixed(1)+"%");
+}
+function db(v){return 20*Math.log10(Math.max(v,1e-12))}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 
-    // PCM波形を取得し、指定周波数のGoertzelピークを非同期ホールド
-    function captureGoertzelHold(startCtxTime, endCtxTime, freqs) {
-      return new Promise(resolve => {
-        // analyser.fftSize分だけTimeDomainを取得
-        const timeData = new Float32Array(analyser.fftSize);
-        const peaks = new Float32Array(freqs.length).fill(-999);
-        let captured = false;
+function makeFreqs(){
+const a=[];
+for(let f=CFG.minFreq;f<=CFG.maxFreq;f+=CFG.step)a.push(f);
+return a;
+}
 
-        function poll() {
-          const now = audioCtx.currentTime;
-          if (now >= startCtxTime && now <= endCtxTime) {
-            analyser.getFloatTimeDomainData(timeData);
-            captured = true;
-            freqs.forEach((f, i) => {
-              const db = runGoertzel(timeData, audioCtx.sampleRate, f);
-              if (db > peaks[i]) peaks[i] = db;
-            });
-          }
-          if (now < endCtxTime + 0.05) {
-            requestAnimationFrame(poll);
-          } else {
-            resolve({ peaks, captured });
-          }
-        }
-        poll();
-      });
-    }
+function nowISO(){return new Date().toISOString()}
 
-    // TX/RX同期用ビーコン監視 (20.5kHz vs 20.0kHz)
-    async function waitForSyncBeacon() {
-      analyser.fftSize = 4096;
-      const timeData = new Float32Array(analyser.fftSize);
-      const timeoutMs = performance.now() + 30000; // 30秒タイムアウト
+function getDeviceInfo(){
+return {
+ua:navigator.userAgent,
+userAgentData:navigator.userAgentData?{
+brands:navigator.userAgentData.brands||[],
+mobile:navigator.userAgentData.mobile||false,
+platform:navigator.userAgentData.platform||""
+}:null,
+platform:navigator.platform,
+language:navigator.language,
+languages:navigator.languages,
+hardwareConcurrency:navigator.hardwareConcurrency||null,
+deviceMemory:navigator.deviceMemory||null,
+maxTouchPoints:navigator.maxTouchPoints||0,
+screen:{width:screen.width,height:screen.height,pixelRatio:devicePixelRatio},
+viewport:{width:innerWidth,height:innerHeight},
+online:navigator.onLine,
+timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,
+audio:{
+contextSampleRate:audioCtx?audioCtx.sampleRate:null,
+baseLatency:audioCtx?audioCtx.baseLatency:null,
+outputLatency:audioCtx&&"outputLatency" in audioCtx?audioCtx.outputLatency:null,
+state:audioCtx?audioCtx.state:null
+},
+media:stream?stream.getAudioTracks().map(t=>({
+label:t.label,
+id:t.id,
+kind:t.kind,
+readyState:t.readyState,
+enabled:t.enabled,
+settings:t.getSettings?t.getSettings():{},
+constraints:t.getConstraints?t.getConstraints():{}
+})):[],
+timestamp:nowISO()
+};
+}
 
-      return new Promise((resolve, reject) => {
-        function check() {
-          if (performance.now() > timeoutMs) {
-            return reject(new Error("Beacon timeout"));
-          }
-          analyser.getFloatTimeDomainData(timeData);
-          const trig = runGoertzel(timeData, audioCtx.sampleRate, 20500);
-          const guard = runGoertzel(timeData, audioCtx.sampleRate, 20000);
-          
-          if (trig > -70 && (trig - guard) > 15) {
-            resolve(audioCtx.currentTime);
-          } else {
-            requestAnimationFrame(check);
-          }
-        }
-        check();
-      });
-    }
+async function prepareAudio(){
+const mode=$("mode").value;
+if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error("このブラウザではgetUserMediaが使えへんで。HTTPSまたはlocalhostで開いてや。");
 
-    function clearTables() {
-      ["bodyA", "bodyB", "bodyC", "bodyD"].forEach(id => {
-        document.getElementById(id).innerHTML = "";
-      });
-      jsonOut.value = "";
-    }
+stream=await navigator.mediaDevices.getUserMedia({
+audio:{
+echoCancellation:false,
+noiseSuppression:false,
+autoGainControl:false,
+channelCount:1,
+sampleRate:{ideal:48000}
+},
+video:false
+});
 
-    function addRow(tbodyId, html) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = html;
-      document.getElementById(tbodyId).appendChild(tr);
-      tr.scrollIntoView({ block: "nearest" });
-    }
+audioCtx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:48000});
+await audioCtx.resume();
 
-    // =========================================================================
-    // テストシーケンス
-    // =========================================================================
-    async function runBenchmark(mode) {
-      clearTables();
-      const isTx = (mode === 'loop' || mode === 'tx');
-      const isRx = (mode === 'loop' || mode === 'rx');
-      
-      const report = {
-        version: 3,
-        device: {
-          ua: navigator.userAgent,
-          sampleRate: audioCtx.sampleRate,
-          baseLatency: audioCtx.baseLatency || "unknown",
-          outputLatency: audioCtx.outputLatency || "unknown",
-          micSettings: micSettings
-        },
-        conditions: {
-          volume: document.getElementById("inpVol").value,
-          distance: document.getElementById("inpDist").value,
-          timestamp: new Date().toISOString()
-        },
-        frequency: [], multitone: [], temporal: [], distortion: []
-      };
+if(audioCtx.sampleRate<44100)throw new Error("AudioContextのsampleRateが"+audioCtx.sampleRate+"Hzや。22kHz測定には不十分やで。");
 
-      let T0 = audioCtx.currentTime;
+source=audioCtx.createMediaStreamSource(stream);
+analyser=audioCtx.createAnalyser();
+analyser.fftSize=8192;
+analyser.smoothingTimeConstant=0;
+source.connect(analyser);
 
-      // --- 同期フェーズ ---
-      if (isTx) {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.frequency.value = 20500;
-        gain.gain.value = 0;
-        osc.connect(gain).connect(audioCtx.destination);
-        
-        const bStart = T0 + 0.1;
-        gain.gain.setValueAtTime(0, bStart);
-        gain.gain.linearRampToValueAtTime(0.1, bStart + 0.05);
-        gain.gain.setValueAtTime(0.1, bStart + 0.45);
-        gain.gain.linearRampToValueAtTime(0, bStart + 0.5);
-        osc.start(bStart); osc.stop(bStart + 0.6);
-        
-        T0 = bStart;
-      }
-      
-      if (isRx && !isTx) {
-        statusTxt.textContent = "Waiting for Sync Beacon (20.5kHz)...";
-        T0 = await waitForSyncBeacon();
-      }
+if(mode==="tx"||mode==="both"){
+gainNode=audioCtx.createGain();
+gainNode.gain.value=0;
+gainNode.connect(audioCtx.destination);
+}
 
-      // ==========================================
-      // Test A: Frequency Response (T0 + 1.0s)
-      // ==========================================
-      statusTxt.textContent = "Running Test A: Frequency Response...";
-      if (isRx) analyser.fftSize = 4096;
-      
-      const aStartFreq = 17000, aEndFreq = 21000, aStep = 20;
-      const aCount = Math.floor((aEndFreq - aStartFreq) / aStep) + 1;
-      let tA = T0 + 1.0;
-      const aDur = 0.12, aGap = 0.05;
+$("sampleRate").textContent=audioCtx.sampleRate+" Hz";
+setStatus("音声入力を準備したで。sampleRate="+audioCtx.sampleRate+"Hz","ok");
+}
 
-      for (let i = 0; i < aCount; i++) {
-        const freq = aStartFreq + i * aStep;
-        
-        if (isTx) {
-          const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-          osc.frequency.value = freq;
-          gain.gain.setValueAtTime(0, tA);
-          gain.gain.linearRampToValueAtTime(0.1, tA + 0.01);
-          gain.gain.setValueAtTime(0.1, tA + aDur - 0.01);
-          gain.gain.linearRampToValueAtTime(0, tA + aDur);
-          osc.connect(gain).connect(audioCtx.destination);
-          osc.start(tA); osc.stop(tA + aDur + 0.05);
-        }
+function getTimeDomain(){
+const a=new Float32Array(analyser.fftSize);
+analyser.getFloatTimeDomainData(a);
+return a;
+}
 
-        if (isRx) {
-          const preData = await captureGoertzelHold(tA - 0.04, tA, [freq]);
-          const sigData = await captureGoertzelHold(tA + 0.03, tA + aDur - 0.02, [freq]);
-          
-          const preNoise = preData.captured ? parseFloat(preData.peaks[0].toFixed(1)) : null;
-          const peak = sigData.captured ? parseFloat(sigData.peaks[0].toFixed(1)) : null;
-          const snr = (peak !== null && preNoise !== null && preNoise > -990) ? parseFloat((peak - preNoise).toFixed(1)) : null;
-          const pass = (snr !== null && snr > 10.0);
+function goertzel(samples,target,sr){
+const n=samples.length;
+const k=Math.round(n*target/sr);
+const w=2*Math.PI*k/n;
+const coeff=2*Math.cos(w);
+let s0=0,s1=0,s2=0;
+for(let i=0;i<n;i++){
+s0=samples[i]+coeff*s1-s2;
+s2=s1;
+s1=s0;
+}
+const power=(s1*s1+s2*s2-coeff*s1*s2)/(n*n);
+return Math.sqrt(Math.max(power,0))*2;
+}
 
-          report.frequency.push([freq, preNoise, peak, snr, pass ? 1 : 0]);
-          addRow("bodyA", `<td>${freq}</td><td>${preNoise}</td><td>${peak}</td><td>${snr}</td><td class="${pass?'pass':'fail'}">${pass?'PASS':'FAIL'}</td>`);
-        }
-        tA += (aDur + aGap);
-      }
+function measureFrequency(freq){
+const samples=getTimeDomain();
+const amp=goertzel(samples,freq,audioCtx.sampleRate);
+const level=db(amp);
+const offsets=[-160,-120,-80,-40,40,80,120,160];
+const surrounding=offsets.map(o=>db(goertzel(samples,freq+o,audioCtx.sampleRate)));
+const sorted=[...surrounding].sort((a,b)=>a-b);
+const median=sorted[Math.floor(sorted.length/2)];
+const snr=level-median;
+return {freq,db:level,noiseDb:median,snr,recognized:snr>=CFG.triggerThresholdDb};
+}
 
-      // ==========================================
-      // Test B: Multi-tone (tA + 1.0s)
-      // ==========================================
-      statusTxt.textContent = "Running Test B: Multi-tone...";
-      let tB = tA + 1.0;
-      const poolB = [17500, 18000, 18500, 19000, 19500];
-      
-      for (let w = 2; w <= 5; w++) {
-        const freqs = poolB.slice(0, w);
-        if (isTx) {
-          const tgtGain = 0.15 / Math.sqrt(w);
-          freqs.forEach(f => {
-            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-            osc.frequency.value = f;
-            gain.gain.setValueAtTime(0, tB);
-            gain.gain.linearRampToValueAtTime(tgtGain, tB + 0.01);
-            gain.gain.setValueAtTime(tgtGain, tB + 0.14);
-            gain.gain.linearRampToValueAtTime(0, tB + 0.15);
-            osc.connect(gain).connect(audioCtx.destination);
-            osc.start(tB); osc.stop(tB + 0.2);
-          });
-        }
-        
-        if (isRx) {
-          const sig = await captureGoertzelHold(tB + 0.04, tB + 0.12, freqs);
-          const avgPeak = sig.captured ? parseFloat((sig.peaks.reduce((a,b)=>a+b,0)/w).toFixed(1)) : null;
-          const pass = sig.captured && sig.peaks.every(p => p > -80);
-          
-          report.multitone.push({ waves: w, freqs, avgPeak, pass });
-          addRow("bodyB", `<td>${w}</td><td>[${freqs.join(",")}]</td><td>${avgPeak}</td><td class="${pass?'pass':'fail'}">${pass?'PASS':'FAIL'}</td>`);
-        }
-        tB += 0.3;
-      }
+function measureBand(freq){
+const samples=getTimeDomain();
+const offsets=[-200,-160,-120,-80,-40,0,40,80,120,160,200];
+const vals=offsets.map(o=>db(goertzel(samples,freq+o,audioCtx.sampleRate)));
+const center=vals[5];
+const side=vals.filter((_,i)=>i!==5).sort((a,b)=>a-b);
+const med=side[Math.floor(side.length/2)];
+return {freq,db:center,noiseDb:med,snr:center-med,recognized:center-med>=CFG.triggerThresholdDb};
+}
 
-      // ==========================================
-      // Test C: Temporal Dominance (tB + 1.0s)
-      // ==========================================
-      statusTxt.textContent = "Running Test C: Temporal Separation (FFT=1024)...";
-      let tC = tB + 1.0;
-      const slots = [150, 120, 100, 80, 50];
-      const tripA = [17600, 18200, 18800];
-      const tripB = [17900, 18500, 19100];
-      
-      // 動的FFTサイジング (時間分解能を向上)
-      if (isRx) analyser.fftSize = 1024; 
+async function calibrateNoise(){
+setPhase("環境ノイズ測定");
+setStatus("テスト前の環境ノイズを測ってるで。音を出さんと静かにしてや。");
+const vals=[];
+const end=performance.now()+1500;
+while(performance.now()<end){
+if(stopRequested)return;
+const m=measureBand(18000);
+vals.push(m.noiseDb);
+await sleep(30);
+}
+noiseDb=vals.reduce((a,b)=>a+b,0)/Math.max(vals.length,1);
+$("noiseDb").textContent=noiseDb.toFixed(2)+" dB";
+testData.environment.noiseDb=noiseDb;
+}
 
-      for (let i = 0; i < slots.length; i++) {
-        const sSec = slots[i] / 1000.0;
-        
-        if (isTx) {
-          // Packet A
-          tripA.forEach(f => {
-            const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
-            o.frequency.value = f;
-            g.gain.setValueAtTime(0, tC);
-            g.gain.linearRampToValueAtTime(0.08, tC + 0.005);
-            g.gain.setValueAtTime(0.08, tC + sSec - 0.005);
-            g.gain.linearRampToValueAtTime(0, tC + sSec);
-            o.connect(g).connect(audioCtx.destination);
-            o.start(tC); o.stop(tC + sSec + 0.05);
-          });
-          // Packet B
-          tripB.forEach(f => {
-            const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
-            o.frequency.value = f;
-            g.gain.setValueAtTime(0, tC + sSec);
-            g.gain.linearRampToValueAtTime(0.08, tC + sSec + 0.005);
-            g.gain.setValueAtTime(0.08, tC + sSec * 2 - 0.005);
-            g.gain.linearRampToValueAtTime(0, tC + sSec * 2);
-            o.connect(g).connect(audioCtx.destination);
-            o.start(tC + sSec); o.stop(tC + sSec * 2 + 0.05);
-          });
-        }
-        
-        if (isRx) {
-          const capA = await captureGoertzelHold(tC + sSec*0.2, tC + sSec*0.8, [...tripA, ...tripB]);
-          const capB = await captureGoertzelHold(tC + sSec + sSec*0.2, tC + sSec*1.8, [...tripA, ...tripB]);
-          
-          if (capA.captured && capB.captured) {
-            const pA_in_A = (capA.peaks[0]+capA.peaks[1]+capA.peaks[2])/3;
-            const pB_in_A = (capA.peaks[3]+capA.peaks[4]+capA.peaks[5])/3;
-            const pB_in_B = (capB.peaks[3]+capB.peaks[4]+capB.peaks[5])/3;
-            const pA_in_B = (capB.peaks[0]+capB.peaks[1]+capB.peaks[2])/3;
-            
-            const domA = parseFloat((pA_in_A - pB_in_A).toFixed(1));
-            const domB = parseFloat((pB_in_B - pA_in_B).toFixed(1));
-            const minDom = Math.min(domA, domB);
-            const pass = minDom > 6.0;
-            
-            report.temporal.push({ slotMs: slots[i], domA, domB, minDom, pass });
-            addRow("bodyC", `<td>${slots[i]}</td><td>${domA}</td><td>${domB}</td><td>${minDom}</td><td class="${pass?'pass':'fail'}">${pass?'PASS':'FAIL'}</td>`);
-          }
-        }
-        tC += (sSec * 2 + 0.3);
-      }
+async function waitForTrigger(){
+if($("mode").value==="tx")return true;
+setPhase("18kHz trigger待機");
+setStatus("18kHz triggerを待ってるで。送信側から18kHzを出してや。","warn");
+const started=performance.now();
+while(!stopRequested){
+const m=measureBand(CFG.triggerFreq);
+$("currentFreq").textContent="18,000 Hz";
+$("currentDb").textContent=m.db.toFixed(2)+" dB";
+$("snr").textContent=m.snr.toFixed(2)+" dB";
+drawSpectrum(CFG.triggerFreq);
+if(m.snr>=CFG.triggerThresholdDb){
+testData.trigger.detected=true;
+testData.trigger.detectedAt=nowISO();
+testData.trigger.levelDb=m.db;
+testData.trigger.snrDb=m.snr;
+setStatus("18kHz triggerを認識したで。テスト開始するわ。","ok");
+return true;
+}
+if(performance.now()-started>600000)throw new Error("10分経っても18kHz triggerを認識できへんかったで。");
+await sleep(20);
+}
+return false;
+}
 
-      // ==========================================
-      // Test D: IMD / Saturation (tC + 1.0s)
-      // ==========================================
-      statusTxt.textContent = "Running Test D: IMD Saturation (FFT=4096)...";
-      let tD = tC + 1.0;
-      const gainsD = [0.02, 0.06, 0.12, 0.20, 0.30];
-      const f1 = 17500, f2 = 18500;
-      const imdFreqs = [1000, 16500, 19500]; // 差音(f2-f1), 2f1-f2, 2f2-f1
-      
-      if (isRx) analyser.fftSize = 4096;
+function createOsc(freq,when,duration,level=0.25){
+const osc=audioCtx.createOscillator();
+const g=audioCtx.createGain();
+osc.type="sine";
+osc.frequency.setValueAtTime(freq,when);
+g.gain.setValueAtTime(0,when);
+g.gain.linearRampToValueAtTime(level,when+0.008);
+g.gain.setValueAtTime(level,when+Math.max(0.009,duration-0.008));
+g.gain.linearRampToValueAtTime(0,when+duration);
+osc.connect(g);
+g.connect(gainNode);
+osc.start(when);
+osc.stop(when+duration+0.01);
+return osc;
+}
 
-      for (let i = 0; i < gainsD.length; i++) {
-        const gVal = gainsD[i];
-        
-        if (isTx) {
-          [f1, f2].forEach(f => {
-            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-            osc.frequency.value = f;
-            gain.gain.setValueAtTime(0, tD);
-            gain.gain.linearRampToValueAtTime(gVal, tD + 0.02);
-            gain.gain.setValueAtTime(gVal, tD + 0.28);
-            gain.gain.linearRampToValueAtTime(0, tD + 0.30);
-            osc.connect(gain).connect(audioCtx.destination);
-            osc.start(tD); osc.stop(tD + 0.35);
-          });
-        }
-        
-        if (isRx) {
-          const cap = await captureGoertzelHold(tD + 0.05, tD + 0.25, [f1, f2, ...imdFreqs]);
-          if (cap.captured) {
-            const sigPeak = Math.max(cap.peaks[0], cap.peaks[1]);
-            const ghostPeak = Math.max(cap.peaks[2], cap.peaks[3], cap.peaks[4]);
-            const sfdr = parseFloat((sigPeak - ghostPeak).toFixed(1));
-            
-            // Details for debugging
-            const details = `1k:${cap.peaks[2].toFixed(0)} 16.5k:${cap.peaks[3].toFixed(0)} 19.5k:${cap.peaks[4].toFixed(0)}`;
-            report.distortion.push({ gain: gVal, sigPeak: parseFloat(sigPeak.toFixed(1)), maxGhost: parseFloat(ghostPeak.toFixed(1)), sfdr });
-            addRow("bodyD", `<td>${gVal}</td><td>${sigPeak.toFixed(1)}</td><td class="${ghostPeak > -70 ? 'fail' : ''}">${ghostPeak.toFixed(1)}</td><td>${sfdr}</td><td style="font-size:0.7rem; color:#8b949e;">${details}</td>`);
-          }
-        }
-        tD += 0.5;
-      }
+async function playTone(freq,duration=CFG.toneMs,level=0.25){
+if(!gainNode)return;
+const when=audioCtx.currentTime+0.015;
+createOsc(freq,when,duration/1000,level);
+await sleep(duration);
+}
 
-      if (isRx) jsonOut.value = JSON.stringify(report);
-      statusTxt.textContent = "Benchmark Complete!";
-      enableButtons();
-    }
+async function playTrigger(){
+if(!gainNode)return;
+await playTone(CFG.triggerFreq,CFG.triggerMs,0.25);
+}
 
-    // =========================================================================
-    // UI制御
-    // =========================================================================
-    const btnLoop = document.getElementById("btnLoop");
-    const btnRx = document.getElementById("btnRx");
-    const btnTx = document.getElementById("btnTx");
-    const btns = [btnLoop, btnRx, btnTx];
+function drawSpectrum(markFreq=null){
+if(!analyser)return;
+const canvas=$("spectrum"),ctx=canvas.getContext("2d");
+const data=new Float32Array(analyser.frequencyBinCount);
+analyser.getFloatFrequencyData(data);
+ctx.clearRect(0,0,canvas.width,canvas.height);
+ctx.beginPath();
+for(let f=16000;f<=22000;f+=20){
+const idx=Math.round(f/audioCtx.sampleRate*analyser.fftSize);
+const v=clamp((data[idx]||-120)+120,0,120);
+const x=(f-CFG.minFreq)/(CFG.maxFreq-CFG.minFreq)*canvas.width;
+const y=canvas.height-(v/120)*canvas.height;
+if(f===16000)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+}
+ctx.strokeStyle="#4d8df7";
+ctx.stroke();
+if(markFreq){
+const x=(markFreq-CFG.minFreq)/(CFG.maxFreq-CFG.minFreq)*canvas.width;
+ctx.beginPath();
+ctx.moveTo(x,0);
+ctx.lineTo(x,canvas.height);
+ctx.strokeStyle="#ff5555";
+ctx.stroke();
+}
+}
 
-    function disableButtons() { btns.forEach(b => b.disabled = true); }
-    function enableButtons() { btns.forEach(b => b.disabled = false); }
+function renderLive(m){
+$("currentFreq").textContent=m.freq.toLocaleString()+" Hz";
+$("currentDb").textContent=m.db.toFixed(2)+" dB";
+$("noiseDb").textContent=m.noiseDb.toFixed(2)+" dB";
+$("snr").textContent=m.snr.toFixed(2)+" dB";
+$("liveTable").innerHTML="<tr><td>"+m.freq.toLocaleString()+" Hz</td><td>"+m.db.toFixed(2)+" dB</td><td>"+m.noiseDb.toFixed(2)+" dB</td><td>"+m.snr.toFixed(2)+" dB</td><td class='"+(m.recognized?"good":"bad")+"'>"+(m.recognized?"YES":"NO")+"</td></tr>";
+drawSpectrum(m.freq);
+}
 
-    async function executeMode(mode) {
-      disableButtons();
-      try {
-        await initAudio(mode !== 'tx'); 
-        await runBenchmark(mode);
-      } catch (err) {
-        alert("Error: " + err.message);
-        statusTxt.textContent = "Error Stopped";
-        enableButtons();
-      }
-    }
+async function sweepTest(){
+const freqs=makeFreqs();
+testData.sweep={count:freqs.length,results:[],startedAt:nowISO()};
+for(let i=0;i<freqs.length;i++){
+if(stopRequested)break;
+const f=freqs[i];
+setPhase("単一周波数 sweep");
+const pct=i/freqs.length*100;
+setProgress(pct,"単一周波数 "+(i+1)+"/"+freqs.length+" ("+f+"Hz)");
+if($("mode").value!=="rx"){
+await playTone(f,CFG.toneMs,0.22);
+await sleep(20);
+}
+await sleep(20);
+const m=measureFrequency(f);
+renderLive(m);
+m.environmentNoiseDb=noiseDb;
+testData.sweep.results.push(m);
+await sleep(40);
+}
+testData.sweep.finishedAt=nowISO();
+}
 
-    btnLoop.onclick = () => executeMode('loop');
-    btnRx.onclick = () => executeMode('rx');
-    btnTx.onclick = () => executeMode('tx');
+function representativeFreqs(count){
+const out=[];
+for(let i=0;i<count;i++){
+const f=CFG.minFreq+Math.round(((i+1)/(count+1))*(CFG.maxFreq-CFG.minFreq)/CFG.step)*CFG.step;
+out.push(f);
+}
+return [...new Set(out)].slice(0,count);
+}
 
-    document.getElementById("btnCopy").onclick = () => {
-      if (!jsonOut.value) return;
-      try {
-        navigator.clipboard.writeText(jsonOut.value).then(() => {
-          const btn = document.getElementById("btnCopy");
-          const orig = btn.textContent;
-          btn.textContent = "Copied!";
-          setTimeout(() => { btn.textContent = orig; }, 1500);
-        });
-      } catch (e) {
-        alert("Clipboard API not supported. Please copy manually.");
-      }
-    };
-  </script>
+async function simultaneousTest(){
+testData.simultaneous={};
+for(let count=2;count<=7;count++){
+if(stopRequested)break;
+const freqs=representativeFreqs(count);
+setPhase(count+"波同時テスト");
+setProgress(100*(1+(count-2)/6)/2,"同時"+count+"波");
+if($("mode").value!=="rx"){
+const when=audioCtx.currentTime+0.03;
+freqs.forEach(f=>createOsc(f,when,CFG.multiToneMs/1000,0.18));
+await sleep(CFG.multiToneMs);
+}else{
+await sleep(CFG.multiToneMs);
+}
+const measurements=freqs.map(measureFrequency);
+const recognized=measurements.filter(x=>x.recognized).length;
+testData.simultaneous[count]={frequencies:freqs,measurements,recognizedCount:recognized,total:count,allRecognized:recognized===count};
+await sleep(100);
+}
+}
+
+function validateThreeFreqs(){
+const f=[+$("f1").value,+$("f2").value,+$("f3").value];
+if(f.some(x=>x<CFG.minFreq||x>CFG.maxFreq||!Number.isFinite(x)))throw new Error("3波テストの周波数は16kHz〜22kHzで指定してや。");
+if(new Set(f).size!==3)throw new Error("3波テストの3周波数はそれぞれ別々にしてや。");
+return f;
+}
+
+async function threeWaveIntervalTest(){
+const freqs=validateThreeFreqs();
+testData.threeWave={frequencies:freqs,results:{}};
+for(let ii=0;ii<CFG.intervals.length;ii++){
+if(stopRequested)break;
+const interval=CFG.intervals[ii];
+testData.threeWave.results[interval]=[];
+for(let rep=0;rep<CFG.repetitions;rep++){
+if(stopRequested)break;
+setPhase("3波 "+interval+"ms / "+(rep+1)+"/3");
+setProgress(50+50*(ii*3+rep)/(CFG.intervals.length*3),"3波間隔 "+interval+"ms");
+const start=performance.now();
+if($("mode").value!=="rx"){
+for(let i=0;i<3;i++){
+await playTone(freqs[i],30,0.22);
+if(i<2)await sleep(interval);
+}
+}else{
+await sleep(30*3+interval*2+80);
+}
+const measurements=freqs.map(measureFrequency);
+testData.threeWave.results[interval].push({
+rep:rep+1,
+expectedGapMs:interval,
+elapsedMs:performance.now()-start,
+measurements,
+allReceived:measurements.every(x=>x.recognized)
+});
+await sleep(120);
+}
+}
+}
+
+function buildSummary(){
+const sweep=testData.sweep?.results||[];
+const detected=sweep.filter(x=>x.recognized);
+const s=testData.simultaneous||{};
+const three=testData.threeWave?.results||{};
+const intervalSummary={};
+Object.entries(three).forEach(([gap,arr])=>{
+intervalSummary[gap]={tests:arr.length,allReceivedCount:arr.filter(x=>x.allReceived).length,allReceived:arr.length>0&&arr.every(x=>x.allReceived)};
+});
+return {
+sweep:{tested:sweep.length,recognized:detected.length,recognitionRate:sweep.length?detected.length/sweep.length:0,lowestRecognizedHz:detected.length?Math.min(...detected.map(x=>x.freq)):null,highestRecognizedHz:detected.length?Math.max(...detected.map(x=>x.freq)):null},
+simultaneous:Object.fromEntries(Object.entries(s).map(([k,v])=>[k,{allRecognized:v.allRecognized,recognized:v.recognizedCount,total:v.total}])),
+threeWave:intervalSummary
+};
+}
+
+function makeTestData(){
+return {
+schema:"ultrasonic-audio-test-v1",
+testId:crypto.randomUUID?crypto.randomUUID():String(Date.now()),
+startedAt:nowISO(),
+mode:$("mode").value,
+config:{
+rangeHz:[CFG.minFreq,CFG.maxFreq],
+stepHz:CFG.step,
+triggerHz:CFG.triggerFreq,
+triggerThresholdDb:CFG.triggerThresholdDb,
+toneMs:CFG.toneMs,
+simultaneousWaveCounts:[2,3,4,5,6,7],
+threeWaveIntervalsMs:CFG.intervals,
+threeWaveRepetitions:CFG.repetitions
+},
+device:getDeviceInfo(),
+environment:{noiseDb:null},
+trigger:{frequencyHz:CFG.triggerFreq,detected:false},
+sweep:null,
+simultaneous:null,
+threeWave:null,
+summary:null
+};
+}
+
+async function run(){
+if(running)return;
+running=true;
+stopRequested=false;
+$("start").disabled=true;
+$("stop").disabled=false;
+try{
+await prepareAudio();
+testData=makeTestData();
+if($("mode").value==="tx"||$("mode").value==="both"){
+setPhase("trigger送信");
+setStatus("18kHz triggerを送信するで。受信側はこれを検出してテスト開始するで。");
+await playTrigger();
+await sleep(120);
+}
+await calibrateNoise();
+if(!await waitForTrigger())return;
+await sweepTest();
+await simultaneousTest();
+await threeWaveIntervalTest();
+testData.finishedAt=nowISO();
+testData.summary=buildSummary();
+setProgress(100,"完了");
+setPhase("完了");
+setStatus("全部終わったで。JSONをコピーして解析に回せるで。","ok");
+updateJson();
+}catch(e){
+console.error(e);
+setStatus("エラー: "+e.message,"err");
+if(testData){testData.error={message:e.message,stack:e.stack};updateJson();}
+}finally{
+running=false;
+$("start").disabled=false;
+$("stop").disabled=true;
+if(animationId)cancelAnimationFrame(animationId);
+}
+}
+
+function updateJson(){
+if(!testData)return;
+testData.device=getDeviceInfo();
+testData.summary=testData.sweep?buildSummary():null;
+$("json").textContent=JSON.stringify(testData);
+$("summary").textContent=testData.summary?JSON.stringify(testData.summary,null,2):"テスト中やで。";
+}
+
+function startVisualLoop(){
+function loop(){
+if(!running)return;
+drawSpectrum();
+animationId=requestAnimationFrame(loop);
+}
+loop();
+}
+
+$("start").addEventListener("click",async()=>{
+startVisualLoop();
+await run();
+});
+
+$("stop").addEventListener("click",()=>{
+stopRequested=true;
+setPhase("停止処理中");
+setStatus("停止リクエストを受け付けたで。現在の測定が終わったら止めるわ。","warn");
+});
+
+$("copy").addEventListener("click",async()=>{
+if(!testData)return;
+updateJson();
+try{
+await navigator.clipboard.writeText($("json").textContent);
+$("copy").textContent="コピー完了";
+setTimeout(()=>$("copy").textContent="JSONをコピー",1200);
+}catch(e){
+const ta=document.createElement("textarea");
+ta.value=$("json").textContent;
+document.body.appendChild(ta);
+ta.select();
+document.execCommand("copy");
+ta.remove();
+}
+});
+
+$("download").addEventListener("click",()=>{
+if(!testData)return;
+updateJson();
+const blob=new Blob([$("json").textContent],{type:"application/json"});
+const a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="ultrasonic-test-"+testData.testId+".json";
+a.click();
+URL.revokeObjectURL(a.href);
+});
+
+setInterval(updateJson,1000);
+
+window.addEventListener("beforeunload",()=>{
+if(stream)stream.getTracks().forEach(t=>t.stop());
+if(audioCtx)audioCtx.close();
+});
+</script>
 </body>
 </html>
