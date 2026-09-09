@@ -1,613 +1,1416 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Ultrasonic Audio Test 16-22kHz</title>
-<style>
-*{box-sizing:border-box}
-body{margin:0;background:#111;color:#eee;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-main{max-width:1100px;margin:auto;padding:20px}
-h1{font-size:22px;margin:0 0 8px}
-h2{font-size:17px;margin:22px 0 10px}
-p{line-height:1.6;color:#bbb}
-button,select,input{font:inherit}
-button{border:0;border-radius:7px;padding:10px 15px;background:#2d6cdf;color:#fff;cursor:pointer}
-button:disabled{opacity:.4;cursor:not-allowed}
-button.danger{background:#b83232}
-button.secondary{background:#444}
-select,input{background:#222;color:#eee;border:1px solid #555;border-radius:6px;padding:9px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
-.card{background:#1b1b1b;border:1px solid #333;border-radius:9px;padding:14px}
-.label{font-size:12px;color:#999;margin-bottom:5px}
-.value{font-size:18px;font-weight:600}
-.status{padding:12px;border-radius:7px;background:#202020;border:1px solid #333;margin:12px 0}
-.status.ok{border-color:#357a45}
-.status.warn{border-color:#96762b}
-.status.err{border-color:#9b3434}
-.progress{height:12px;background:#292929;border-radius:8px;overflow:hidden;margin:10px 0}
-.progress>div{height:100%;width:0;background:#4d8df7;transition:width .1s}
-canvas{width:100%;height:180px;background:#080808;border:1px solid #333;border-radius:7px}
-.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.small{font-size:12px;color:#999}
-table{width:100%;border-collapse:collapse;font-size:12px}
-th,td{padding:6px;border-bottom:1px solid #333;text-align:right}
-th:first-child,td:first-child{text-align:left}
-pre{white-space:pre-wrap;word-break:break-all;background:#080808;border:1px solid #333;border-radius:7px;padding:12px;max-height:350px;overflow:auto;font-size:11px}
-#results{max-height:450px;overflow:auto}
-.good{color:#63d27d}
-.bad{color:#ff7777}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Ultrasonic Audio Test 16-22kHz</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #111;
+      color: #eee;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 22px;
+      margin: 0 0 8px;
+    }
+
+    h2 {
+      font-size: 17px;
+      margin: 22px 0 10px;
+    }
+
+    p {
+      line-height: 1.6;
+      color: #bbb;
+    }
+
+    button,
+    select,
+    input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      border-radius: 7px;
+      padding: 10px 15px;
+      background: #2d6cdf;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+
+    button.danger {
+      background: #b83232;
+    }
+
+    button.secondary {
+      background: #444;
+    }
+
+    select,
+    input {
+      background: #222;
+      color: #eee;
+      border: 1px solid #555;
+      border-radius: 6px;
+      padding: 9px;
+    }
+
+    input[type="number"] {
+      width: 110px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+    }
+
+    .card {
+      background: #1b1b1b;
+      border: 1px solid #333;
+      border-radius: 9px;
+      padding: 14px;
+    }
+
+    .label {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 5px;
+    }
+
+    .value {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .status {
+      padding: 12px;
+      border-radius: 7px;
+      background: #202020;
+      border: 1px solid #333;
+      margin: 12px 0;
+    }
+
+    .status.ok {
+      border-color: #357a45;
+    }
+
+    .status.warn {
+      border-color: #96762b;
+    }
+
+    .status.err {
+      border-color: #9b3434;
+    }
+
+    .progress {
+      height: 12px;
+      background: #292929;
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+
+    .progress > div {
+      height: 100%;
+      width: 0;
+      background: #4d8df7;
+      transition: width .1s;
+    }
+
+    canvas {
+      width: 100%;
+      height: 180px;
+      background: #080808;
+      border: 1px solid #333;
+      border-radius: 7px;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .small {
+      font-size: 12px;
+      color: #999;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th,
+    td {
+      padding: 6px;
+      border-bottom: 1px solid #333;
+      text-align: right;
+    }
+
+    th:first-child,
+    td:first-child {
+      text-align: left;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-all;
+      background: #080808;
+      border: 1px solid #333;
+      border-radius: 7px;
+      padding: 12px;
+      max-height: 400px;
+      overflow: auto;
+      font-size: 11px;
+    }
+
+    .good {
+      color: #63d27d;
+    }
+
+    .bad {
+      color: #ff7777;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
 </head>
 <body>
-<main>
-<h1>16kHz〜22kHz 音響送受信テスト</h1>
-<p>受信レベルは端末やマイク固有の感度が分からへんため、絶対音圧dB SPLではなく相対dBとして記録するで。</p>
+  <main>
+    <h1>16kHz〜22kHz 音響送受信テスト</h1>
+    <p>送信モードではマイクを使用せえへん。受信モードではマイクだけを使用するで。同時モードではスピーカーとマイクを同時に使用するで。</p>
 
-<section class="card">
-<h2>1. モード選択</h2>
-<div class="row">
-<select id="mode">
-<option value="tx">送信側</option>
-<option value="rx">受信側</option>
-<option value="both">送受信同時</option>
-</select>
-<button id="start">テスト準備</button>
-<button id="stop" class="danger" disabled>停止</button>
-</div>
-<div id="status" class="status">モードを選んで「テスト準備」を押してや。</div>
-</section>
+    <section class="card">
+      <h2>1. モード選択</h2>
+      <div class="row">
+        <select id="mode">
+          <option value="rx">受信</option>
+          <option value="tx">送信</option>
+          <option value="both">送受信同時</option>
+        </select>
+        <button id="start">テスト開始</button>
+        <button id="stop" class="danger" disabled>停止</button>
+      </div>
+      <div id="status" class="status">モードを選んでテスト開始を押してや。</div>
+    </section>
 
-<section class="card">
-<h2>2. 3波テスト用周波数</h2>
-<div class="row">
-<label>周波数1 <input id="f1" type="number" min="16000" max="22000" step="20" value="17000"></label>
-<label>周波数2 <input id="f2" type="number" min="16000" max="22000" step="20" value="18500"></label>
-<label>周波数3 <input id="f3" type="number" min="16000" max="22000" step="20" value="20500"></label>
-</div>
-<p class="small">16,000〜22,000Hzの範囲内で指定してや。20Hz刻み以外でも解析自体は可能やけど、標準テストは20Hz刻みや。</p>
-</section>
+    <section class="card">
+      <h2>2. 3波テスト周波数</h2>
+      <div class="row">
+        <label>周波数1 <input id="f1" type="number" min="16000" max="22000" step="20" value="17000"></label>
+        <label>周波数2 <input id="f2" type="number" min="16000" max="22000" step="20" value="18000"></label>
+        <label>周波数3 <input id="f3" type="number" min="16000" max="22000" step="20" value="20000"></label>
+      </div>
+      <p class="small">3波テストでは指定した周波数を順番に送信するで。各間隔を50/80/100/120/150ms、それぞれ3回ずつ測定する。</p>
+    </section>
 
-<section class="grid">
-<div class="card"><div class="label">現在の状態</div><div class="value" id="phase">待機中</div></div>
-<div class="card"><div class="label">入力sampleRate</div><div class="value" id="sampleRate">-</div></div>
-<div class="card"><div class="label">現在周波数</div><div class="value" id="currentFreq">-</div></div>
-<div class="card"><div class="label">受信レベル</div><div class="value" id="currentDb">-</div></div>
-<div class="card"><div class="label">環境ノイズ</div><div class="value" id="noiseDb">-</div></div>
-<div class="card"><div class="label">SNR</div><div class="value" id="snr">-</div></div>
-</section>
+    <section class="grid">
+      <div class="card">
+        <div class="label">現在の状態</div>
+        <div class="value" id="phase">待機中</div>
+      </div>
+      <div class="card">
+        <div class="label">Audio sampleRate</div>
+        <div class="value" id="sampleRate">-</div>
+      </div>
+      <div class="card">
+        <div class="label">現在周波数</div>
+        <div class="value" id="currentFreq">-</div>
+      </div>
+      <div class="card">
+        <div class="label">受信レベル</div>
+        <div class="value" id="currentDb">-</div>
+      </div>
+      <div class="card">
+        <div class="label">環境ノイズ</div>
+        <div class="value" id="noiseDb">-</div>
+      </div>
+      <div class="card">
+        <div class="label">SNR</div>
+        <div class="value" id="snr">-</div>
+      </div>
+    </section>
 
-<div class="progress"><div id="bar"></div></div>
-<div class="small" id="progressText">0%</div>
+    <div class="progress">
+      <div id="bar"></div>
+    </div>
+    <div class="small" id="progressText">0%</div>
 
-<section class="card">
-<h2>受信スペクトラム</h2>
-<canvas id="spectrum" width="1000" height="300"></canvas>
-</section>
+    <section class="card">
+      <h2>受信スペクトラム</h2>
+      <canvas id="spectrum" width="1200" height="320"></canvas>
+    </section>
 
-<section class="card">
-<h2>リアルタイム解析</h2>
-<table>
-<thead><tr><th>周波数</th><th>レベル</th><th>周辺ノイズ</th><th>SNR</th><th>認識</th></tr></thead>
-<tbody id="liveTable"></tbody>
-</table>
-</section>
+    <section class="card">
+      <h2>現在の測定</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>周波数</th>
+              <th>受信dBFS</th>
+              <th>周辺dBFS</th>
+              <th>SNR</th>
+              <th>認識</th>
+            </tr>
+          </thead>
+          <tbody id="liveTable"></tbody>
+        </table>
+      </div>
+    </section>
 
-<section class="card">
-<h2>テスト結果</h2>
-<div id="summary" class="small">まだ結果はないで。</div>
-<div id="results"></div>
-</section>
+    <section class="card">
+      <h2>テスト結果</h2>
+      <div id="summary" class="small">まだ結果はないで。</div>
+      <pre id="resultText"></pre>
+    </section>
 
-<section class="card">
-<h2>LLM解析用minify JSON</h2>
-<div class="row">
-<button id="copy" class="secondary">JSONをコピー</button>
-<button id="download" class="secondary">JSON保存</button>
-</div>
-<pre id="json">{"status":"not_started"}</pre>
-</section>
-</main>
+    <section class="card">
+      <h2>LLM解析用minify JSON</h2>
+      <div class="row">
+        <button id="copy" class="secondary">JSONをコピー</button>
+        <button id="download" class="secondary">JSON保存</button>
+      </div>
+      <pre id="json">{"status":"not_started"}</pre>
+    </section>
+  </main>
 
-<script>
-"use strict";
+  <script>
+    "use strict";
 
-const CFG={
-minFreq:16000,maxFreq:22000,step:20,
-toneMs:260,gapMs:90,
-triggerFreq:18000,triggerMs:350,
-triggerThresholdDb:10,
-analysisWindowMs:80,
-multiToneMs:420,
-multiGapMs:100,
-intervals:[50,80,100,120,150],
-repetitions:3
-};
+    const CFG = {
+      minFreq: 16000,
+      maxFreq: 22000,
+      stepHz: 20,
+      triggerHz: 18000,
+      triggerThresholdDb: 10,
+      triggerStableFrames: 4,
+      environmentMs: 2000,
+      sweepToneMs: 300,
+      sweepMeasureMs: 100,
+      sweepRepeats: 3,
+      simultaneousToneMs: 500,
+      threePulseMs: 20,
+      threeIntervalsMs: [50, 80, 100, 120, 150],
+      threeRepeats: 3,
+      detectionThresholdDb: 10,
+      detectionWindowMs: 30,
+      detectionStepMs: 5
+    };
 
-let audioCtx=null,stream=null,source=null,analyser=null,gainNode=null;
-let running=false,stopRequested=false;
-let testData=null,noiseDb=-120;
-let animationId=null;
+    let audioContext = null;
+    let inputStream = null;
+    let inputSource = null;
+    let analyser = null;
+    let outputGain = null;
+    let running = false;
+    let stopRequested = false;
+    let visualLoopId = null;
+    let testData = null;
+    let environmentNoiseDb = null;
 
-const $=id=>document.getElementById(id);
-const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+    const $ = id => document.getElementById(id);
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-function setStatus(text,type=""){
-$("status").textContent=text;
-$("status").className="status "+type;
-}
-function setPhase(v){$("phase").textContent=v}
-function setProgress(v,text){
-v=Math.max(0,Math.min(100,v));
-$("bar").style.width=v+"%";
-$("progressText").textContent=(text||v.toFixed(1)+"%");
-}
-function db(v){return 20*Math.log10(Math.max(v,1e-12))}
-function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+    function nowIso() {
+      return new Date().toISOString();
+    }
 
-function makeFreqs(){
-const a=[];
-for(let f=CFG.minFreq;f<=CFG.maxFreq;f+=CFG.step)a.push(f);
-return a;
-}
+    function dbFromAmplitude(amplitude) {
+      return 20 * Math.log10(Math.max(amplitude, 1e-12));
+    }
 
-function nowISO(){return new Date().toISOString()}
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
 
-function getDeviceInfo(){
-return {
-ua:navigator.userAgent,
-userAgentData:navigator.userAgentData?{
-brands:navigator.userAgentData.brands||[],
-mobile:navigator.userAgentData.mobile||false,
-platform:navigator.userAgentData.platform||""
-}:null,
-platform:navigator.platform,
-language:navigator.language,
-languages:navigator.languages,
-hardwareConcurrency:navigator.hardwareConcurrency||null,
-deviceMemory:navigator.deviceMemory||null,
-maxTouchPoints:navigator.maxTouchPoints||0,
-screen:{width:screen.width,height:screen.height,pixelRatio:devicePixelRatio},
-viewport:{width:innerWidth,height:innerHeight},
-online:navigator.onLine,
-timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,
-audio:{
-contextSampleRate:audioCtx?audioCtx.sampleRate:null,
-baseLatency:audioCtx?audioCtx.baseLatency:null,
-outputLatency:audioCtx&&"outputLatency" in audioCtx?audioCtx.outputLatency:null,
-state:audioCtx?audioCtx.state:null
-},
-media:stream?stream.getAudioTracks().map(t=>({
-label:t.label,
-id:t.id,
-kind:t.kind,
-readyState:t.readyState,
-enabled:t.enabled,
-settings:t.getSettings?t.getSettings():{},
-constraints:t.getConstraints?t.getConstraints():{}
-})):[],
-timestamp:nowISO()
-};
-}
+    function setStatus(text, type = "") {
+      $("status").textContent = text;
+      $("status").className = "status " + type;
+    }
 
-async function prepareAudio(){
-const mode=$("mode").value;
-if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error("このブラウザではgetUserMediaが使えへんで。HTTPSまたはlocalhostで開いてや。");
+    function setPhase(text) {
+      $("phase").textContent = text;
+    }
 
-stream=await navigator.mediaDevices.getUserMedia({
-audio:{
-echoCancellation:false,
-noiseSuppression:false,
-autoGainControl:false,
-channelCount:1,
-sampleRate:{ideal:48000}
-},
-video:false
-});
+    function setProgress(value, text) {
+      value = clamp(value, 0, 100);
+      $("bar").style.width = value + "%";
+      $("progressText").textContent = text || value.toFixed(1) + "%";
+    }
 
-audioCtx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:48000});
-await audioCtx.resume();
+    function makeSweepFrequencies() {
+      const frequencies = [];
 
-if(audioCtx.sampleRate<44100)throw new Error("AudioContextのsampleRateが"+audioCtx.sampleRate+"Hzや。22kHz測定には不十分やで。");
+      for (let frequency = CFG.minFreq; frequency <= CFG.maxFreq; frequency += CFG.stepHz) {
+        frequencies.push(frequency);
+      }
 
-source=audioCtx.createMediaStreamSource(stream);
-analyser=audioCtx.createAnalyser();
-analyser.fftSize=8192;
-analyser.smoothingTimeConstant=0;
-source.connect(analyser);
+      return frequencies;
+    }
 
-if(mode==="tx"||mode==="both"){
-gainNode=audioCtx.createGain();
-gainNode.gain.value=0;
-gainNode.connect(audioCtx.destination);
-}
+    function getMode() {
+      return $("mode").value;
+    }
 
-$("sampleRate").textContent=audioCtx.sampleRate+" Hz";
-setStatus("音声入力を準備したで。sampleRate="+audioCtx.sampleRate+"Hz","ok");
-}
+    function usesMicrophone() {
+      return getMode() === "rx" || getMode() === "both";
+    }
 
-function getTimeDomain(){
-const a=new Float32Array(analyser.fftSize);
-analyser.getFloatTimeDomainData(a);
-return a;
-}
+    function usesOutput() {
+      return getMode() === "tx" || getMode() === "both";
+    }
 
-function goertzel(samples,target,sr){
-const n=samples.length;
-const k=Math.round(n*target/sr);
-const w=2*Math.PI*k/n;
-const coeff=2*Math.cos(w);
-let s0=0,s1=0,s2=0;
-for(let i=0;i<n;i++){
-s0=samples[i]+coeff*s1-s2;
-s2=s1;
-s1=s0;
-}
-const power=(s1*s1+s2*s2-coeff*s1*s2)/(n*n);
-return Math.sqrt(Math.max(power,0))*2;
-}
+    async function setupAudio() {
+      if (usesMicrophone()) {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error("このブラウザではマイク入力を使えへんで。HTTPSまたはlocalhostで開いてや。");
+        }
 
-function measureFrequency(freq){
-const samples=getTimeDomain();
-const amp=goertzel(samples,freq,audioCtx.sampleRate);
-const level=db(amp);
-const offsets=[-160,-120,-80,-40,40,80,120,160];
-const surrounding=offsets.map(o=>db(goertzel(samples,freq+o,audioCtx.sampleRate)));
-const sorted=[...surrounding].sort((a,b)=>a-b);
-const median=sorted[Math.floor(sorted.length/2)];
-const snr=level-median;
-return {freq,db:level,noiseDb:median,snr,recognized:snr>=CFG.triggerThresholdDb};
-}
+        inputStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+            channelCount: 1,
+            sampleRate: {
+              ideal: 48000
+            }
+          },
+          video: false
+        });
+      }
 
-function measureBand(freq){
-const samples=getTimeDomain();
-const offsets=[-200,-160,-120,-80,-40,0,40,80,120,160,200];
-const vals=offsets.map(o=>db(goertzel(samples,freq+o,audioCtx.sampleRate)));
-const center=vals[5];
-const side=vals.filter((_,i)=>i!==5).sort((a,b)=>a-b);
-const med=side[Math.floor(side.length/2)];
-return {freq,db:center,noiseDb:med,snr:center-med,recognized:center-med>=CFG.triggerThresholdDb};
-}
+      audioContext = new (window.AudioContext || window.webkitAudioContext)({
+        latencyHint: "interactive",
+        sampleRate: 48000
+      });
 
-async function calibrateNoise(){
-setPhase("環境ノイズ測定");
-setStatus("テスト前の環境ノイズを測ってるで。音を出さんと静かにしてや。");
-const vals=[];
-const end=performance.now()+1500;
-while(performance.now()<end){
-if(stopRequested)return;
-const m=measureBand(18000);
-vals.push(m.noiseDb);
-await sleep(30);
-}
-noiseDb=vals.reduce((a,b)=>a+b,0)/Math.max(vals.length,1);
-$("noiseDb").textContent=noiseDb.toFixed(2)+" dB";
-testData.environment.noiseDb=noiseDb;
-}
+      await audioContext.resume();
 
-async function waitForTrigger(){
-if($("mode").value==="tx")return true;
-setPhase("18kHz trigger待機");
-setStatus("18kHz triggerを待ってるで。送信側から18kHzを出してや。","warn");
-const started=performance.now();
-while(!stopRequested){
-const m=measureBand(CFG.triggerFreq);
-$("currentFreq").textContent="18,000 Hz";
-$("currentDb").textContent=m.db.toFixed(2)+" dB";
-$("snr").textContent=m.snr.toFixed(2)+" dB";
-drawSpectrum(CFG.triggerFreq);
-if(m.snr>=CFG.triggerThresholdDb){
-testData.trigger.detected=true;
-testData.trigger.detectedAt=nowISO();
-testData.trigger.levelDb=m.db;
-testData.trigger.snrDb=m.snr;
-setStatus("18kHz triggerを認識したで。テスト開始するわ。","ok");
-return true;
-}
-if(performance.now()-started>600000)throw new Error("10分経っても18kHz triggerを認識できへんかったで。");
-await sleep(20);
-}
-return false;
-}
+      if (usesMicrophone()) {
+        inputSource = audioContext.createMediaStreamSource(inputStream);
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 16384;
+        analyser.smoothingTimeConstant = 0;
+        inputSource.connect(analyser);
+      }
 
-function createOsc(freq,when,duration,level=0.25){
-const osc=audioCtx.createOscillator();
-const g=audioCtx.createGain();
-osc.type="sine";
-osc.frequency.setValueAtTime(freq,when);
-g.gain.setValueAtTime(0,when);
-g.gain.linearRampToValueAtTime(level,when+0.008);
-g.gain.setValueAtTime(level,when+Math.max(0.009,duration-0.008));
-g.gain.linearRampToValueAtTime(0,when+duration);
-osc.connect(g);
-g.connect(gainNode);
-osc.start(when);
-osc.stop(when+duration+0.01);
-return osc;
-}
+      if (usesOutput()) {
+        outputGain = audioContext.createGain();
+        outputGain.gain.value = 1;
+        outputGain.connect(audioContext.destination);
+      }
 
-async function playTone(freq,duration=CFG.toneMs,level=0.25){
-if(!gainNode)return;
-const when=audioCtx.currentTime+0.015;
-createOsc(freq,when,duration/1000,level);
-await sleep(duration);
-}
+      $("sampleRate").textContent = audioContext.sampleRate + " Hz";
 
-async function playTrigger(){
-if(!gainNode)return;
-await playTone(CFG.triggerFreq,CFG.triggerMs,0.25);
-}
+      if (audioContext.sampleRate < 44100) {
+        throw new Error("sampleRateが" + audioContext.sampleRate + "Hzしかないため、22kHz測定には不十分やで。");
+      }
+    }
 
-function drawSpectrum(markFreq=null){
-if(!analyser)return;
-const canvas=$("spectrum"),ctx=canvas.getContext("2d");
-const data=new Float32Array(analyser.frequencyBinCount);
-analyser.getFloatFrequencyData(data);
-ctx.clearRect(0,0,canvas.width,canvas.height);
-ctx.beginPath();
-for(let f=16000;f<=22000;f+=20){
-const idx=Math.round(f/audioCtx.sampleRate*analyser.fftSize);
-const v=clamp((data[idx]||-120)+120,0,120);
-const x=(f-CFG.minFreq)/(CFG.maxFreq-CFG.minFreq)*canvas.width;
-const y=canvas.height-(v/120)*canvas.height;
-if(f===16000)ctx.moveTo(x,y);else ctx.lineTo(x,y);
-}
-ctx.strokeStyle="#4d8df7";
-ctx.stroke();
-if(markFreq){
-const x=(markFreq-CFG.minFreq)/(CFG.maxFreq-CFG.minFreq)*canvas.width;
-ctx.beginPath();
-ctx.moveTo(x,0);
-ctx.lineTo(x,canvas.height);
-ctx.strokeStyle="#ff5555";
-ctx.stroke();
-}
-}
+    function getDeviceInfo() {
+      const audioTracks = inputStream ? inputStream.getAudioTracks() : [];
 
-function renderLive(m){
-$("currentFreq").textContent=m.freq.toLocaleString()+" Hz";
-$("currentDb").textContent=m.db.toFixed(2)+" dB";
-$("noiseDb").textContent=m.noiseDb.toFixed(2)+" dB";
-$("snr").textContent=m.snr.toFixed(2)+" dB";
-$("liveTable").innerHTML="<tr><td>"+m.freq.toLocaleString()+" Hz</td><td>"+m.db.toFixed(2)+" dB</td><td>"+m.noiseDb.toFixed(2)+" dB</td><td>"+m.snr.toFixed(2)+" dB</td><td class='"+(m.recognized?"good":"bad")+"'>"+(m.recognized?"YES":"NO")+"</td></tr>";
-drawSpectrum(m.freq);
-}
+      return {
+        ua: navigator.userAgent,
+        userAgentData: navigator.userAgentData ? {
+          brands: navigator.userAgentData.brands || [],
+          mobile: navigator.userAgentData.mobile || false,
+          platform: navigator.userAgentData.platform || "",
+          architecture: navigator.userAgentData.getHighEntropyValues ? null : null
+        } : null,
+        platform: navigator.platform,
+        language: navigator.language,
+        languages: navigator.languages || [],
+        hardwareConcurrency: navigator.hardwareConcurrency || null,
+        deviceMemory: navigator.deviceMemory || null,
+        maxTouchPoints: navigator.maxTouchPoints || 0,
+        cookieEnabled: navigator.cookieEnabled,
+        online: navigator.onLine,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        screen: {
+          width: screen.width,
+          height: screen.height,
+          pixelRatio: window.devicePixelRatio
+        },
+        viewport: {
+          width: window.innerWidth,
+          height: window.innerHeight
+        },
+        audio: {
+          contextSampleRate: audioContext ? audioContext.sampleRate : null,
+          state: audioContext ? audioContext.state : null,
+          baseLatency: audioContext ? audioContext.baseLatency : null,
+          outputLatency: audioContext && "outputLatency" in audioContext ? audioContext.outputLatency : null
+        },
+        microphoneUsed: usesMicrophone(),
+        speakerUsed: usesOutput(),
+        inputDevices: audioTracks.map(track => ({
+          id: track.id,
+          label: track.label,
+          kind: track.kind,
+          enabled: track.enabled,
+          readyState: track.readyState,
+          settings: track.getSettings ? track.getSettings() : {},
+          constraints: track.getConstraints ? track.getConstraints() : {}
+        })),
+        permissions: {
+          microphone: usesMicrophone() ? "requested" : "not_requested"
+        },
+        timestamp: nowIso()
+      };
+    }
 
-async function sweepTest(){
-const freqs=makeFreqs();
-testData.sweep={count:freqs.length,results:[],startedAt:nowISO()};
-for(let i=0;i<freqs.length;i++){
-if(stopRequested)break;
-const f=freqs[i];
-setPhase("単一周波数 sweep");
-const pct=i/freqs.length*100;
-setProgress(pct,"単一周波数 "+(i+1)+"/"+freqs.length+" ("+f+"Hz)");
-if($("mode").value!=="rx"){
-await playTone(f,CFG.toneMs,0.22);
-await sleep(20);
-}
-await sleep(20);
-const m=measureFrequency(f);
-renderLive(m);
-m.environmentNoiseDb=noiseDb;
-testData.sweep.results.push(m);
-await sleep(40);
-}
-testData.sweep.finishedAt=nowISO();
-}
+    function getTimeDomainSamples() {
+      if (!analyser) {
+        return null;
+      }
 
-function representativeFreqs(count){
-const out=[];
-for(let i=0;i<count;i++){
-const f=CFG.minFreq+Math.round(((i+1)/(count+1))*(CFG.maxFreq-CFG.minFreq)/CFG.step)*CFG.step;
-out.push(f);
-}
-return [...new Set(out)].slice(0,count);
-}
+      const samples = new Float32Array(analyser.fftSize);
+      analyser.getFloatTimeDomainData(samples);
+      return samples;
+    }
 
-async function simultaneousTest(){
-testData.simultaneous={};
-for(let count=2;count<=7;count++){
-if(stopRequested)break;
-const freqs=representativeFreqs(count);
-setPhase(count+"波同時テスト");
-setProgress(100*(1+(count-2)/6)/2,"同時"+count+"波");
-if($("mode").value!=="rx"){
-const when=audioCtx.currentTime+0.03;
-freqs.forEach(f=>createOsc(f,when,CFG.multiToneMs/1000,0.18));
-await sleep(CFG.multiToneMs);
-}else{
-await sleep(CFG.multiToneMs);
-}
-const measurements=freqs.map(measureFrequency);
-const recognized=measurements.filter(x=>x.recognized).length;
-testData.simultaneous[count]={frequencies:freqs,measurements,recognizedCount:recognized,total:count,allRecognized:recognized===count};
-await sleep(100);
-}
-}
+    function goertzel(samples, targetFrequency, sampleRate) {
+      if (!samples || !samples.length) {
+        return 0;
+      }
 
-function validateThreeFreqs(){
-const f=[+$("f1").value,+$("f2").value,+$("f3").value];
-if(f.some(x=>x<CFG.minFreq||x>CFG.maxFreq||!Number.isFinite(x)))throw new Error("3波テストの周波数は16kHz〜22kHzで指定してや。");
-if(new Set(f).size!==3)throw new Error("3波テストの3周波数はそれぞれ別々にしてや。");
-return f;
-}
+      const n = samples.length;
+      const k = Math.round(n * targetFrequency / sampleRate);
+      const omega = 2 * Math.PI * k / n;
+      const coefficient = 2 * Math.cos(omega);
 
-async function threeWaveIntervalTest(){
-const freqs=validateThreeFreqs();
-testData.threeWave={frequencies:freqs,results:{}};
-for(let ii=0;ii<CFG.intervals.length;ii++){
-if(stopRequested)break;
-const interval=CFG.intervals[ii];
-testData.threeWave.results[interval]=[];
-for(let rep=0;rep<CFG.repetitions;rep++){
-if(stopRequested)break;
-setPhase("3波 "+interval+"ms / "+(rep+1)+"/3");
-setProgress(50+50*(ii*3+rep)/(CFG.intervals.length*3),"3波間隔 "+interval+"ms");
-const start=performance.now();
-if($("mode").value!=="rx"){
-for(let i=0;i<3;i++){
-await playTone(freqs[i],30,0.22);
-if(i<2)await sleep(interval);
-}
-}else{
-await sleep(30*3+interval*2+80);
-}
-const measurements=freqs.map(measureFrequency);
-testData.threeWave.results[interval].push({
-rep:rep+1,
-expectedGapMs:interval,
-elapsedMs:performance.now()-start,
-measurements,
-allReceived:measurements.every(x=>x.recognized)
-});
-await sleep(120);
-}
-}
-}
+      let s0 = 0;
+      let s1 = 0;
+      let s2 = 0;
 
-function buildSummary(){
-const sweep=testData.sweep?.results||[];
-const detected=sweep.filter(x=>x.recognized);
-const s=testData.simultaneous||{};
-const three=testData.threeWave?.results||{};
-const intervalSummary={};
-Object.entries(three).forEach(([gap,arr])=>{
-intervalSummary[gap]={tests:arr.length,allReceivedCount:arr.filter(x=>x.allReceived).length,allReceived:arr.length>0&&arr.every(x=>x.allReceived)};
-});
-return {
-sweep:{tested:sweep.length,recognized:detected.length,recognitionRate:sweep.length?detected.length/sweep.length:0,lowestRecognizedHz:detected.length?Math.min(...detected.map(x=>x.freq)):null,highestRecognizedHz:detected.length?Math.max(...detected.map(x=>x.freq)):null},
-simultaneous:Object.fromEntries(Object.entries(s).map(([k,v])=>[k,{allRecognized:v.allRecognized,recognized:v.recognizedCount,total:v.total}])),
-threeWave:intervalSummary
-};
-}
+      for (let i = 0; i < n; i++) {
+        s0 = samples[i] + coefficient * s1 - s2;
+        s2 = s1;
+        s1 = s0;
+      }
 
-function makeTestData(){
-return {
-schema:"ultrasonic-audio-test-v1",
-testId:crypto.randomUUID?crypto.randomUUID():String(Date.now()),
-startedAt:nowISO(),
-mode:$("mode").value,
-config:{
-rangeHz:[CFG.minFreq,CFG.maxFreq],
-stepHz:CFG.step,
-triggerHz:CFG.triggerFreq,
-triggerThresholdDb:CFG.triggerThresholdDb,
-toneMs:CFG.toneMs,
-simultaneousWaveCounts:[2,3,4,5,6,7],
-threeWaveIntervalsMs:CFG.intervals,
-threeWaveRepetitions:CFG.repetitions
-},
-device:getDeviceInfo(),
-environment:{noiseDb:null},
-trigger:{frequencyHz:CFG.triggerFreq,detected:false},
-sweep:null,
-simultaneous:null,
-threeWave:null,
-summary:null
-};
-}
+      const power = (s1 * s1 + s2 * s2 - coefficient * s1 * s2) / (n * n);
+      return Math.sqrt(Math.max(power, 0)) * 2;
+    }
 
-async function run(){
-if(running)return;
-running=true;
-stopRequested=false;
-$("start").disabled=true;
-$("stop").disabled=false;
-try{
-await prepareAudio();
-testData=makeTestData();
-if($("mode").value==="tx"||$("mode").value==="both"){
-setPhase("trigger送信");
-setStatus("18kHz triggerを送信するで。受信側はこれを検出してテスト開始するで。");
-await playTrigger();
-await sleep(120);
-}
-await calibrateNoise();
-if(!await waitForTrigger())return;
-await sweepTest();
-await simultaneousTest();
-await threeWaveIntervalTest();
-testData.finishedAt=nowISO();
-testData.summary=buildSummary();
-setProgress(100,"完了");
-setPhase("完了");
-setStatus("全部終わったで。JSONをコピーして解析に回せるで。","ok");
-updateJson();
-}catch(e){
-console.error(e);
-setStatus("エラー: "+e.message,"err");
-if(testData){testData.error={message:e.message,stack:e.stack};updateJson();}
-}finally{
-running=false;
-$("start").disabled=false;
-$("stop").disabled=true;
-if(animationId)cancelAnimationFrame(animationId);
-}
-}
+    function measureFrequency(frequency, samples = null) {
+      const data = samples || getTimeDomainSamples();
 
-function updateJson(){
-if(!testData)return;
-testData.device=getDeviceInfo();
-testData.summary=testData.sweep?buildSummary():null;
-$("json").textContent=JSON.stringify(testData);
-$("summary").textContent=testData.summary?JSON.stringify(testData.summary,null,2):"テスト中やで。";
-}
+      if (!data) {
+        return {
+          frequencyHz: frequency,
+          levelDbfs: null,
+          surroundingDbfs: null,
+          snrDb: null,
+          recognized: null
+        };
+      }
 
-function startVisualLoop(){
-function loop(){
-if(!running)return;
-drawSpectrum();
-animationId=requestAnimationFrame(loop);
-}
-loop();
-}
+      const targetAmplitude = goertzel(data, frequency, audioContext.sampleRate);
+      const targetDb = dbFromAmplitude(targetAmplitude);
 
-$("start").addEventListener("click",async()=>{
-startVisualLoop();
-await run();
-});
+      const offsets = [-200, -160, -120, -80, -40, 40, 80, 120, 160, 200];
 
-$("stop").addEventListener("click",()=>{
-stopRequested=true;
-setPhase("停止処理中");
-setStatus("停止リクエストを受け付けたで。現在の測定が終わったら止めるわ。","warn");
-});
+      const surroundingLevels = offsets
+        .map(offset => dbFromAmplitude(goertzel(data, frequency + offset, audioContext.sampleRate)))
+        .sort((a, b) => a - b);
 
-$("copy").addEventListener("click",async()=>{
-if(!testData)return;
-updateJson();
-try{
-await navigator.clipboard.writeText($("json").textContent);
-$("copy").textContent="コピー完了";
-setTimeout(()=>$("copy").textContent="JSONをコピー",1200);
-}catch(e){
-const ta=document.createElement("textarea");
-ta.value=$("json").textContent;
-document.body.appendChild(ta);
-ta.select();
-document.execCommand("copy");
-ta.remove();
-}
-});
+      const middle = Math.floor(surroundingLevels.length / 2);
+      const surroundingDb = (surroundingLevels[middle - 1] + surroundingLevels[middle]) / 2;
+      const snr = targetDb - surroundingDb;
 
-$("download").addEventListener("click",()=>{
-if(!testData)return;
-updateJson();
-const blob=new Blob([$("json").textContent],{type:"application/json"});
-const a=document.createElement("a");
-a.href=URL.createObjectURL(blob);
-a.download="ultrasonic-test-"+testData.testId+".json";
-a.click();
-URL.revokeObjectURL(a.href);
-});
+      return {
+        frequencyHz: frequency,
+        levelDbfs: targetDb,
+        surroundingDbfs: surroundingDb,
+        snrDb: snr,
+        recognized: snr >= CFG.detectionThresholdDb
+      };
+    }
 
-setInterval(updateJson,1000);
+    function renderMeasurement(measurement) {
+      $("currentFreq").textContent = measurement.frequencyHz.toLocaleString() + " Hz";
+      $("currentDb").textContent = measurement.levelDbfs === null ? "-" : measurement.levelDbfs.toFixed(2) + " dBFS";
+      $("noiseDb").textContent = measurement.surroundingDbfs === null ? "-" : measurement.surroundingDbfs.toFixed(2) + " dBFS";
+      $("snr").textContent = measurement.snrDb === null ? "-" : measurement.snrDb.toFixed(2) + " dB";
 
-window.addEventListener("beforeunload",()=>{
-if(stream)stream.getTracks().forEach(t=>t.stop());
-if(audioCtx)audioCtx.close();
-});
-</script>
+      $("liveTable").innerHTML =
+        "<tr>" +
+        "<td>" + measurement.frequencyHz.toLocaleString() + " Hz</td>" +
+        "<td>" + (measurement.levelDbfs === null ? "-" : measurement.levelDbfs.toFixed(2)) + "</td>" +
+        "<td>" + (measurement.surroundingDbfs === null ? "-" : measurement.surroundingDbfs.toFixed(2)) + "</td>" +
+        "<td>" + (measurement.snrDb === null ? "-" : measurement.snrDb.toFixed(2)) + "</td>" +
+        "<td class='" + (measurement.recognized ? "good" : "bad") + "'>" +
+        (measurement.recognized ? "YES" : "NO") +
+        "</td>" +
+        "</tr>";
+    }
+
+    function drawSpectrum(markFrequency = null) {
+      if (!analyser || !audioContext) {
+        return;
+      }
+
+      const canvas = $("spectrum");
+      const context = canvas.getContext("2d");
+      const values = new Float32Array(analyser.frequencyBinCount);
+
+      analyser.getFloatFrequencyData(values);
+
+      context.clearRect(0, 0, canvas.width, canvas.height);
+
+      context.beginPath();
+
+      for (let frequency = CFG.minFreq; frequency <= CFG.maxFreq; frequency += CFG.stepHz) {
+        const index = Math.round(frequency / audioContext.sampleRate * analyser.fftSize);
+        const value = clamp((values[index] || -140) + 140, 0, 140);
+        const x = (frequency - CFG.minFreq) / (CFG.maxFreq - CFG.minFreq) * canvas.width;
+        const y = canvas.height - value / 140 * canvas.height;
+
+        if (frequency === CFG.minFreq) {
+          context.moveTo(x, y);
+        } else {
+          context.lineTo(x, y);
+        }
+      }
+
+      context.strokeStyle = "#4d8df7";
+      context.stroke();
+
+      if (markFrequency !== null) {
+        const x = (markFrequency - CFG.minFreq) / (CFG.maxFreq - CFG.minFreq) * canvas.width;
+
+        context.beginPath();
+        context.moveTo(x, 0);
+        context.lineTo(x, canvas.height);
+        context.strokeStyle = "#ff5555";
+        context.stroke();
+      }
+    }
+
+    function startVisualLoop() {
+      function loop() {
+        if (!running) {
+          return;
+        }
+
+        drawSpectrum();
+        visualLoopId = requestAnimationFrame(loop);
+      }
+
+      loop();
+    }
+
+    async function playTone(frequency, durationMs, amplitude = 0.25) {
+      if (!outputGain) {
+        return;
+      }
+
+      const startTime = audioContext.currentTime + 0.02;
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, startTime);
+
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(amplitude, startTime + 0.003);
+      gain.gain.setValueAtTime(amplitude, startTime + Math.max(0.004, durationMs / 1000 - 0.004));
+      gain.gain.linearRampToValueAtTime(0, startTime + durationMs / 1000);
+
+      oscillator.connect(gain);
+      gain.connect(outputGain);
+
+      oscillator.start(startTime);
+      oscillator.stop(startTime + durationMs / 1000 + 0.01);
+
+      await sleep(durationMs);
+    }
+
+    function scheduleTone(frequency, startTime, durationMs, amplitude = 0.25) {
+      if (!outputGain) {
+        return;
+      }
+
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, startTime);
+
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(amplitude, startTime + 0.003);
+      gain.gain.setValueAtTime(amplitude, startTime + Math.max(0.004, durationMs / 1000 - 0.004));
+      gain.gain.linearRampToValueAtTime(0, startTime + durationMs / 1000);
+
+      oscillator.connect(gain);
+      gain.connect(outputGain);
+
+      oscillator.start(startTime);
+      oscillator.stop(startTime + durationMs / 1000 + 0.01);
+    }
+
+    async function measureEnvironmentNoise() {
+      if (!usesMicrophone()) {
+        testData.environment = {
+          measured: false,
+          reason: "transmitter_mode_no_microphone"
+        };
+        return;
+      }
+
+      setPhase("環境ノイズ測定");
+      setStatus("テスト前の環境ノイズを2秒間測ってるで。できるだけ静かにしてや。", "warn");
+
+      const measurements = [];
+      const start = performance.now();
+
+      while (!stopRequested && performance.now() - start < CFG.environmentMs) {
+        const measurement = measureFrequency(CFG.triggerHz);
+
+        if (measurement.surroundingDbfs !== null) {
+          measurements.push(measurement.surroundingDbfs);
+        }
+
+        await sleep(30);
+      }
+
+      if (!measurements.length) {
+        environmentNoiseDb = null;
+      } else {
+        environmentNoiseDb = measurements.reduce((sum, value) => sum + value, 0) / measurements.length;
+      }
+
+      testData.environment = {
+        measured: true,
+        durationMs: CFG.environmentMs,
+        noiseDbfs: environmentNoiseDb,
+        sampleCount: measurements.length
+      };
+
+      $("noiseDb").textContent = environmentNoiseDb === null ? "-" : environmentNoiseDb.toFixed(2) + " dBFS";
+    }
+
+    async function detectTrigger() {
+      if (!usesMicrophone()) {
+        testData.trigger = {
+          frequencyHz: CFG.triggerHz,
+          required: false,
+          detected: null,
+          reason: "transmitter_mode"
+        };
+        return true;
+      }
+
+      setPhase("18kHz trigger待機");
+      setStatus("18kHz triggerを待ってるで。18kHzが周囲より突出したらテストを開始するで。", "warn");
+
+      let stableCount = 0;
+      const start = performance.now();
+
+      while (!stopRequested) {
+        const measurement = measureFrequency(CFG.triggerHz);
+
+        if (measurement.snrDb !== null && measurement.snrDb >= CFG.triggerThresholdDb) {
+          stableCount++;
+        } else {
+          stableCount = 0;
+        }
+
+        renderMeasurement(measurement);
+
+        if (stableCount >= CFG.triggerStableFrames) {
+          testData.trigger = {
+            frequencyHz: CFG.triggerHz,
+            required: true,
+            detected: true,
+            detectedAt: nowIso(),
+            levelDbfs: measurement.levelDbfs,
+            surroundingDbfs: measurement.surroundingDbfs,
+            snrDb: measurement.snrDb,
+            stableFrames: stableCount
+          };
+
+          setStatus("18kHz triggerを認識したで。テスト開始や。", "ok");
+          return true;
+        }
+
+        if (performance.now() - start > 600000) {
+          throw new Error("10分経っても18kHz triggerを認識できへんかったで。");
+        }
+
+        await sleep(15);
+      }
+
+      return false;
+    }
+
+    async function sendTrigger() {
+      if (!usesOutput()) {
+        return;
+      }
+
+      setPhase("18kHz trigger送信");
+      setStatus("18kHz triggerを送信してるで。受信側はこれを検出して開始するで。", "warn");
+
+      await playTone(CFG.triggerHz, 400, 0.25);
+      await sleep(200);
+    }
+
+    async function measureStableFrequency(frequency) {
+      const measurements = [];
+      const end = performance.now() + CFG.sweepMeasureMs;
+
+      while (!stopRequested && performance.now() < end) {
+        const samples = getTimeDomainSamples();
+        const measurement = measureFrequency(frequency, samples);
+
+        if (measurement.levelDbfs !== null) {
+          measurements.push(measurement);
+        }
+
+        renderMeasurement(measurement);
+        await sleep(15);
+      }
+
+      if (!measurements.length) {
+        return {
+          frequencyHz: frequency,
+          levelDbfs: null,
+          surroundingDbfs: null,
+          snrDb: null,
+          recognized: false,
+          samples: 0
+        };
+      }
+
+      const median = values => {
+        const sorted = [...values].sort((a, b) => a - b);
+        const middle = Math.floor(sorted.length / 2);
+
+        return sorted.length % 2
+          ? sorted[middle]
+          : (sorted[middle - 1] + sorted[middle]) / 2;
+      };
+
+      return {
+        frequencyHz: frequency,
+        levelDbfs: median(measurements.map(x => x.levelDbfs)),
+        surroundingDbfs: median(measurements.map(x => x.surroundingDbfs)),
+        snrDb: median(measurements.map(x => x.snrDb)),
+        recognized: measurements.filter(x => x.recognized).length >= Math.ceil(measurements.length / 2),
+        samples: measurements.length
+      };
+    }
+
+    async function runSweep() {
+      const frequencies = makeSweepFrequencies();
+
+      testData.sweep = {
+        rangeHz: [CFG.minFreq, CFG.maxFreq],
+        stepHz: CFG.stepHz,
+        totalFrequencies: frequencies.length,
+        repetitions: CFG.sweepRepeats,
+        results: [],
+        startedAt: nowIso()
+      };
+
+      const total = frequencies.length * CFG.sweepRepeats;
+      let completed = 0;
+
+      for (const frequency of frequencies) {
+        if (stopRequested) {
+          break;
+        }
+
+        const frequencyResult = {
+          frequencyHz: frequency,
+          repetitions: []
+        };
+
+        for (let repeat = 1; repeat <= CFG.sweepRepeats; repeat++) {
+          if (stopRequested) {
+            break;
+          }
+
+          setPhase("単一周波数測定");
+          setProgress(completed / total * 100, "Sweep " + (completed + 1) + "/" + total + " : " + frequency + "Hz");
+
+          const startedAt = performance.now();
+
+          if (usesOutput()) {
+            await playTone(frequency, CFG.sweepToneMs, 0.22);
+            await sleep(30);
+          } else {
+            await sleep(80);
+          }
+
+          let result;
+
+          if (usesMicrophone()) {
+            result = await measureStableFrequency(frequency);
+          } else {
+            result = {
+              frequencyHz: frequency,
+              transmitted: true,
+              received: null,
+              levelDbfs: null,
+              surroundingDbfs: null,
+              snrDb: null,
+              recognized: null
+            };
+          }
+
+          result.repeat = repeat;
+          result.elapsedMs = performance.now() - startedAt;
+          result.environmentNoiseDbfs = environmentNoiseDb;
+
+          frequencyResult.repetitions.push(result);
+          completed++;
+        }
+
+        const validResults = frequencyResult.repetitions.filter(x => x.recognized !== null);
+
+        frequencyResult.recognizedCount = validResults.filter(x => x.recognized).length;
+        frequencyResult.totalMeasured = validResults.length;
+        frequencyResult.recognized = usesMicrophone()
+          ? frequencyResult.recognizedCount >= Math.ceil(validResults.length / 2)
+          : null;
+
+        testData.sweep.results.push(frequencyResult);
+      }
+
+      testData.sweep.finishedAt = nowIso();
+    }
+
+    function getSimultaneousFrequencies(count) {
+      const result = [];
+      const usableSteps = Math.floor((CFG.maxFreq - CFG.minFreq) / CFG.stepHz);
+
+      for (let i = 1; i <= count; i++) {
+        const step = Math.round(usableSteps * i / (count + 1));
+        result.push(CFG.minFreq + step * CFG.stepHz);
+      }
+
+      return result;
+    }
+
+    async function measureMultipleFrequencies(frequencies) {
+      if (!usesMicrophone()) {
+        return frequencies.map(frequency => ({
+          frequencyHz: frequency,
+          transmitted: true,
+          recognized: null
+        }));
+      }
+
+      const samples = getTimeDomainSamples();
+
+      return frequencies.map(frequency => measureFrequency(frequency, samples));
+    }
+
+    async function runSimultaneous() {
+      testData.simultaneous = {
+        tests: {},
+        startedAt: nowIso()
+      };
+
+      const counts = [2, 3, 4, 5, 6, 7];
+
+      for (let index = 0; index < counts.length; index++) {
+        if (stopRequested) {
+          break;
+        }
+
+        const count = counts[index];
+        const frequencies = getSimultaneousFrequencies(count);
+
+        setPhase(count + "波同時測定");
+        setProgress(50 + index / counts.length * 20, count + "波同時テスト");
+
+        const startedAt = performance.now();
+
+        if (usesOutput()) {
+          const startTime = audioContext.currentTime + 0.05;
+
+          frequencies.forEach(frequency => {
+            scheduleTone(frequency, startTime, CFG.simultaneousToneMs, 0.16);
+          });
+
+          await sleep(CFG.simultaneousToneMs + 80);
+        } else {
+          await sleep(CFG.simultaneousToneMs + 80);
+        }
+
+        const measurements = await measureMultipleFrequencies(frequencies);
+
+        testData.simultaneous.tests[count] = {
+          frequenciesHz: frequencies,
+          measurements,
+          recognizedCount: measurements.filter(x => x.recognized === true).length,
+          total: frequencies.length,
+          allRecognized: usesMicrophone()
+            ? measurements.every(x => x.recognized === true)
+            : null,
+          elapsedMs: performance.now() - startedAt
+        };
+
+        await sleep(150);
+      }
+
+      testData.simultaneous.finishedAt = nowIso();
+    }
+
+    function getThreeWaveFrequencies() {
+      const frequencies = [
+        Number($("f1").value),
+        Number($("f2").value),
+        Number($("f3").value)
+      ];
+
+      if (frequencies.some(frequency => !Number.isFinite(frequency) || frequency < CFG.minFreq || frequency > CFG.maxFreq)) {
+        throw new Error("3波の周波数は16kHz〜22kHzの範囲で指定してや。");
+      }
+
+      if (new Set(frequencies).size !== 3) {
+        throw new Error("3波の周波数は全部違う値にしてや。");
+      }
+
+      return frequencies;
+    }
+
+    async function detectPulse(frequency, expectedStartMs, searchStartMs, searchEndMs) {
+      if (!usesMicrophone()) {
+        return {
+          frequencyHz: frequency,
+          expectedStartMs,
+          detected: null,
+          detectedAtMs: null,
+          levelDbfs: null,
+          surroundingDbfs: null,
+          snrDb: null
+        };
+      }
+
+      const testStart = performance.now();
+      const results = [];
+
+      while (!stopRequested) {
+        const elapsed = performance.now() - testStart;
+
+        if (elapsed > searchEndMs) {
+          break;
+        }
+
+        if (elapsed >= searchStartMs) {
+          const measurement = measureFrequency(frequency);
+
+          if (measurement.snrDb !== null) {
+            results.push({
+              ...measurement,
+              detectedAtMs: elapsed
+            });
+          }
+        }
+
+        await sleep(CFG.detectionStepMs);
+      }
+
+      if (!results.length) {
+        return {
+          frequencyHz: frequency,
+          expectedStartMs,
+          detected: false,
+          detectedAtMs: null,
+          levelDbfs: null,
+          surroundingDbfs: null,
+          snrDb: null
+        };
+      }
+
+      results.sort((a, b) => b.snrDb - a.snrDb);
+      const best = results[0];
+
+      return {
+        frequencyHz: frequency,
+        expectedStartMs,
+        detected: best.snrDb >= CFG.detectionThresholdDb,
+        detectedAtMs: best.detectedAtMs,
+        levelDbfs: best.levelDbfs,
+        surroundingDbfs: best.surroundingDbfs,
+        snrDb: best.snrDb
+      };
+    }
+
+    async function runThreeWaveInterval(intervalMs, frequencies, repeat) {
+      const durationMs = CFG.threePulseMs;
+      const totalDuration = durationMs * 3 + intervalMs * 2;
+      const startPerformance = performance.now();
+
+      if (usesOutput()) {
+        const startTime = audioContext.currentTime + 0.08;
+
+        scheduleTone(frequencies[0], startTime, durationMs, 0.24);
+        scheduleTone(frequencies[1], startTime + intervalMs / 1000, durationMs, 0.24);
+        scheduleTone(frequencies[2], startTime + intervalMs * 2 / 1000, durationMs, 0.24);
+      }
+
+      const pulseResults = [];
+
+      for (let i = 0; i < frequencies.length; i++) {
+        const expectedStartMs = i * intervalMs;
+
+        const pulse = await detectPulse(
+          frequencies[i],
+          expectedStartMs,
+          Math.max(0, expectedStartMs - 15),
+          expectedStartMs + Math.max(50, intervalMs * 0.75)
+        );
+
+        pulseResults.push(pulse);
+      }
+
+      if (usesOutput()) {
+        const remaining = totalDuration - (performance.now() - startPerformance);
+
+        if (remaining > 0) {
+          await sleep(remaining);
+        }
+      }
+
+      return {
+        repeat,
+        intervalMs,
+        frequenciesHz: frequencies,
+        durationPerPulseMs: durationMs,
+        pulses: pulseResults,
+        allReceived: usesMicrophone()
+          ? pulseResults.length === 3 && pulseResults.every(pulse => pulse.detected)
+          : null,
+        elapsedMs: performance.now() - startPerformance
+      };
+    }
+
+    async function runThreeWaveTests() {
+      const frequencies = getThreeWaveFrequencies();
+
+      testData.threeWave = {
+        frequenciesHz: frequencies,
+        intervalsMs: CFG.threeIntervalsMs,
+        repetitions: CFG.threeRepeats,
+        pulseDurationMs: CFG.threePulseMs,
+        results: {},
+        startedAt: nowIso()
+      };
+
+      let completed = 0;
+      const total = CFG.threeIntervalsMs.length * CFG.threeRepeats;
+
+      for (const intervalMs of CFG.threeIntervalsMs) {
+        if (stopRequested) {
+          break;
+        }
+
+        testData.threeWave.results[intervalMs] = [];
+
+        for (let repeat = 1; repeat <= CFG.threeRepeats; repeat++) {
+          if (stopRequested) {
+            break;
+          }
+
+          setPhase("3波 " + intervalMs + "ms / " + repeat + "/3");
+          setProgress(70 + completed / total * 30, "3波テスト " + (completed + 1) + "/" + total);
+
+          const result = await runThreeWaveInterval(intervalMs, frequencies, repeat);
+
+          testData.threeWave.results[intervalMs].push(result);
+          completed++;
+
+          await sleep(200);
+        }
+      }
+
+      testData.threeWave.finishedAt = nowIso();
+    }
+
+    function buildSummary() {
+      const summary = {
+        sweep: null,
+        simultaneous: {},
+        threeWave: {}
+      };
+
+      if (testData.sweep) {
+        const measured = testData.sweep.results.filter(result => result.totalMeasured > 0);
+        const recognized = measured.filter(result => result.recognized === true);
+
+        summary.sweep = {
+          totalFrequencies: testData.sweep.totalFrequencies,
+          measuredFrequencies: measured.length,
+          recognizedFrequencies: recognized.length,
+          recognitionRate: measured.length ? recognized.length / measured.length : null,
+          recognizedRangeHz: recognized.length ? [
+            Math.min(...recognized.map(result => result.frequencyHz)),
+            Math.max(...recognized.map(result => result.frequencyHz))
+          ] : null
+        };
+      }
+
+      if (testData.simultaneous) {
+        Object.entries(testData.simultaneous.tests).forEach(([count, result]) => {
+          summary.simultaneous[count] = {
+            recognizedCount: result.recognizedCount,
+            total: result.total,
+            allRecognized: result.allRecognized
+          };
+        });
+      }
+
+      if (testData.threeWave) {
+        Object.entries(testData.threeWave.results).forEach(([interval, results]) => {
+          summary.threeWave[interval] = {
+            repetitions: results.length,
+            allThreeReceivedCount: results.filter(result => result.allReceived === true).length,
+            allThreeReceived: results.length === CFG.threeRepeats &&
+              results.every(result => result.allReceived === true)
+          };
+        });
+      }
+
+      return summary;
+    }
+
+    function updateJson() {
+      if (!testData) {
+        return;
+      }
+
+      testData.device = getDeviceInfo();
+      testData.summary = buildSummary();
+      $("json").textContent = JSON.stringify(testData);
+      $("resultText").textContent = JSON.stringify(testData.summary, null, 2);
+      $("summary").textContent = JSON.stringify(testData.summary);
+    }
+
+    function createTestData() {
+      return {
+        schema: "ultrasonic-audio-test-v2",
+        testId: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+        startedAt: nowIso(),
+        mode: getMode(),
+        config: {
+          sweepStartHz: CFG.minFreq,
+          sweepEndHz: CFG.maxFreq,
+          sweepStepHz: CFG.stepHz,
+          triggerHz: CFG.triggerHz,
+          triggerThresholdDb: CFG.triggerThresholdDb,
+          sweepToneMs: CFG.sweepToneMs,
+          sweepRepeats: CFG.sweepRepeats,
+          simultaneousWaveCounts: [2, 3, 4, 5, 6, 7],
+          threeWaveIntervalsMs: CFG.threeIntervalsMs,
+          threeWaveRepeats: CFG.threeRepeats,
+          threeWavePulseDurationMs: CFG.threePulseMs,
+          detectionThresholdDb: CFG.detectionThresholdDb
+        },
+        device: getDeviceInfo(),
+        environment: null,
+        trigger: null,
+        sweep: null,
+        simultaneous: null,
+        threeWave: null,
+        summary: null
+      };
+    }
+
+    async function runTest() {
+      if (running) {
+        return;
+      }
+
+      running = true;
+      stopRequested = false;
+
+      $("start").disabled = true;
+      $("stop").disabled = false;
+
+      try {
+        await setupAudio();
+
+        testData = createTestData();
+
+        await measureEnvironmentNoise();
+
+        if (usesOutput()) {
+          await sendTrigger();
+        }
+
+        const triggerOk = await detectTrigger();
+
+        if (!triggerOk) {
+          throw new Error("trigger待機中に停止されたで。");
+        }
+
+        await runSweep();
+
+        if (!stopRequested) {
+          await runSimultaneous();
+        }
+
+        if (!stopRequested) {
+          await runThreeWaveTests();
+        }
+
+        testData.finishedAt = nowIso();
+        testData.completed = !stopRequested;
+        testData.summary = buildSummary();
+
+        setProgress(100, stopRequested ? "停止" : "完了");
+        setPhase(stopRequested ? "停止" : "完了");
+
+        if (stopRequested) {
+          setStatus("テストを停止したで。ここまでの結果はJSONに残ってるで。", "warn");
+        } else {
+          setStatus("全部のテストが完了したで。", "ok");
+        }
+
+        updateJson();
+      } catch (error) {
+        console.error(error);
+
+        if (!testData) {
+          testData = {
+            schema: "ultrasonic-audio-test-v2",
+            startedAt: nowIso(),
+            mode: getMode()
+          };
+        }
+
+        testData.completed = false;
+        testData.error = {
+          message: error.message,
+          stack: error.stack || null,
+          timestamp: nowIso()
+        };
+
+        setStatus("エラー: " + error.message, "err");
+        updateJson();
+      } finally {
+        running = false;
+        $("start").disabled = false;
+        $("stop").disabled = true;
+
+        if (visualLoopId) {
+          cancelAnimationFrame(visualLoopId);
+          visualLoopId = null;
+        }
+      }
+    }
+
+    $("start").addEventListener("click", () => {
+      startVisualLoop();
+      runTest();
+    });
+
+    $("stop").addEventListener("click", () => {
+      stopRequested = true;
+      setPhase("停止処理中");
+      setStatus("停止リクエストを受け付けたで。現在の処理が終わったら停止するで。", "warn");
+    });
+
+    $("copy").addEventListener("click", async () => {
+      if (!testData) {
+        return;
+      }
+
+      updateJson();
+
+      const json = $("json").textContent;
+
+      try {
+        await navigator.clipboard.writeText(json);
+        $("copy").textContent = "コピー完了";
+      } catch (error) {
+        const textarea = document.createElement("textarea");
+
+        textarea.value = json;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        textarea.remove();
+
+        $("copy").textContent = "コピー完了";
+      }
+
+      setTimeout(() => {
+        $("copy").textContent = "JSONをコピー";
+      }, 1200);
+    });
+
+    $("download").addEventListener("click", () => {
+      if (!testData) {
+        return;
+      }
+
+      updateJson();
+
+      const blob = new Blob(
+        [$("json").textContent],
+        { type: "application/json" }
+      );
+
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+
+      anchor.href = url;
+      anchor.download = "ultrasonic-test-" + testData.testId + ".json";
+      anchor.click();
+
+      URL.revokeObjectURL(url);
+    });
+
+    setInterval(updateJson, 1000);
+
+    window.addEventListener("beforeunload", () => {
+      if (inputStream) {
+        inputStream.getTracks().forEach(track => track.stop());
+      }
+
+      if (audioContext) {
+        audioContext.close();
+      }
+    });
+  </script>
 </body>
 </html>
