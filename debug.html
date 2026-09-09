@@ -3,108 +3,71 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>OTOSYN Full-Spectrum Acoustic Stress Tester</title>
+  <title>OTOSYN Ultimate Acoustic Hardware Benchmark</title>
   <style>
     :root {
-      --bg: #090c10; --panel: #161b22; --border: #30363d;
+      --bg: #0d1117; --panel: #161b22; --border: #30363d;
       --text: #c9d1d9; --accent: #58a6ff; --green: #3fb950; --warn: #d29922; --red: #f85149;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background: var(--bg); color: var(--text);
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      padding: 12px; max-width: 1200px; margin: 0 auto; font-size: 0.82rem; line-height: 1.4;
+      padding: 16px; max-width: 1000px; margin: 0 auto; font-size: 0.85rem; line-height: 1.5;
     }
-    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-    h2 { font-size: 0.95rem; color: var(--accent); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
-    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    h2 { font-size: 1.05rem; color: var(--accent); margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+    .header-box { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; }
     button {
       background: #238636; color: #fff; border: 1px solid rgba(240,246,252,0.1);
-      border-radius: 6px; padding: 10px 18px; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 0.85rem;
+      border-radius: 6px; padding: 12px 24px; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 0.95rem; transition: background 0.2s;
     }
     button:hover { background: #2ea043; }
-    button.tx { background: #8957e5; }
-    button.tx:hover { background: #9a67ea; }
-    button.running { background: #b62324; animation: pulse 1s infinite; cursor: wait; }
-    button.copy { background: #1f6feb; font-size: 0.75rem; padding: 4px 10px; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    button:disabled { background: #21262d; color: #8b949e; border-color: var(--border); cursor: not-allowed; }
+    button.copy { background: #1f6feb; padding: 6px 12px; font-size: 0.8rem; }
+    
+    .progress-track { width: 100%; height: 8px; background: #010409; border-radius: 4px; overflow: hidden; border: 1px solid var(--border); margin-top: 12px; }
+    .progress-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.1s linear; }
+    #statusText { font-weight: bold; color: var(--accent); margin-top: 8px; display: block; }
 
-    .progress-box { width: 100%; height: 8px; background: #0d1117; border-radius: 4px; overflow: hidden; margin: 8px 0; border: 1px solid var(--border); }
-    .progress-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.05s linear; }
-
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-top: 8px; }
-    .metric { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
-    .metric-val { font-size: 1.15rem; font-weight: bold; margin-top: 2px; }
-    .metric-val.green { color: var(--green); }
-    .metric-val.warn { color: var(--warn); }
-    .metric-val.red { color: var(--red); }
-
-    .table-container { max-height: 240px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; margin-top: 8px; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.74rem; }
-    th, td { border: 1px solid var(--border); padding: 4px 6px; text-align: left; }
-    th { background: #0d1117; color: #8b949e; position: sticky; top: 0; z-index: 2; }
-    tr:nth-child(even) { background: rgba(255,255,255,0.015); }
+    .table-wrapper { max-height: 300px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; margin-top: 10px; background: #0d1117; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    th, td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+    th { background: #161b22; color: #8b949e; position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 0 var(--border); }
+    tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+    
+    .pass { color: var(--green); font-weight: bold; }
+    .fail { color: var(--red); font-weight: bold; }
     
     textarea {
-      width: 100%; height: 110px; background: #050505; border: 1px solid var(--border);
-      border-radius: 6px; color: #7ee787; font-family: inherit; font-size: 0.72rem; padding: 6px; margin-top: 6px; resize: vertical;
+      width: 100%; height: 140px; background: #010409; border: 1px solid var(--border);
+      border-radius: 6px; color: #7ee787; font-family: inherit; font-size: 0.75rem; padding: 10px; resize: vertical; margin-top: 8px;
     }
-    .badge { font-size: 0.75rem; padding: 3px 6px; border-radius: 4px; background: #30363d; color: #8b949e; }
-    .badge.active { background: #1f6feb; color: #fff; }
-    .badge.run { background: #b62324; color: #fff; }
-    #errLog { color: #f85149; font-weight: bold; margin-top: 4px; display: none; }
   </style>
 </head>
 <body>
 
   <div class="card">
-    <h2>
-      <span>OTOSYN 音響物理特性・限界ストレステスター</span>
-      <span class="badge" id="sysBadge">待機中</span>
-    </h2>
-    <div style="font-size:0.75rem; color:#8b949e; margin-bottom:10px;">
-      【テスト構成】<br>
-      ① 17,000Hz〜21,000Hz (20Hz刻み 全201点) の事前ノイズ / ピークdB / 実効SNR<br>
-      ② 2波〜7波 同時発音時のアンプ分離度・歪みテスト<br>
-      ③ 50ms, 80ms, 100ms, 120ms, 150ms スロット分離限界テスト
+    <div class="header-box">
+      <div>
+        <h1 style="font-size: 1.3rem; margin-bottom: 4px;">全自動 音響ハードウェア限界ベンチマーク</h1>
+        <div style="color: #8b949e; font-size: 0.8rem;">
+          1台の端末で「送信」と「受信(マイク)」を同時に行い、物理的な性能限界を測定します。<br>
+          ※スピーカーの音量を中〜大きめに設定し、静かな環境で実行してください。
+        </div>
+      </div>
+      <button id="btnStart">全自動テスト開始</button>
     </div>
-    <div class="row">
-      <button id="btnLoopback" style="background:#0284c7;">【1台で完結】全自動ループバックテスト開始</button>
-      <button id="btnTxOnly" class="tx">【2台用】送信開始 (マイク不要)</button>
-    </div>
-    <div class="progress-box"><div class="progress-fill" id="pFill"></div></div>
-    <div id="statusText" style="font-size:0.8rem; color:var(--accent);">Ready...</div>
-    <div id="errLog"></div>
+    <div class="progress-track"><div id="pFill" class="progress-fill"></div></div>
+    <span id="statusText">待機中</span>
   </div>
 
   <div class="card">
-    <h2>測定結果サマリー</h2>
-    <div class="grid">
-      <div class="metric">
-        <div style="font-size:0.7rem; color:#8b949e;">受音可能帯域 (SNR>10dB)</div>
-        <div class="metric-val green" id="sumBand">--</div>
-      </div>
-      <div class="metric">
-        <div style="font-size:0.7rem; color:#8b949e;">全域平均 暗騒音フロア</div>
-        <div class="metric-val" id="sumFloor">--</div>
-      </div>
-      <div class="metric">
-        <div style="font-size:0.7rem; color:#8b949e;">最大同時発音 分離限界</div>
-        <div class="metric-val green" id="sumMaxWaves">--</div>
-      </div>
-      <div class="metric">
-        <div style="font-size:0.7rem; color:#8b949e;">最短スロット限界</div>
-        <div class="metric-val green" id="sumMinSlot">--</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>1. 周波数スキャン (17,000〜21,000Hz / 20Hz刻み: 201点)</h2>
-    <div class="table-container">
+    <h2>1. 全周波数スキャン (17,000Hz 〜 21,000Hz / 20Hz刻み: 201波)</h2>
+    <div class="table-wrapper">
       <table id="tblScan">
         <thead>
-          <tr><th>周波数</th><th>事前ノイズ(dB)</th><th>発音時ピーク(dB)</th><th>実効SNR</th><th>判定</th></tr>
+          <tr><th>周波数 (Hz)</th><th>事前暗騒音 (dB)</th><th>発音中ピーク (dB)</th><th>実効SNR (dB)</th><th>判定 (SNR>10)</th></tr>
         </thead>
         <tbody id="bodyScan"></tbody>
       </table>
@@ -112,392 +75,323 @@
   </div>
 
   <div class="card">
-    <h2>2. 同時多重発音 (2〜7波) & 3. スロット時間 (50〜150ms)</h2>
-    <table id="tblMulti" style="margin-bottom:12px;">
-      <thead>
-        <tr><th>同時波種</th><th>発音周波数 (Hz)</th><th>検出周波数 (Hz)</th><th>平均ピークdB</th><th>判定</th></tr>
-      </thead>
-      <tbody id="bodyMulti"></tbody>
-    </table>
+    <h2>2. 同時多重発音 飽和テスト (2波 〜 5波 同時)</h2>
+    <div class="table-wrapper">
+      <table id="tblMulti">
+        <thead>
+          <tr><th>同時波種</th><th>発音CH (Hz)</th><th>暗騒音 (dB)</th><th>平均ピーク (dB)</th><th>判定</th></tr>
+        </thead>
+        <tbody id="bodyMulti"></tbody>
+      </table>
+    </div>
+  </div>
 
-    <table id="tblSlot">
-      <thead>
-        <tr><th>スロット幅</th><th>送信パケット</th><th>検出パケット</th><th>分離マージン</th><th>判定</th></tr>
-      </thead>
-      <tbody id="bodySlot"></tbody>
-    </table>
+  <div class="card">
+    <h2>3. パケット間隔 (スロット長) 分離限界テスト (150ms 〜 50ms)</h2>
+    <div class="table-wrapper">
+      <table id="tblSlot">
+        <thead>
+          <tr><th>スロット長</th><th>A窓/B窓 セパレーション</th><th>分離マージン (dB)</th><th>判定 (マージン>5dB)</th></tr>
+        </thead>
+        <tbody id="bodySlot"></tbody>
+      </table>
+    </div>
   </div>
 
   <div class="card">
     <h2>
-      <span>全測定ログ Minified JSON</span>
-      <button class="copy" id="btnCopy">JSONコピー</button>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span>ベンチマーク レポート (Minify JSON)</span>
+        <button class="copy" id="btnCopy">JSONをコピー</button>
+      </div>
     </h2>
-    <textarea id="jsonOut" readonly placeholder="テスト完了後、ここに測定データが出力されます。"></textarea>
+    <textarea id="jsonOut" readonly placeholder="テストが完了すると、全データがここに圧縮出力されます。"></textarea>
   </div>
 
   <script>
     "use strict";
 
-    const FFT_SIZE = 2048; // 時間遅延を防ぎ確実に動作させるため2048点に最適化
+    const FFT_SIZE = 4096; // 高精度周波数分解能 (48kHz時: 約11.7Hz/bin)
     let audioCtx = null, analyser = null, micStream = null;
 
-    const sysBadge = document.getElementById("sysBadge");
-    const statusText = document.getElementById("statusText");
+    const btnStart = document.getElementById("btnStart");
     const pFill = document.getElementById("pFill");
+    const statusText = document.getElementById("statusText");
     const jsonOut = document.getElementById("jsonOut");
-    const errLog = document.getElementById("errLog");
 
-    function logError(msg) {
-      errLog.style.display = "block";
-      errLog.textContent = "エラー: " + msg;
-      statusText.textContent = "停止しました";
-      sysBadge.className = "badge";
-      sysBadge.textContent = "エラー";
-    }
-
-    // ユーザー操作の直下で確実にAudioContextとマイクをアンロックする関数
-    async function setupAudioSystem(needMic = true) {
-      errLog.style.display = "none";
-      try {
-        if (!audioCtx) {
-          const AudioClass = window.AudioContext || window.webkitAudioContext;
-          audioCtx = new AudioClass();
-        }
-        if (audioCtx.state === "suspended") {
-          await audioCtx.resume();
-        }
-
-        if (needMic && !micStream) {
-          micStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              echoCancellation: false,
-              noiseSuppression: false,
-              autoGainControl: false,
-              channelCount: 1
-            }
-          });
-          analyser = audioCtx.createAnalyser();
-          analyser.fftSize = FFT_SIZE;
-          analyser.smoothingTimeConstant = 0.0;
-          const source = audioCtx.createMediaStreamSource(micStream);
-          source.connect(analyser);
-        } else if (!needMic && !analyser) {
-          // 送信単独モード時のクラッシュを防ぐ「ダミーアナライザー」
-          analyser = {
-            frequencyBinCount: FFT_SIZE / 2,
-            fftSize: FFT_SIZE,
-            getFloatFrequencyData: function(arr) { arr.fill(-999); }
-          };
-        }
-      } catch (err) {
-        throw new Error("初期化失敗 (" + err.name + ": " + err.message + ")");
+    // =======================================================
+    // オーディオ初期化 & 解析ユーティリティ
+    // =======================================================
+    async function setupAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === "suspended") {
+        await audioCtx.resume();
+      }
+      if (!micStream) {
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 }
+        });
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = FFT_SIZE;
+        analyser.smoothingTimeConstant = 0.0;
+        audioCtx.createMediaStreamSource(micStream).connect(analyser);
       }
     }
 
-    function getPeakDb(dataArray, freq) {
-      const binWidth = audioCtx.sampleRate / analyser.fftSize;
+    function getPeakDb(dataArray, freq, binWidth) {
       const bin = Math.round(freq / binWidth);
       return Math.max(dataArray[bin - 1] || -999, dataArray[bin], dataArray[bin + 1] || -999);
     }
 
-    // 1. 周波数スキャン
-    async function runFrequencyScanTest(onProgress) {
+    // 指定されたAudioContextの時刻窓（start〜end）の間、連続でFFTを取得してピークをホールドする
+    // (rAFのジッターやOSバッファ遅延に強い、完全非同期キャプチャ機構)
+    function capturePeakHold(startActxTime, endActxTime, targetFreqs) {
+      return new Promise(resolve => {
+        const binWidth = audioCtx.sampleRate / analyser.fftSize;
+        const peaks = new Float32Array(targetFreqs.length).fill(-999);
+
+        function poll() {
+          const now = audioCtx.currentTime;
+          if (now >= startActxTime && now <= endActxTime) {
+            const data = new Float32Array(analyser.frequencyBinCount);
+            analyser.getFloatFrequencyData(data);
+            targetFreqs.forEach((f, i) => {
+              const db = getPeakDb(data, f, binWidth);
+              if (db > peaks[i]) peaks[i] = db;
+            });
+          }
+
+          if (now < endActxTime + 0.05) {
+            requestAnimationFrame(poll); // 窓終了後、余裕を持たせてループ停止
+          } else {
+            resolve(peaks);
+          }
+        }
+        poll();
+      });
+    }
+
+    // =======================================================
+    // Test 1: 全周波数スキャン (17000 - 21000 / 20Hz)
+    // =======================================================
+    async function runFrequencyScan() {
       const startFreq = 17000;
       const endFreq = 21000;
       const step = 20;
-      const totalSteps = Math.floor((endFreq - startFreq) / step) + 1; // 201点
+      const total = Math.floor((endFreq - startFreq) / step) + 1; // 201点
       const results = [];
-
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      gain.gain.setValueAtTime(0, audioCtx.currentTime);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-
       const tbody = document.getElementById("bodyScan");
-      tbody.innerHTML = "";
 
-      for (let i = 0; i < totalSteps; i++) {
+      statusText.textContent = `1/3: 周波数スキャン実行中... (全201波)`;
+
+      for (let i = 0; i < total; i++) {
         const freq = startFreq + i * step;
+        
+        // 事前ノイズ測定 (50ms窓)
+        const tNow = audioCtx.currentTime;
+        const noisePeaks = await capturePeakHold(tNow, tNow + 0.05, [freq]);
+        const preNoise = noisePeaks[0];
 
-        // 事前ノイズ
-        gain.gain.setValueAtTime(0, audioCtx.currentTime);
-        await new Promise(r => setTimeout(r, 20));
-        const noiseData = new Float32Array(analyser.frequencyBinCount);
-        analyser.getFloatFrequencyData(noiseData);
-        const preNoiseDb = parseFloat(getPeakDb(noiseData, freq).toFixed(1));
+        // 発音スケジュール (100ms)
+        const tPlay = audioCtx.currentTime + 0.02;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.setValueAtTime(freq, tPlay);
+        gain.gain.setValueAtTime(0, tPlay);
+        gain.gain.linearRampToValueAtTime(0.08, tPlay + 0.01);
+        gain.gain.setValueAtTime(0.08, tPlay + 0.09);
+        gain.gain.linearRampToValueAtTime(0, tPlay + 0.10);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(tPlay);
+        osc.stop(tPlay + 0.12);
 
-        // 発音 (確実に受音できる音量ゲイン0.12)
-        const now = audioCtx.currentTime;
-        osc.frequency.setValueAtTime(freq, now);
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.12, now + 0.005);
-        gain.gain.setValueAtTime(0.12, now + 0.065);
-        gain.gain.linearRampToValueAtTime(0, now + 0.07);
-
-        // 受音
-        await new Promise(r => setTimeout(r, 40));
-        const sigData = new Float32Array(analyser.frequencyBinCount);
-        analyser.getFloatFrequencyData(sigData);
-        const peakDb = parseFloat(getPeakDb(sigData, freq).toFixed(1));
-        const snr = parseFloat((peakDb - preNoiseDb).toFixed(1));
+        // 発音中のピークキャプチャ (内側60ms窓)
+        const sigPeaks = await capturePeakHold(tPlay + 0.02, tPlay + 0.08, [freq]);
+        const peakDb = sigPeaks[0];
+        const snr = parseFloat((peakDb - preNoise).toFixed(1));
         const pass = snr >= 10.0;
 
-        await new Promise(r => setTimeout(r, 30));
-
-        results.push({ freq, preNoiseDb, peakDb, snr, pass });
+        results.push({ freq, preNoise: parseFloat(preNoise.toFixed(1)), peakDb: parseFloat(peakDb.toFixed(1)), snr, pass });
 
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${freq} Hz</td><td>${preNoiseDb} dB</td><td>${peakDb} dB</td><td>${snr} dB</td><td style="color:${pass?'var(--green)':'var(--red)'};font-weight:bold;">${pass?'PASS':'FAIL'}</td>`;
+        tr.innerHTML = `<td>${freq} Hz</td><td>${preNoise.toFixed(1)}</td><td>${peakDb.toFixed(1)}</td><td>${snr}</td><td class="${pass?'pass':'fail'}">${pass?'PASS':'FAIL'}</td>`;
         tbody.appendChild(tr);
-        if (i % 8 === 0) tr.scrollIntoView({ block: "nearest" });
+        if (i % 5 === 0) tr.scrollIntoView({ block: "end", behavior: "smooth" });
 
-        if (onProgress) onProgress((i + 1) / totalSteps);
+        pFill.style.width = `${(i / total) * 45}%`;
       }
-
-      osc.stop();
       return results;
     }
 
-    // 2. 多重発音
-    async function runSimultaneousWavesTest(onProgress) {
-      const testFrequencies = [17500, 17800, 18100, 18400, 18700, 19000, 19300];
+    // =======================================================
+    // Test 2: 多重発音飽和テスト (2〜5波)
+    // =======================================================
+    async function runSimultaneousWaves() {
+      const pool = [17500, 18000, 18500, 19000, 19500];
       const results = [];
       const tbody = document.getElementById("bodyMulti");
-      tbody.innerHTML = "";
 
-      for (let waveCount = 2; waveCount <= 7; waveCount++) {
-        const activeFreqs = testFrequencies.slice(0, waveCount);
+      statusText.textContent = `2/3: 同時多重発音テスト実行中... (2〜5波)`;
 
-        await new Promise(r => setTimeout(r, 30));
-        const preData = new Float32Array(analyser.frequencyBinCount);
-        analyser.getFloatFrequencyData(preData);
+      for (let waveCount = 2; waveCount <= 5; waveCount++) {
+        const freqs = pool.slice(0, waveCount);
 
-        const now = audioCtx.currentTime;
-        const oscs = [], gains = [];
-        const gainPerWave = 0.15 / Math.sqrt(waveCount);
+        const tNow = audioCtx.currentTime;
+        const noisePeaks = await capturePeakHold(tNow, tNow + 0.05, freqs);
+        const avgNoise = noisePeaks.reduce((a, b) => a + b, 0) / waveCount;
 
-        for (let i = 0; i < waveCount; i++) {
-          const o = audioCtx.createOscillator();
-          const g = audioCtx.createGain();
-          o.frequency.setValueAtTime(activeFreqs[i], now);
-          g.gain.setValueAtTime(0, now);
-          g.gain.linearRampToValueAtTime(gainPerWave, now + 0.005);
-          g.gain.setValueAtTime(gainPerWave, now + 0.095);
-          g.gain.linearRampToValueAtTime(0, now + 0.10);
-          o.connect(g);
-          g.connect(audioCtx.destination);
-          o.start(now);
-          o.stop(now + 0.11);
-          oscs.push(o);
-          gains.push(g);
-        }
+        const tPlay = audioCtx.currentTime + 0.02;
+        const targetGain = 0.15 / Math.sqrt(waveCount); // 歪み防止のパワー調整
 
-        await new Promise(r => setTimeout(r, 55));
-        const sigData = new Float32Array(analyser.frequencyBinCount);
-        analyser.getFloatFrequencyData(sigData);
-
-        const detectedFreqs = [];
-        let avgPeak = 0;
-        let allPassed = true;
-
-        activeFreqs.forEach(f => {
-          const db = getPeakDb(sigData, f);
-          const noise = getPeakDb(preData, f);
-          avgPeak += db;
-          if (db - noise >= 10.0) {
-            detectedFreqs.push(f);
-          } else {
-            allPassed = false;
-          }
+        freqs.forEach(f => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.frequency.setValueAtTime(f, tPlay);
+          gain.gain.setValueAtTime(0, tPlay);
+          gain.gain.linearRampToValueAtTime(targetGain, tPlay + 0.01);
+          gain.gain.setValueAtTime(targetGain, tPlay + 0.09);
+          gain.gain.linearRampToValueAtTime(0, tPlay + 0.10);
+          osc.connect(gain).connect(audioCtx.destination);
+          osc.start(tPlay); osc.stop(tPlay + 0.12);
         });
-        avgPeak = parseFloat((avgPeak / waveCount).toFixed(1));
 
-        await new Promise(r => setTimeout(r, 70));
+        const sigPeaks = await capturePeakHold(tPlay + 0.02, tPlay + 0.08, freqs);
+        const avgPeak = sigPeaks.reduce((a, b) => a + b, 0) / waveCount;
+        let allPass = true;
+        sigPeaks.forEach((pk, idx) => { if (pk - noisePeaks[idx] < 10.0) allPass = false; });
 
-        results.push({ waveCount, sent: activeFreqs, detected: detectedFreqs, avgPeak, pass: allPassed });
+        results.push({ w: waveCount, freqs, avgNoise: parseFloat(avgNoise.toFixed(1)), avgPeak: parseFloat(avgPeak.toFixed(1)), pass: allPass });
 
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${waveCount}波 同時</td><td>[${activeFreqs.join(",")}]</td><td>[${detectedFreqs.join(",")}]</td><td>${avgPeak} dB</td><td style="color:${allPassed?'var(--green)':'var(--red)'};font-weight:bold;">${allPassed?'PASS':'FAIL'}</td>`;
+        tr.innerHTML = `<td>${waveCount}波</td><td>[${freqs.join(",")}]</td><td>${avgNoise.toFixed(1)}</td><td>${avgPeak.toFixed(1)}</td><td class="${allPass?'pass':'fail'}">${allPass?'PASS':'FAIL'}</td>`;
         tbody.appendChild(tr);
 
-        if (onProgress) onProgress((waveCount - 1) / 6);
+        pFill.style.width = `${45 + ((waveCount - 1) / 4) * 20}%`;
       }
       return results;
     }
 
-    // 3. スロット間隔
-    async function runSlotTimingTest(onProgress) {
+    // =======================================================
+    // Test 3: スロット時間間隔限界テスト (150〜50ms)
+    // =======================================================
+    async function runSlotIntervalTest() {
       const intervals = [150, 120, 100, 80, 50];
-      const tripA = [17600, 18200, 18800];
-      const tripB = [17900, 18500, 19100];
+      const tripA = [17500, 18200, 18900];
+      const tripB = [17800, 18500, 19200];
+      const allFreqs = [...tripA, ...tripB];
       const results = [];
       const tbody = document.getElementById("bodySlot");
-      tbody.innerHTML = "";
 
-      for (let idx = 0; idx < intervals.length; idx++) {
-        const slotMs = intervals[idx];
+      statusText.textContent = `3/3: パケット間隔(スロット長)限界テスト実行中...`;
+
+      for (let i = 0; i < intervals.length; i++) {
+        const slotMs = intervals[i];
         const slotSec = slotMs / 1000.0;
-        const now = audioCtx.currentTime + 0.04;
+        const tPlayA = audioCtx.currentTime + 0.05;
+        const tPlayB = tPlayA + slotSec;
 
-        // Packet A
+        // Packet A Schedule
         tripA.forEach(f => {
-          const o = audioCtx.createOscillator();
-          const g = audioCtx.createGain();
-          o.frequency.setValueAtTime(f, now);
-          g.gain.setValueAtTime(0, now);
-          g.gain.linearRampToValueAtTime(0.06, now + 0.005);
-          g.gain.setValueAtTime(0.06, now + slotSec - 0.005);
-          g.gain.linearRampToValueAtTime(0, now + slotSec);
-          o.connect(g); g.connect(audioCtx.destination);
-          o.start(now); o.stop(now + slotSec + 0.02);
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.frequency.setValueAtTime(f, tPlayA);
+          gain.gain.setValueAtTime(0, tPlayA);
+          gain.gain.linearRampToValueAtTime(0.06, tPlayA + 0.01);
+          gain.gain.setValueAtTime(0.06, tPlayA + slotSec - 0.01);
+          gain.gain.linearRampToValueAtTime(0, tPlayA + slotSec);
+          osc.connect(gain).connect(audioCtx.destination);
+          osc.start(tPlayA); osc.stop(tPlayA + slotSec + 0.02);
         });
 
-        // Packet B
-        const tB = now + slotSec;
+        // Packet B Schedule
         tripB.forEach(f => {
-          const o = audioCtx.createOscillator();
-          const g = audioCtx.createGain();
-          o.frequency.setValueAtTime(f, tB);
-          g.gain.setValueAtTime(0, tB);
-          g.gain.linearRampToValueAtTime(0.06, tB + 0.005);
-          g.gain.setValueAtTime(0.06, tB + slotSec - 0.005);
-          g.gain.linearRampToValueAtTime(0, tB + slotSec);
-          o.connect(g); g.connect(audioCtx.destination);
-          o.start(tB); o.stop(tB + slotSec + 0.02);
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.frequency.setValueAtTime(f, tPlayB);
+          gain.gain.setValueAtTime(0, tPlayB);
+          gain.gain.linearRampToValueAtTime(0.06, tPlayB + 0.01);
+          gain.gain.setValueAtTime(0.06, tPlayB + slotSec - 0.01);
+          gain.gain.linearRampToValueAtTime(0, tPlayB + slotSec);
+          osc.connect(gain).connect(audioCtx.destination);
+          osc.start(tPlayB); osc.stop(tPlayB + slotSec + 0.02);
         });
 
-        // Aサンプリング
-        await new Promise(r => setTimeout(r, (slotMs * 0.5) + 40));
-        const dataA = new Float32Array(analyser.frequencyBinCount);
-        analyser.getFloatFrequencyData(dataA);
+        // Capture A Window (Inner 60% of A)
+        const winAStart = tPlayA + slotSec * 0.2;
+        const winAEnd = tPlayA + slotSec * 0.8;
+        const peaksInA = await capturePeakHold(winAStart, winAEnd, allFreqs); // Returns [A1,A2,A3, B1,B2,B3]
 
-        // Bサンプリング
-        await new Promise(r => setTimeout(r, slotMs));
-        const dataB = new Float32Array(analyser.frequencyBinCount);
-        analyser.getFloatFrequencyData(dataB);
+        // Capture B Window (Inner 60% of B)
+        const winBStart = tPlayB + slotSec * 0.2;
+        const winBEnd = tPlayB + slotSec * 0.8;
+        const peaksInB = await capturePeakHold(winBStart, winBEnd, allFreqs);
 
-        const powerA_in_A = tripA.reduce((acc, f) => acc + getPeakDb(dataA, f), 0) / 3;
-        const powerB_in_A = tripB.reduce((acc, f) => acc + getPeakDb(dataA, f), 0) / 3;
-        const powerB_in_B = tripB.reduce((acc, f) => acc + getPeakDb(dataB, f), 0) / 3;
-        const powerA_in_B = tripA.reduce((acc, f) => acc + getPeakDb(dataB, f), 0) / 3;
+        // Analysis
+        const avgA_inA = (peaksInA[0] + peaksInA[1] + peaksInA[2]) / 3;
+        const avgB_inA = (peaksInA[3] + peaksInA[4] + peaksInA[5]) / 3;
+        const sepA = avgA_inA - avgB_inA;
 
-        const sepA = powerA_in_A - powerB_in_A;
-        const sepB = powerB_in_B - powerA_in_B;
-        const minSep = parseFloat(Math.min(sepA, sepB).toFixed(1));
-        const pass = minSep >= 5.0;
+        const avgB_inB = (peaksInB[3] + peaksInB[4] + peaksInB[5]) / 3;
+        const avgA_inB = (peaksInB[0] + peaksInB[1] + peaksInB[2]) / 3;
+        const sepB = avgB_inB - avgA_inB;
 
-        await new Promise(r => setTimeout(r, 80));
+        const minMargin = parseFloat(Math.min(sepA, sepB).toFixed(1));
+        const pass = minMargin > 5.0; // Bが鳴るべき時にAより5dB以上強い、逆も然り
 
-        results.push({ slotMs, minSep, pass });
+        results.push({ slotMs, minMargin, pass });
 
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${slotMs} ms</td><td>TripA</td><td>TripB</td><td>マージン ${minSep} dB</td><td style="color:${pass?'var(--green)':'var(--red)'};font-weight:bold;">${pass?'PASS':'FAIL'}</td>`;
+        tr.innerHTML = `<td>${slotMs} ms</td><td>A:${sepA.toFixed(1)}dB / B:${sepB.toFixed(1)}dB</td><td>${minMargin.toFixed(1)} dB</td><td class="${pass?'pass':'fail'}">${pass?'PASS':'FAIL'}</td>`;
         tbody.appendChild(tr);
 
-        if (onProgress) onProgress((idx + 1) / intervals.length);
+        pFill.style.width = `${65 + ((i + 1) / intervals.length) * 35}%`;
       }
       return results;
     }
 
-    // =========================================================================
-    // 全自動実行シーケンサー
-    // =========================================================================
-    document.getElementById("btnLoopback").onclick = async () => {
-      const btn = document.getElementById("btnLoopback");
-      btn.disabled = true;
-      btn.className = "running";
-      sysBadge.className = "badge run";
-      sysBadge.textContent = "全自動テスト中";
-
-      try {
-        await setupAudioSystem(true);
-
-        // 1. 周波数スキャン
-        statusText.textContent = "1/3: 17k〜21kHz (20Hz刻み) スキャン中...";
-        const scanRes = await runFrequencyScanTest(p => pFill.style.width = `${p * 40}%`);
-
-        // 2. 多重波発音
-        statusText.textContent = "2/3: 2〜7波 同時発音ストレステスト中...";
-        const multiRes = await runSimultaneousWavesTest(p => pFill.style.width = `${40 + p * 30}%`);
-
-        // 3. スロット間隔
-        statusText.textContent = "3/3: スロット間隔 (50〜150ms) 限界テスト中...";
-        const slotRes = await runSlotTimingTest(p => pFill.style.width = `${70 + p * 30}%`);
-
-        // サマリー算出
-        const passedFreqs = scanRes.filter(r => r.pass).map(r => r.freq);
-        const minF = passedFreqs.length > 0 ? Math.min(...passedFreqs) : 0;
-        const maxF = passedFreqs.length > 0 ? Math.max(...passedFreqs) : 0;
-        const avgNoise = (scanRes.reduce((a, b) => a + b.preNoiseDb, 0) / scanRes.length).toFixed(1);
-
-        const passedMulti = multiRes.filter(r => r.pass).map(r => r.waveCount);
-        const maxWaves = passedMulti.length > 0 ? Math.max(...passedMulti) : 0;
-
-        const passedSlots = slotRes.filter(r => r.pass).map(r => r.slotMs);
-        const minSlot = passedSlots.length > 0 ? Math.min(...passedSlots) : 0;
-
-        document.getElementById("sumBand").textContent = `${minF}Hz 〜 ${maxF}Hz`;
-        document.getElementById("sumFloor").textContent = `${avgNoise} dB`;
-        document.getElementById("sumMaxWaves").textContent = `${maxWaves} 波 同時`;
-        document.getElementById("sumMinSlot").textContent = `${minSlot} ms 限界`;
-
-        // Minify JSON化
-        const fullReport = {
-          device: { ua: navigator.userAgent, sr: audioCtx.sampleRate, fft: FFT_SIZE, bin: parseFloat((audioCtx.sampleRate / FFT_SIZE).toFixed(2)) },
-          summary: { band: [minF, maxF], floorAvg: parseFloat(avgNoise), maxWaves, minSlotMs: minSlot },
-          scan20Hz: scanRes.map(r => [r.freq, r.preNoiseDb, r.peakDb, r.snr, r.pass ? 1 : 0]),
-          multiWaves: multiRes.map(r => ({ w: r.waveCount, ok: r.pass, avgDb: r.avgPeak })),
-          slotTiming: slotRes.map(r => ({ ms: r.slotMs, sep: r.minSep, ok: r.pass }))
-        };
-
-        jsonOut.value = JSON.stringify(fullReport);
-        statusText.textContent = "全診断完了！JSONをコピーできます。";
-        sysBadge.className = "badge active";
-        sysBadge.textContent = "完了";
-      } catch (e) {
-        logError(e.message);
-      } finally {
-        btn.disabled = false;
-        btn.className = "";
-      }
-    };
-
-    // 2台用 送信単体 (ダミーマイク使用)
-    document.getElementById("btnTxOnly").onclick = async () => {
-      const btn = document.getElementById("btnTxOnly");
-      btn.disabled = true;
-      btn.className = "tx running";
-      sysBadge.className = "badge run";
-      sysBadge.textContent = "送信テスト発射中";
+    // =======================================================
+    // メイン制御
+    // =======================================================
+    btnStart.onclick = async () => {
+      btnStart.disabled = true;
+      btnStart.textContent = "テスト実行中...";
       
       try {
-        await setupAudioSystem(false); // needMic = false
-        statusText.textContent = "送信テスト発射中 (受信側の端末を確認してください)...";
+        await setupAudio();
 
-        await runFrequencyScanTest(p => pFill.style.width = `${p * 50}%`);
-        await runSimultaneousWavesTest(p => pFill.style.width = `${50 + p * 30}%`);
-        await runSlotTimingTest(p => pFill.style.width = `${80 + p * 20}%`);
-        
-        statusText.textContent = "全送信パケットの発射が完了しました。";
-        sysBadge.className = "badge active";
-        sysBadge.textContent = "送信完了";
+        const scanData = await runFrequencyScan();
+        const multiData = await runSimultaneousWaves();
+        const slotData = await runSlotIntervalTest();
+
+        // Minify JSON 作成
+        const report = {
+          device: { ua: navigator.userAgent, sr: audioCtx.sampleRate, bin: parseFloat((audioCtx.sampleRate / FFT_SIZE).toFixed(2)) },
+          scan: scanData.map(r => [r.freq, r.preNoiseDb, r.peakDb, r.snr, r.pass ? 1 : 0]),
+          multi: multiData.map(r => ({ w: r.w, f: r.freqs, noise: r.avgNoise, peak: r.avgPeak, ok: r.pass })),
+          slot: slotData.map(r => ({ ms: r.slotMs, margin: r.minMargin, ok: r.pass }))
+        };
+
+        jsonOut.value = JSON.stringify(report);
+        statusText.textContent = "全テスト完了！JSONデータをコピーできます。";
+        pFill.style.width = "100%";
       } catch (err) {
-        logError(err.message);
+        alert("エラーが発生しました: " + err.message);
+        statusText.textContent = "エラー終了";
       } finally {
-        btn.disabled = false;
-        btn.className = "tx";
+        btnStart.textContent = "再テスト";
+        btnStart.disabled = false;
       }
     };
 
     document.getElementById("btnCopy").onclick = () => {
       if (!jsonOut.value) return;
       navigator.clipboard.writeText(jsonOut.value).then(() => {
-        const b = document.getElementById("btnCopy");
-        b.textContent = "コピー完了!";
-        setTimeout(() => b.textContent = "JSONコピー", 1500);
+        const btn = document.getElementById("btnCopy");
+        const originalText = btn.textContent;
+        btn.textContent = "コピーしました！";
+        setTimeout(() => { btn.textContent = originalText; }, 1500);
       });
     };
   </script>
