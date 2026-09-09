@@ -3,82 +3,84 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>OTOSYN 1-Click Auto Benchmark Engine</title>
+  <title>OTOSYN 43ch Deep Precision Benchmark Engine</title>
   <style>
     :root {
-      --bg: #0b0e14; --panel: #151b23; --border: #30363d;
-      --text: #e6edf3; --accent: #58a6ff; --green: #3fb950; --red: #f85149;
+      --bg: #0a0d12; --panel: #131922; --border: #283344;
+      --text: #e2e8f0; --accent: #38bdf8; --green: #22c55e; --warn: #f59e0b; --red: #ef4444;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background: var(--bg); color: var(--text);
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      padding: 12px; max-width: 1200px; margin: 0 auto; font-size: 0.85rem;
+      padding: 10px; max-width: 1300px; margin: 0 auto; font-size: 0.82rem;
     }
-    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-    h2 { font-size: 0.95rem; color: var(--accent); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; }
+    h2 { font-size: 0.9rem; color: var(--accent); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
     button {
-      background: #238636; color: #fff; border: 1px solid rgba(240,246,252,0.1);
-      border-radius: 6px; padding: 10px 18px; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 0.9rem;
+      background: #0284c7; color: #fff; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px; padding: 8px 16px; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 0.85rem;
     }
-    button:hover { background: #2ea043; }
-    button.auto { background: #8957e5; font-size: 1rem; }
-    button.auto:hover { background: #9a67ea; }
-    button.sec { background: #21262d; border-color: var(--border); font-size: 0.85rem; }
-    button.copy { background: #1f6feb; font-size: 0.8rem; padding: 6px 12px; }
-    .status-badge { font-size: 0.8rem; padding: 4px 8px; border-radius: 4px; background: #30363d; color: #8b949e; }
-    .status-badge.active { background: #1f6feb; color: #fff; }
-    .status-badge.run { background: #b62324; color: #fff; animation: pulse 0.8s infinite; }
+    button:hover { background: #0369a1; }
+    button.auto { background: #7c3aed; }
+    button.auto:hover { background: #6d28d9; }
+    button.sec { background: #1e293b; border-color: var(--border); }
+    button.copy { background: #059669; font-size: 0.8rem; padding: 6px 12px; }
+    .badge { font-size: 0.75rem; padding: 3px 6px; border-radius: 4px; background: #334155; color: #cbd5e1; }
+    .badge.active { background: #0284c7; color: #fff; }
+    .badge.run { background: #dc2626; color: #fff; animation: pulse 0.8s infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
     
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin-top: 8px; }
-    .metric-card { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 10px; }
-    .metric-val { font-size: 1.15rem; font-weight: bold; margin-top: 4px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-top: 6px; }
+    .metric-card { background: #0b111a; border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+    .metric-val { font-size: 1.1rem; font-weight: bold; margin-top: 3px; }
     .metric-val.green { color: var(--green); }
-    .metric-val.warn { color: #d29922; }
+    .metric-val.warn { color: var(--warn); }
     .metric-val.red { color: var(--red); }
     
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.75rem; }
+    th, td { border: 1px solid var(--border); padding: 5px 7px; text-align: left; }
+    th { background: #0b111a; color: #94a3b8; }
     #jsonOutput {
-      width: 100%; height: 90px; background: #050505; border: 1px solid var(--border);
-      border-radius: 6px; color: #7ee787; font-family: inherit; font-size: 0.72rem; padding: 6px; resize: vertical;
+      width: 100%; height: 110px; background: #05080c; border: 1px solid var(--border);
+      border-radius: 6px; color: #4ade80; font-family: inherit; font-size: 0.72rem; padding: 6px; resize: vertical;
     }
-    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.78rem; }
-    th, td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
-    th { background: #0d1117; color: #8b949e; }
   </style>
 </head>
 <body>
 
   <div class="card">
-    <h2>1. ワンクリック全自動ベンチマーク</h2>
+    <h2>1. 全自動ディープ・ストレステスト発信 & マイク待機</h2>
     <div class="row">
-      <button id="btnAutoRx" class="sec">1. 受信マイク待機 開始</button>
-      <button id="btnAutoTx" class="auto">2. 全自動テスト発信 (1クリックで4項目順次送信)</button>
-      <span class="status-badge" id="statusBadge">待機中</span>
-    </div>
-    <div style="font-size:0.75rem; color:#8b949e; margin-top:4px;">
-      ※2台の端末を用意し、1台で「受信マイク待機」、もう1台で「全自動テスト発信」を押してください。（1台で送受信テストも可能）
+      <button id="btnAutoRx" class="sec">1. 受信マイク待機 (暗騒音学習 & 開始)</button>
+      <button id="btnAutoTx" class="auto">2. 全自動6段階テスト発信 (120ms 〜 60ms限界突破)</button>
+      <span class="badge" id="statusBadge">待機中</span>
+      <span style="font-size:0.75rem; color:#94a3b8;" id="devSummary"></span>
     </div>
   </div>
 
   <div class="card">
-    <h2>2. ベンチマーク結果・端末物理診断レポート</h2>
+    <h2>2. ハードウェア物理特性 & 推奨タイミング解析</h2>
     <div class="grid">
       <div class="metric-card">
-        <div style="font-size:0.72rem; color:#8b949e;">端末判定遅延 (Latency Offset)</div>
+        <div style="font-size:0.7rem; color:#94a3b8;">平均到達遅延 (Trig検知→音響実達)</div>
         <div class="metric-val green" id="resLatency">--</div>
       </div>
       <div class="metric-card">
-        <div style="font-size:0.72rem; color:#8b949e;">最短スロット限界速度</div>
-        <div class="metric-val green" id="resMinSlot">--</div>
+        <div style="font-size:0.7rem; color:#94a3b8;">端末の最短限界スロット長</div>
+        <div class="metric-val green" id="resLimitSlot">--</div>
       </div>
       <div class="metric-card">
-        <div style="font-size:0.72rem; color:#8b949e;">高域耐性 (19.8kHz感度低下)</div>
+        <div style="font-size:0.7rem; color:#94a3b8;">環境ノイズフロア (暗騒音)</div>
+        <div class="metric-val" id="resFloor">--</div>
+      </div>
+      <div class="metric-card">
+        <div style="font-size:0.7rem; color:#94a3b8;">周波数感度減衰 (17.5k vs 19.8k)</div>
         <div class="metric-val" id="resSlope">--</div>
       </div>
       <div class="metric-card">
-        <div style="font-size:0.72rem; color:#8b949e;">IMD(アンプ歪み) 安全マージン</div>
+        <div style="font-size:0.7rem; color:#94a3b8;">最大IMD(歪み) ゴースト</div>
         <div class="metric-val" id="resImd">--</div>
       </div>
     </div>
@@ -86,29 +88,33 @@
     <table id="testTable">
       <thead>
         <tr>
-          <th>テスト項目</th>
-          <th>条件</th>
-          <th>検出SNR</th>
-          <th>スロット1ピーク</th>
-          <th>スロット2ピーク</th>
-          <th>結果</th>
+          <th>Test</th>
+          <th>スロット</th>
+          <th>対象周波数 (CH)</th>
+          <th>T1 ピーク到達 (各波)</th>
+          <th>T2 ピーク到達 (各波)</th>
+          <th>実効SNR</th>
+          <th>分離マージン</th>
+          <th>判定</th>
         </tr>
       </thead>
       <tbody>
-        <tr id="row-0"><td>Test 1: 標準バランス</td><td>100ms / 分散帯域</td><td class="snr">--</td><td class="t1">--</td><td class="t2">--</td><td class="stat">未実施</td></tr>
-        <tr id="row-1"><td>Test 2: 高速限界</td><td>70ms / 最短バースト</td><td class="snr">--</td><td class="t1">--</td><td class="t2">--</td><td class="stat">未実施</td></tr>
-        <tr id="row-2"><td>Test 3: 高周波ストレステスト</td><td>100ms / 19k集中</td><td class="snr">--</td><td class="t1">--</td><td class="t2">--</td><td class="stat">未実施</td></tr>
-        <tr id="row-3"><td>Test 4: 最大帯域スパン</td><td>100ms / 17.5-19.8k</td><td class="snr">--</td><td class="t1">--</td><td class="t2">--</td><td class="stat">未実施</td></tr>
+        <tr id="row-0"><td>1. 安全基準</td><td>120ms</td><td>T1[2,12,24] T2[6,18,34]</td><td class="t1">--</td><td class="t2">--</td><td class="snr">--</td><td class="sep">--</td><td class="res">未</td></tr>
+        <tr id="row-1"><td>2. 標準速度</td><td>100ms</td><td>T1[4,14,26] T2[8,20,36]</td><td class="t1">--</td><td class="t2">--</td><td class="snr">--</td><td class="sep">--</td><td class="res">未</td></tr>
+        <tr id="row-2"><td>3. 高速モード</td><td>85ms</td><td>T1[0,10,22] T2[6,16,32]</td><td class="t1">--</td><td class="t2">--</td><td class="snr">--</td><td class="sep">--</td><td class="res">未</td></tr>
+        <tr id="row-3"><td>4. 境界限界</td><td>70ms</td><td>T1[2,14,28] T2[8,20,38]</td><td class="t1">--</td><td class="t2">--</td><td class="snr">--</td><td class="sep">--</td><td class="res">未</td></tr>
+        <tr id="row-4"><td>5. 限界突破</td><td>60ms</td><td>T1[4,16,26] T2[10,22,34]</td><td class="t1">--</td><td class="t2">--</td><td class="snr">--</td><td class="sep">--</td><td class="res">未</td></tr>
+        <tr id="row-5"><td>6. 高域+広帯</td><td>100ms</td><td>T1[24,30,40] T2[0,20,42]</td><td class="t1">--</td><td class="t2">--</td><td class="snr">--</td><td class="sep">--</td><td class="res">未</td></tr>
       </tbody>
     </table>
   </div>
 
   <div class="card">
     <h2>
-      <span>3. 診断出力 (Minify JSON)</span>
+      <span>3. 診断データ (Minify JSON)</span>
       <button class="copy" id="btnCopy">Minify JSON コピー</button>
     </h2>
-    <textarea id="jsonOutput" readonly placeholder="テスト完了後、ここに最適チューニング済みのパラメータが圧縮出力されます。"></textarea>
+    <textarea id="jsonOutput" readonly placeholder="テスト完了後、ここに極小Minify JSONが生成されます。そのまま共有してください。"></textarea>
   </div>
 
   <script>
@@ -122,42 +128,46 @@
     const FFT_SIZE = 2048;
     const FREQS = Array.from({ length: NUM_CH }, (_, i) => BASE_FREQ + i * STEP_FREQ);
 
-    // 4つの自動テスト定義
-    const TEST_SUITE = [
-      { name: "標準", slot: 100, t1: [2, 10, 20], t2: [6, 16, 32] },
-      { name: "高速", slot: 70,  t1: [4, 14, 24], t2: [8, 18, 36] },
-      { name: "高域", slot: 100, t1: [24, 28, 34], t2: [26, 32, 40] },
-      { name: "広帯", slot: 100, t1: [0, 18, 38],  t2: [4, 22, 42] }
+    // 6段階ストレステスト設計
+    const SUITE = [
+      { name: "安全120ms", slot: 120, t1: [2, 12, 24], t2: [6, 18, 34] },
+      { name: "標準100ms", slot: 100, t1: [4, 14, 26], t2: [8, 20, 36] },
+      { name: "高速85ms",  slot: 85,  t1: [0, 10, 22], t2: [6, 16, 32] },
+      { name: "限界70ms",  slot: 70,  t1: [2, 14, 28], t2: [8, 20, 38] },
+      { name: "突破60ms",  slot: 60,  t1: [4, 16, 26], t2: [10, 22, 34] },
+      { name: "高域広帯",  slot: 100, t1: [24, 30, 40], t2: [0, 20, 42] }
     ];
 
     let txCtx = null, rxCtx = null, analyser = null, rxStream = null;
-    let isListening = false, isBenchmarking = false;
-    let currentTestIdx = -1;
-    let benchmarkResults = [];
-    let recordedSession = [];
+    let isListening = false, currentTestIdx = -1;
+    let testResults = [];
+    let noiseFloorMap = new Float32Array(NUM_CH).fill(-130);
+    let trigFloorBase = -130;
 
     const statusBadge = document.getElementById("statusBadge");
     const jsonOutput = document.getElementById("jsonOutput");
 
-    // --- 送信シーケンサー ---
+    // ==========================================
+    // 送信シーケンサー
+    // ==========================================
     document.getElementById("btnAutoTx").onclick = async () => {
       if (!txCtx) txCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (txCtx.state === "suspended") await txCtx.resume();
 
-      statusBadge.className = "status-badge run";
-      statusBadge.textContent = "自動発信中 (1/4)";
+      statusBadge.className = "badge run";
+      statusBadge.textContent = "自動発信中 (1/6)";
 
-      for (let i = 0; i < TEST_SUITE.length; i++) {
-        statusBadge.textContent = `自動発信中 (${i + 1}/${TEST_SUITE.length}: ${TEST_SUITE[i].name})`;
-        await executeSingleTestTx(TEST_SUITE[i]);
-        await new Promise(r => setTimeout(r, 650)); // テスト間ギャップ
+      for (let i = 0; i < SUITE.length; i++) {
+        statusBadge.textContent = `自動発信中 (${i + 1}/6: ${SUITE[i].name})`;
+        await runSingleTx(SUITE[i]);
+        await new Promise(r => setTimeout(r, 700)); // スロット間隔
       }
 
-      statusBadge.className = "status-badge active";
+      statusBadge.className = "badge active";
       statusBadge.textContent = "全発信完了";
     };
 
-    function executeSingleTestTx(cfg) {
+    function runSingleTx(cfg) {
       return new Promise(resolve => {
         const now = txCtx.currentTime + 0.05;
         const slotSec = cfg.slot / 1000.0;
@@ -209,18 +219,20 @@
           oscs[i].stop(t + 0.05);
         }
 
-        setTimeout(resolve, (t - now) * 1000 + 50);
+        setTimeout(resolve, (t - now) * 1000 + 60);
       });
     }
 
-    // --- 受信エンジン ---
+    // ==========================================
+    // 受信 & 暗騒音計測 & ディープ解析
+    // ==========================================
     document.getElementById("btnAutoRx").onclick = async () => {
       if (isListening) {
         if (rxStream) rxStream.getTracks().forEach(t => t.stop());
         if (rxCtx) rxCtx.close();
         isListening = false;
         document.getElementById("btnAutoRx").textContent = "1. 受信マイク待機 開始";
-        statusBadge.className = "status-badge";
+        statusBadge.className = "badge";
         statusBadge.textContent = "停止中";
         return;
       }
@@ -235,12 +247,19 @@
         analyser.smoothingTimeConstant = 0.0;
         rxCtx.createMediaStreamSource(rxStream).connect(analyser);
 
+        document.getElementById("devSummary").textContent = `${rxCtx.sampleRate}Hz | Bin: ${(rxCtx.sampleRate/FFT_SIZE).toFixed(2)}Hz`;
+        statusBadge.className = "badge run";
+        statusBadge.textContent = "環境ノイズ計測中(0.5秒)...";
+
+        // 500ms 暗騒音サンプリング
+        await sampleNoiseFloor(500);
+
         isListening = true;
         currentTestIdx = 0;
-        benchmarkResults = [];
-        document.getElementById("btnAutoRx").textContent = "受信マイク停止";
-        statusBadge.className = "status-badge active";
-        statusBadge.textContent = "トリガー待機中 (Test 1)";
+        testResults = [];
+        document.getElementById("btnAutoRx").textContent = "受信停止";
+        statusBadge.className = "badge active";
+        statusBadge.textContent = "待機中 (Test 1/6)";
         requestAnimationFrame(listenLoop);
       } catch (e) {
         alert("マイクエラー: " + e.message);
@@ -252,8 +271,38 @@
       return Math.max(dataArray[bin - 1] || -999, dataArray[bin], dataArray[bin + 1] || -999);
     }
 
-    let trigFloor = -100, trigCount = 0, recording = false, testStartTime = 0;
-    let currentRecordingFrames = [];
+    async function sampleNoiseFloor(ms) {
+      const start = performance.now();
+      const samples = Array.from({ length: NUM_CH }, () => []);
+      const trigSamples = [];
+
+      return new Promise(resolve => {
+        function collect() {
+          const data = new Float32Array(analyser.frequencyBinCount);
+          analyser.getFloatFrequencyData(data);
+          const binWidth = rxCtx.sampleRate / analyser.fftSize;
+
+          for (let i = 0; i < NUM_CH; i++) {
+            samples[i].push(getStrictPeak(data, FREQS[i], binWidth));
+          }
+          trigSamples.push(getStrictPeak(data, TRIGGER_FREQ, binWidth));
+
+          if (performance.now() - start < ms) {
+            requestAnimationFrame(collect);
+          } else {
+            const mean = arr => arr.reduce((a, b) => a + b, 0) / (arr.length || 1);
+            noiseFloorMap = samples.map(s => parseFloat(mean(s).toFixed(1)));
+            trigFloorBase = parseFloat(mean(trigSamples).toFixed(1));
+            document.getElementById("resFloor").textContent = `平均 ${mean(noiseFloorMap).toFixed(1)} dB`;
+            resolve();
+          }
+        }
+        collect();
+      });
+    }
+
+    let trigCount = 0, recording = false, testStart = 0;
+    let framesBuffer = [];
 
     function listenLoop() {
       if (!isListening) return;
@@ -267,8 +316,7 @@
       const guardDb = getStrictPeak(dataArray, GUARD_FREQ, binWidth);
 
       if (!recording) {
-        trigFloor = trigFloor * 0.98 + trigDb * 0.02;
-        if (trigDb > Math.max(-95, trigFloor + 12) && (trigDb - guardDb) > 8) {
+        if (trigDb > Math.max(-95, trigFloorBase + 12) && (trigDb - guardDb) > 8) {
           trigCount++;
         } else {
           trigCount = 0;
@@ -277,132 +325,172 @@
         if (trigCount >= 2) {
           trigCount = 0;
           recording = true;
-          testStartTime = now;
-          currentRecordingFrames = [];
-          statusBadge.className = "status-badge run";
-          statusBadge.textContent = `記録中 (Test ${currentTestIdx + 1}/4)`;
+          testStart = now;
+          framesBuffer = [];
+          statusBadge.className = "badge run";
+          statusBadge.textContent = `記録中 (${currentTestIdx + 1}/6: ${SUITE[currentTestIdx].name})`;
         }
       } else {
-        const elapsed = now - testStartTime;
-        if (elapsed <= 450) {
+        const elapsed = now - testStart;
+        if (elapsed <= 520) {
           const chPowers = [];
           for (let i = 0; i < NUM_CH; i++) {
             chPowers.push(parseFloat(getStrictPeak(dataArray, FREQS[i], binWidth).toFixed(1)));
           }
-          currentRecordingFrames.push([parseFloat(elapsed.toFixed(1)), chPowers]);
+          framesBuffer.push([parseFloat(elapsed.toFixed(1)), chPowers]);
         } else {
           recording = false;
-          analyzeSingleRun(currentRecordingFrames, TEST_SUITE[currentTestIdx]);
+          analyzeDetailedRun(framesBuffer, SUITE[currentTestIdx]);
           currentTestIdx++;
 
-          if (currentTestIdx < TEST_SUITE.length) {
-            statusBadge.className = "status-badge active";
-            statusBadge.textContent = `待機中 (Test ${currentTestIdx + 1}/4)`;
+          if (currentTestIdx < SUITE.length) {
+            statusBadge.className = "badge active";
+            statusBadge.textContent = `待機中 (${currentTestIdx + 1}/6)`;
           } else {
-            statusBadge.className = "status-badge green";
+            statusBadge.className = "badge active";
             statusBadge.textContent = "全診断完了!";
-            finalizeBenchmark();
+            buildFinalReport();
           }
         }
       }
       requestAnimationFrame(listenLoop);
     }
 
-    // 各テストの即時解析
-    function analyzeSingleRun(frames, cfg) {
+    // 各波のピーク到達時間・スロット別詳細解析
+    function analyzeDetailedRun(frames, cfg) {
       const row = document.getElementById(`row-${currentTestIdx}`);
-      let maxT1 = -999, t1Time = 0;
-      let maxT2 = -999, t2Time = 0;
 
-      frames.forEach(f => {
-        const t = f[0];
-        const t1Energy = cfg.t1.reduce((acc, c) => acc + f[1][c], 0);
-        const t2Energy = cfg.t2.reduce((acc, c) => acc + f[1][c], 0);
-        if (t1Energy > maxT1) { maxT1 = t1Energy; t1Time = t; }
-        if (t > 120 && t2Energy > maxT2) { maxT2 = t2Energy; t2Time = t; }
+      // 各チャンネルのピーク時刻・最大強度を個別追跡
+      const getWaveStats = (chs, minT, maxT) => {
+        return chs.map(ch => {
+          let maxDb = -999, peakT = 0;
+          frames.forEach(f => {
+            const t = f[0], db = f[1][ch];
+            if (t >= minT && t <= maxT && db > maxDb) {
+              maxDb = db;
+              peakT = t;
+            }
+          });
+          return { ch, peakT, maxDb };
+        });
+      };
+
+      const t1Stats = getWaveStats(cfg.t1, 30, 200);
+      const t2Stats = getWaveStats(cfg.t2, 120, 380);
+
+      // SNR算出
+      const t1AvgPeak = t1Stats.reduce((a, b) => a + b.maxDb, 0) / 3;
+      const t1AvgFloor = cfg.t1.reduce((a, b) => a + noiseFloorMap[b], 0) / 3;
+      const snr = parseFloat((t1AvgPeak - t1AvgFloor).toFixed(1));
+
+      // 隣接分離マージン
+      let minSep = 999;
+      cfg.t2.forEach(ch => {
+        frames.forEach(f => {
+          if (f[0] >= 140 && f[0] <= 320) {
+            const cur = f[1][ch];
+            const l = ch > 0 ? f[1][ch - 1] : -999;
+            const r = ch < NUM_CH - 1 ? f[1][ch + 1] : -999;
+            const sep = cur - Math.max(l, r);
+            if (sep < minSep) minSep = sep;
+          }
+        });
       });
 
-      const avgFloor = -135;
-      const snr = parseFloat(((maxT1 / 3) - avgFloor).toFixed(1));
-      const pass = snr > 20;
+      const pass = snr > 20 && minSep > 3.0;
 
+      row.querySelector(".t1").textContent = t1Stats.map(s => `${s.peakT}ms(${s.maxDb.toFixed(0)}dB)`).join(" ");
+      row.querySelector(".t2").textContent = t2Stats.map(s => `${s.peakT}ms(${s.maxDb.toFixed(0)}dB)`).join(" ");
       row.querySelector(".snr").textContent = `${snr} dB`;
-      row.querySelector(".t1").textContent = `${t1Time}ms (CH:${cfg.t1.join(",")})`;
-      row.querySelector(".t2").textContent = `${t2Time}ms (CH:${cfg.t2.join(",")})`;
-      const statEl = row.querySelector(".stat");
-      statEl.textContent = pass ? "PASS" : "FAIL";
-      statEl.style.color = pass ? "var(--green)" : "var(--red)";
+      row.querySelector(".sep").textContent = `${minSep.toFixed(1)} dB`;
+      const resEl = row.querySelector(".res");
+      resEl.textContent = pass ? "PASS" : "FAIL";
+      resEl.style.color = pass ? "var(--green)" : "var(--red)";
 
-      benchmarkResults.push({
+      testResults.push({
         idx: currentTestIdx,
         name: cfg.name,
         slot: cfg.slot,
+        t1: t1Stats,
+        t2: t2Stats,
         snr,
-        t1Time,
-        t2Time,
+        minSep: parseFloat(minSep.toFixed(1)),
         pass,
         frames
       });
     }
 
-    // 全テスト完了後の統合メトリクス算出 & 最適パラメータ出力
-    function finalizeBenchmark() {
-      // 1. レイテンシオフセット（T1の平均極大時間から逆算）
-      const avgT1Peak = benchmarkResults.reduce((acc, r) => acc + r.t1Time, 0) / benchmarkResults.length;
-      const recommendedOffset = Math.round(avgT1Peak - 60);
-      document.getElementById("resLatency").textContent = `${recommendedOffset >= 0 ? '+' : ''}${recommendedOffset} ms`;
+    // ==========================================
+    // 統合解析 & Minify JSON生成
+    // ==========================================
+    function buildFinalReport() {
+      // 1. 到達遅延 (T1全テストの平均極大時間)
+      const allT1Peaks = testResults.flatMap(r => r.t1.map(w => w.peakT));
+      const avgT1Peak = allT1Peaks.reduce((a, b) => a + b, 0) / (allT1Peaks.length || 1);
+      document.getElementById("resLatency").textContent = `${avgT1Peak.toFixed(0)} ms (極大)`;
 
-      // 2. 最短スロット限界
-      const fastTest = benchmarkResults.find(r => r.name === "高速");
-      const minSlotEl = document.getElementById("resMinSlot");
-      if (fastTest && fastTest.pass) {
-        minSlotEl.textContent = "70 ms 動作可能";
-        minSlotEl.className = "metric-val green";
-      } else {
-        minSlotEl.textContent = "100 ms 推奨";
-        minSlotEl.className = "metric-val warn";
-      }
+      // 2. 最短限界スロット
+      const passedSlots = testResults.filter(r => r.pass).map(r => r.slot);
+      const limitSlot = passedSlots.length > 0 ? Math.min(...passedSlots) : 100;
+      const limitEl = document.getElementById("resLimitSlot");
+      limitEl.textContent = `${limitSlot} ms`;
+      limitEl.className = `metric-val ${limitSlot <= 70 ? 'green' : (limitSlot <= 85 ? 'warn' : 'red')}`;
 
       // 3. 高域減衰
-      const highTest = benchmarkResults.find(r => r.name === "高域");
-      const stdTest = benchmarkResults.find(r => r.name === "標準");
+      const rWide = testResults.find(r => r.name === "高域広帯");
       let slope = 0;
-      if (highTest && stdTest) {
-        slope = parseFloat((stdTest.snr - highTest.snr).toFixed(1));
+      if (rWide) {
+        const lowPeak = rWide.t2.find(w => w.ch === 0)?.maxDb || -999;
+        const highPeak = rWide.t2.find(w => w.ch === 42)?.maxDb || -999;
+        slope = parseFloat((lowPeak - highPeak).toFixed(1));
       }
       const slopeEl = document.getElementById("resSlope");
       slopeEl.textContent = `-${slope} dB`;
-      slopeEl.className = `metric-val ${slope < 8 ? 'green' : 'warn'}`;
+      slopeEl.className = `metric-val ${slope < 7 ? 'green' : 'warn'}`;
 
-      // 4. IMDマージン
-      const wideTest = benchmarkResults.find(r => r.name === "広帯");
-      let ghostPeak = -999;
-      if (wideTest) {
-        const active = new Set([...TEST_SUITE[3].t1, ...TEST_SUITE[3].t2]);
-        wideTest.frames.forEach(f => {
+      // 4. 最大IMDゴースト検出
+      let maxGhost = -999, ghostCh = -1;
+      testResults.forEach(r => {
+        const activeChs = new Set([...SUITE[r.idx].t1, ...SUITE[r.idx].t2]);
+        r.frames.forEach(f => {
           f[1].forEach((db, ch) => {
-            if (!active.has(ch) && db > ghostPeak) ghostPeak = db;
+            if (!activeChs.has(ch) && db > maxGhost) {
+              maxGhost = db;
+              ghostCh = ch;
+            }
           });
         });
-      }
-      const imdMargin = parseFloat((-ghostPeak - 100).toFixed(1));
+      });
+      const imdMargin = parseFloat((-maxGhost - 100).toFixed(1));
       const imdEl = document.getElementById("resImd");
-      imdEl.textContent = `${imdMargin} dB 安全`;
-      imdEl.className = `metric-val ${imdMargin > 10 ? 'green' : 'warn'}`;
+      imdEl.textContent = `CH${ghostCh} (${maxGhost.toFixed(0)}dB / 余裕${imdMargin}dB)`;
+      imdEl.className = `metric-val ${imdMargin > 8 ? 'green' : 'warn'}`;
 
-      // 5. Minify JSON生成 (最適サンプリング窓パラメータ入り)
-      const minified = {
-        d: { ua: navigator.userAgent, sr: rxCtx.sampleRate },
-        tuned: {
-          slotMs: fastTest && fastTest.pass ? 70 : 100,
-          w1: [Math.max(10, Math.round(avgT1Peak - 40)), Math.round(avgT1Peak + 40)],
-          w2: [Math.round(avgT1Peak + 80), Math.round(avgT1Peak + 180)],
-          minDb: Math.round(-100 + (slope > 6 ? 4 : 0))
+      // 5. Minify JSON生成
+      // 各テストの到達時刻(t1, t2)、SNR、マージン、環境ノイズマップ、推奨ウィンドウを全網羅
+      const report = {
+        meta: { ua: navigator.userAgent, sr: rxCtx.sampleRate, floorAvg: parseFloat((noiseFloorMap.reduce((a,b)=>a+b,0)/NUM_CH).toFixed(1)) },
+        diag: {
+          t1CenterMs: Math.round(avgT1Peak),
+          limitSlotMs: limitSlot,
+          slopeDb: slope,
+          ghostPeak: [ghostCh, parseFloat(maxGhost.toFixed(1))]
         },
-        bench: benchmarkResults.map(r => ({ n: r.name, snr: r.snr, t1: r.t1Time, t2: r.t2Time, ok: r.pass }))
+        tunedParams: {
+          slotMs: limitSlot,
+          w1: [Math.max(10, Math.round(avgT1Peak - limitSlot * 0.45)), Math.round(avgT1Peak + limitSlot * 0.45)],
+          w2: [Math.round(avgT1Peak + limitSlot * 0.9), Math.round(avgT1Peak + limitSlot * 1.9)],
+          wCD: [Math.round(avgT1Peak + limitSlot * 2.0), Math.round(avgT1Peak + limitSlot * 3.0)]
+        },
+        tests: testResults.map(r => ({
+          n: r.name, slot: r.slot, snr: r.snr, sep: r.minSep, ok: r.pass,
+          t1: r.t1.map(w => [w.ch, w.peakT, parseFloat(w.maxDb.toFixed(1))]),
+          t2: r.t2.map(w => [w.ch, w.peakT, parseFloat(w.maxDb.toFixed(1))])
+        })),
+        floor: Array.from(noiseFloorMap)
       };
 
-      jsonOutput.value = JSON.stringify(minified);
+      jsonOutput.value = JSON.stringify(report);
     }
 
     document.getElementById("btnCopy").onclick = () => {
