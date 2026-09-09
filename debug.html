@@ -3,53 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>43ch Dual-Triplet 2-Device Precision Benchmark</title>
+  <title>OTOSYN Full-Spectrum Acoustic Stress Tester</title>
   <style>
     :root {
-      --bg: #090d16; --panel: #131b26; --border: #26354a;
-      --text: #e2e8f0; --text-muted: #94a3b8; --accent: #38bdf8;
-      --green: #22c55e; --warn: #f59e0b; --red: #ef4444;
+      --bg: #090c10; --panel: #161b22; --border: #30363d;
+      --text: #c9d1d9; --accent: #58a6ff; --green: #3fb950; --warn: #d29922; --red: #f85149;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background: var(--bg); color: var(--text);
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      padding: 12px; max-width: 900px; margin: 0 auto; font-size: 0.84rem; line-height: 1.4;
+      padding: 12px; max-width: 1200px; margin: 0 auto; font-size: 0.82rem; line-height: 1.4;
     }
     .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-    h2 { font-size: 0.95rem; color: var(--accent); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+    h2 { font-size: 0.95rem; color: var(--accent); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
     .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
     button {
-      background: #0284c7; color: #fff; border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 6px; padding: 10px 16px; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 0.88rem;
+      background: #238636; color: #fff; border: 1px solid rgba(240,246,252,0.1);
+      border-radius: 6px; padding: 8px 16px; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 0.85rem;
     }
-    button:hover { background: #0369a1; }
-    button.tx { background: #7c3aed; }
-    button.tx:hover { background: #6d28d9; }
-    button.rx { background: #16a34a; }
-    button.rx:hover { background: #15803d; }
-    button.running { background: #b91c1c; animation: pulse 0.8s infinite; cursor: wait; }
-    button.copy { background: #1e293b; border: 1px solid var(--border); font-size: 0.78rem; padding: 5px 10px; }
+    button:hover { background: #2ea043; }
+    button.tx { background: #8957e5; }
+    button.tx:hover { background: #9a67ea; }
+    button.running { background: #b62324; animation: pulse 1s infinite; cursor: wait; }
+    button.copy { background: #1f6feb; font-size: 0.75rem; padding: 4px 10px; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
+    .progress-box { width: 100%; height: 8px; background: #0d1117; border-radius: 4px; overflow: hidden; margin: 8px 0; border: 1px solid var(--border); }
+    .progress-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.05s linear; }
+
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-top: 8px; }
-    .metric { background: #0b111a; border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; }
-    .metric-val { font-size: 1.1rem; font-weight: bold; margin-top: 3px; }
+    .metric { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+    .metric-val { font-size: 1.15rem; font-weight: bold; margin-top: 2px; }
     .metric-val.green { color: var(--green); }
     .metric-val.warn { color: var(--warn); }
     .metric-val.red { color: var(--red); }
 
-    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.75rem; }
-    th, td { border: 1px solid var(--border); padding: 5px 7px; text-align: left; }
-    th { background: #0b111a; color: var(--text-muted); }
+    .table-container { max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; margin-top: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.74rem; }
+    th, td { border: 1px solid var(--border); padding: 4px 6px; text-align: left; }
+    th { background: #0d1117; color: #8b949e; position: sticky; top: 0; z-index: 2; }
+    tr:nth-child(even) { background: rgba(255,255,255,0.015); }
     
     textarea {
-      width: 100%; height: 110px; background: #05080e; border: 1px solid var(--border);
-      border-radius: 6px; color: #4ade80; font-family: inherit; font-size: 0.72rem; padding: 6px; margin-top: 8px; resize: vertical;
+      width: 100%; height: 120px; background: #050505; border: 1px solid var(--border);
+      border-radius: 6px; color: #7ee787; font-family: inherit; font-size: 0.72rem; padding: 6px; margin-top: 6px; resize: vertical;
     }
-    .status-badge { font-size: 0.75rem; padding: 3px 6px; border-radius: 4px; background: #334155; color: #cbd5e1; }
-    .status-badge.active { background: #0284c7; color: #fff; }
-    .status-badge.run { background: #dc2626; color: #fff; }
+    .badge { font-size: 0.75rem; padding: 3px 6px; border-radius: 4px; background: #30363d; color: #8b949e; }
+    .badge.active { background: #1f6feb; color: #fff; }
+    .badge.run { background: #b62324; color: #fff; }
   </style>
 </head>
 <body>
@@ -57,447 +59,396 @@
   <!-- コントロール部 -->
   <div class="card">
     <h2>
-      <span>43ch Dual-Triplet 2-Device 自動ベンチマーク</span>
-      <span class="status-badge" id="statusBadge">待機中</span>
+      <span>OTOSYN 音響物理特性・限界ストレステスター</span>
+      <span class="badge" id="sysBadge">待機中</span>
     </h2>
-    <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:10px;">
-      2台の端末を用意し、受信機側で「1. 受信待機」、送信機側で「2. 送信開始」をそれぞれ1回押してください。
+    <div style="font-size:0.75rem; color:#8b949e; margin-bottom:10px;">
+      【テスト内容】<br>
+      ① 17,000Hz〜21,000Hz (20Hz刻み・全201点) の事前ノイズ/発振dB/SNR測定<br>
+      ② 2波〜7波同時発音時の相互変調歪み(IMD)と同時分離認識テスト<br>
+      ③ 50ms, 80ms, 100ms, 120ms, 150ms 間隔での3波連続スロット分離認識テスト
     </div>
     <div class="row">
-      <button id="btnRx" class="rx">【受信機】1. 受信待機 開始 (暗騒音学習→解析)</button>
-      <button id="btnTx" class="tx">【送信機】2. 全自動4シーケンス発信</button>
+      <button id="btnLoopback" style="background:#0284c7;">【1台で完結】全自動ループバックテスト開始</button>
+      <button id="btnRxOnly" class="sec">【2台用】受信側として待機</button>
+      <button id="btnTxOnly" class="tx">【2台用】送信側として発射</button>
     </div>
-    <div id="statusText" style="margin-top:6px; font-size:0.8rem; color:var(--accent);">Ready...</div>
+    <div class="progress-box"><div class="progress-fill" id="pFill"></div></div>
+    <div id="statusText" style="font-size:0.8rem; color:var(--accent);">Ready...</div>
   </div>
 
-  <!-- 診断メトリクス -->
+  <!-- サマリーメトリクス -->
   <div class="card">
-    <h2>物理特性 & 最適パーソナライズ結果</h2>
+    <h2>測定結果サマリー</h2>
     <div class="grid">
       <div class="metric">
-        <div style="font-size:0.7rem; color:var(--text-muted);">T1到達遅延中心</div>
-        <div class="metric-val green" id="resDelay">--</div>
+        <div style="font-size:0.7rem; color:#8b949e;">周波数受音可能帯域 (SNR>12dB)</div>
+        <div class="metric-val green" id="sumBand">--</div>
       </div>
       <div class="metric">
-        <div style="font-size:0.7rem; color:var(--text-muted);">最短限界スロット</div>
-        <div class="metric-val green" id="resSlot">--</div>
+        <div style="font-size:0.7rem; color:#8b949e;">全域平均 暗騒音 (事前ノイズ)</div>
+        <div class="metric-val" id="sumFloor">--</div>
       </div>
       <div class="metric">
-        <div style="font-size:0.7rem; color:var(--text-muted);">高域減衰 (17.5k vs 19.8k)</div>
-        <div class="metric-val" id="resSlope">--</div>
+        <div style="font-size:0.7rem; color:#8b949e;">最大同時発音可能数 (分離可能)</div>
+        <div class="metric-val green" id="sumMaxWaves">--</div>
       </div>
       <div class="metric">
-        <div style="font-size:0.7rem; color:var(--text-muted);">推奨T1サンプリング窓</div>
-        <div class="metric-val green" id="resW1">--</div>
-      </div>
-      <div class="metric">
-        <div style="font-size:0.7rem; color:var(--text-muted);">推奨T2サンプリング窓</div>
-        <div class="metric-val green" id="resW2">--</div>
-      </div>
-      <div class="metric">
-        <div style="font-size:0.7rem; color:var(--text-muted);">最大歪み(IMD)ゴースト</div>
-        <div class="metric-val" id="resImd">--</div>
+        <div style="font-size:0.7rem; color:#8b949e;">最短安定スロット長 (3波連続)</div>
+        <div class="metric-val green" id="sumMinSlot">--</div>
       </div>
     </div>
+  </div>
 
-    <table id="testTable">
+  <!-- 詳細テーブル 1 -->
+  <div class="card">
+    <h2>1. 周波数スキャン結果 (17,000〜21,000Hz / 20Hz刻み: 201点)</h2>
+    <div class="table-container">
+      <table id="tblScan">
+        <thead>
+          <tr><th>周波数</th><th>事前ノイズ(dB)</th><th>発音時ピーク(dB)</th><th>実効SNR(差分)</th><th>判定</th></tr>
+        </thead>
+        <tbody id="bodyScan"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 詳細テーブル 2 & 3 -->
+  <div class="card">
+    <h2>2. 同時多重発音 (2〜7波) & 3. 時間間隔スロット (50〜150ms)</h2>
+    <table id="tblMulti" style="margin-bottom:12px;">
       <thead>
-        <tr>
-          <th>Test</th>
-          <th>設定</th>
-          <th>対象CH</th>
-          <th>T1極大ミリ秒 (各波)</th>
-          <th>T2極大ミリ秒 (各波)</th>
-          <th>SNR</th>
-          <th>分離</th>
-          <th>結果</th>
-        </tr>
+        <tr><th>同時波種</th><th>発音周波数 (Hz)</th><th>検出周波数 (Hz)</th><th>平均ピークdB</th><th>判定</th></tr>
       </thead>
-      <tbody>
-        <tr id="row-0"><td>1. 標準</td><td>100ms</td><td>T1[4,14,24] T2[8,18,34]</td><td class="t1">--</td><td class="t2">--</td><td class="snr">--</td><td class="sep">--</td><td class="res">未</td></tr>
-        <tr id="row-1"><td>2. 高速</td><td>85ms</td><td>T1[2,12,22] T2[6,16,32]</td><td class="t1">--</td><td class="t2">--</td><td class="snr">--</td><td class="sep">--</td><td class="res">未</td></tr>
-        <tr id="row-2"><td>3. 限界</td><td>70ms</td><td>T1[0,10,20] T2[4,16,36]</td><td class="t1">--</td><td class="t2">--</td><td class="snr">--</td><td class="sep">--</td><td class="res">未</td></tr>
-        <tr id="row-3"><td>4. 高域広帯</td><td>100ms</td><td>T1[24,30,40] T2[0,20,42]</td><td class="t1">--</td><td class="t2">--</td><td class="snr">--</td><td class="sep">--</td><td class="res">未</td></tr>
-      </tbody>
+      <tbody id="bodyMulti"></tbody>
+    </table>
+
+    <table id="tblSlot">
+      <thead>
+        <tr><th>スロット間隔</th><th>送信パケット</th><th>検出パケット</th><th>時間分離マージン</th><th>判定</th></tr>
+      </thead>
+      <tbody id="bodySlot"></tbody>
     </table>
   </div>
 
-  <!-- JSONエクスポート -->
+  <!-- Minify JSON -->
   <div class="card">
     <h2>
-      <span>端末パーソナライズ Minify JSON</span>
+      <span>全測定ログ Minified JSON</span>
       <button class="copy" id="btnCopy">JSONコピー</button>
     </h2>
-    <textarea id="jsonOut" readonly placeholder="全テスト終了後、ここに実測チューニング値が自動生成されます。"></textarea>
+    <textarea id="jsonOut" readonly placeholder="全テスト終了後、ここにすべての測定データが圧縮出力されます。"></textarea>
   </div>
 
   <script>
     "use strict";
 
-    // 43ch 非隣接物理層
-    const NUM_CH = 43;
-    const BASE_FREQ = 17500;
-    const STEP_FREQ = 56;
-    const TRIGGER_FREQ = 20200;
-    const GUARD_FREQ = 20000;
-    const FFT_SIZE = 2048;
-    const FREQS = Array.from({ length: NUM_CH }, (_, i) => BASE_FREQ + i * STEP_FREQ);
+    // 48kHzサンプリング時、ビン幅約11.72Hz。20Hz刻みの直交分離を担保
+    const FFT_SIZE = 4096;
+    let audioCtx = null, analyser = null, micStream = null;
 
-    // テストスイート (4シーケンス)
-    const SUITE = [
-      { name: "標準100ms", slot: 100, t1: [4, 14, 24], t2: [8, 18, 34] },
-      { name: "高速85ms",  slot: 85,  t1: [2, 12, 22], t2: [6, 16, 32] },
-      { name: "限界70ms",  slot: 70,  t1: [0, 10, 20], t2: [4, 16, 36] },
-      { name: "高域広帯",  slot: 100, t1: [24, 30, 40], t2: [0, 20, 42] }
-    ];
-
-    let txCtx = null, rxCtx = null, analyser = null, rxStream = null;
-    let isListening = false, currentTestIdx = -1;
-    let testResults = [];
-    let noiseFloorMap = new Float32Array(NUM_CH).fill(-120);
-
-    const statusBadge = document.getElementById("statusBadge");
+    const sysBadge = document.getElementById("sysBadge");
     const statusText = document.getElementById("statusText");
+    const pFill = document.getElementById("pFill");
     const jsonOut = document.getElementById("jsonOut");
 
-    function getStrictPeak(dataArray, freq, binWidth) {
+    async function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === "suspended") await audioCtx.resume();
+      }
+      if (!micStream) {
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 }
+        });
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = FFT_SIZE;
+        analyser.smoothingTimeConstant = 0.0;
+        audioCtx.createMediaStreamSource(micStream).connect(analyser);
+      }
+    }
+
+    function getPeakDb(dataArray, freq) {
+      const binWidth = audioCtx.sampleRate / analyser.fftSize;
       const bin = Math.round(freq / binWidth);
       return Math.max(dataArray[bin - 1] || -999, dataArray[bin], dataArray[bin + 1] || -999);
     }
 
-    // ==========================================
-    // 送信側ロジック (送信機で1クリック)
-    // ==========================================
-    document.getElementById("btnTx").onclick = async () => {
-      const btn = document.getElementById("btnTx");
-      btn.disabled = true;
-      btn.className = "tx running";
+    // =========================================================================
+    // テスト 1: 17,000〜21,000Hz (20Hz刻み 全201周波数)
+    // =========================================================================
+    async function runFrequencyScanTest(onProgress) {
+      const startFreq = 17000;
+      const endFreq = 21000;
+      const step = 20;
+      const totalSteps = Math.floor((endFreq - startFreq) / step) + 1; // 201
+      const results = [];
 
-      if (!txCtx) txCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (txCtx.state === "suspended") await txCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0, audioCtx.currentTime);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
 
-      statusBadge.className = "status-badge run";
-      statusBadge.textContent = "送信中";
+      const tbody = document.getElementById("bodyScan");
+      tbody.innerHTML = "";
 
-      for (let i = 0; i < SUITE.length; i++) {
-        statusText.textContent = `送信中 (${i + 1}/${SUITE.length}: ${SUITE[i].name})`;
-        await executeSingleTx(SUITE[i]);
-        await new Promise(r => setTimeout(r, 750)); // テスト間隔
+      for (let i = 0; i < totalSteps; i++) {
+        const freq = startFreq + i * step;
+
+        // 1. 発音前の暗騒音(Noise Floor)サンプリング (30ms)
+        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        await new Promise(r => setTimeout(r, 20));
+        const noiseData = new Float32Array(analyser.frequencyBinCount);
+        analyser.getFloatFrequencyData(noiseData);
+        const preNoiseDb = parseFloat(getPeakDb(noiseData, freq).toFixed(1));
+
+        // 2. 単音発音 (70ms)
+        const now = audioCtx.currentTime;
+        osc.frequency.setValueAtTime(freq, now);
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.08, now + 0.005);
+        gain.gain.setValueAtTime(0.08, now + 0.065);
+        gain.gain.linearRampToValueAtTime(0, now + 0.07);
+
+        // 3. 発音中のピークdBサンプリング (中央付近で取得)
+        await new Promise(r => setTimeout(r, 40));
+        const signalData = new Float32Array(analyser.frequencyBinCount);
+        analyser.getFloatFrequencyData(signalData);
+        const peakDb = parseFloat(getPeakDb(signalData, freq).toFixed(1));
+        const snr = parseFloat((peakDb - preNoiseDb).toFixed(1));
+        const pass = snr >= 12.0;
+
+        await new Promise(r => setTimeout(r, 30)); // 減衰待ち
+
+        results.push({ freq, preNoiseDb, peakDb, snr, pass });
+
+        // テーブル追加
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${freq} Hz</td><td>${preNoiseDb} dB</td><td>${peakDb} dB</td><td>${snr} dB</td><td style="color:${pass?'var(--green)':'var(--red)'};font-weight:bold;">${pass?'PASS':'FAIL'}</td>`;
+        tbody.appendChild(tr);
+        if (i % 5 === 0) tr.scrollIntoView({ block: "nearest" });
+
+        if (onProgress) onProgress((i + 1) / totalSteps);
       }
 
-      statusBadge.className = "status-badge active";
-      statusBadge.textContent = "全送信完了";
-      statusText.textContent = "送信完了";
-      btn.className = "tx";
-      btn.disabled = false;
-    };
-
-    function executeSingleTx(cfg) {
-      return new Promise(resolve => {
-        const now = txCtx.currentTime + 0.05;
-        const slotSec = cfg.slot / 1000.0;
-        const trigSec = 0.09;
-        const ramp = 0.005;
-        const gainVal = 0.06; // IMD飽和を防止する最適ゲイン
-
-        const oscs = [txCtx.createOscillator(), txCtx.createOscillator(), txCtx.createOscillator()];
-        const gains = [txCtx.createGain(), txCtx.createGain(), txCtx.createGain()];
-
-        for (let i = 0; i < 3; i++) {
-          oscs[i].connect(gains[i]);
-          gains[i].connect(txCtx.destination);
-        }
-
-        let t = now;
-        // Trigger
-        oscs[0].frequency.setValueAtTime(TRIGGER_FREQ, t);
-        gains[0].gain.setValueAtTime(0, t);
-        gains[0].gain.linearRampToValueAtTime(gainVal, t + ramp);
-        gains[0].gain.setValueAtTime(gainVal, t + trigSec - ramp);
-        gains[0].gain.linearRampToValueAtTime(0, t + trigSec);
-        gains[1].gain.setValueAtTime(0, t);
-        gains[2].gain.setValueAtTime(0, t);
-        t += trigSec;
-
-        // T1
-        for (let i = 0; i < 3; i++) {
-          oscs[i].frequency.setValueAtTime(FREQS[cfg.t1[i]], t);
-          gains[i].gain.setValueAtTime(0, t);
-          gains[i].gain.linearRampToValueAtTime(gainVal / 3, t + ramp);
-          gains[i].gain.setValueAtTime(gainVal / 3, t + slotSec - ramp);
-          gains[i].gain.linearRampToValueAtTime(0, t + slotSec);
-        }
-        t += slotSec;
-
-        // T2
-        for (let i = 0; i < 3; i++) {
-          oscs[i].frequency.setValueAtTime(FREQS[cfg.t2[i]], t);
-          gains[i].gain.setValueAtTime(0, t);
-          gains[i].gain.linearRampToValueAtTime(gainVal / 3, t + ramp);
-          gains[i].gain.setValueAtTime(gainVal / 3, t + slotSec - ramp);
-          gains[i].gain.linearRampToValueAtTime(0, t + slotSec);
-        }
-        t += slotSec;
-
-        for (let i = 0; i < 3; i++) {
-          oscs[i].start(now);
-          oscs[i].stop(t + 0.05);
-        }
-
-        setTimeout(resolve, (t - now) * 1000 + 60);
-      });
+      osc.stop();
+      return results;
     }
 
-    // ==========================================
-    // 受信側ロジック (受信機で1クリック)
-    // ==========================================
-    document.getElementById("btnRx").onclick = async () => {
-      const btn = document.getElementById("btnRx");
-      if (isListening) {
-        if (rxStream) rxStream.getTracks().forEach(t => t.stop());
-        if (rxCtx) rxCtx.close();
-        isListening = false;
-        btn.textContent = "【受信機】1. 受信待機 開始";
-        statusBadge.className = "status-badge";
-        statusBadge.textContent = "停止中";
-        return;
+    // =========================================================================
+    // テスト 2: 2〜7波 同時多重発音ストレステスト
+    // =========================================================================
+    async function runSimultaneousWavesTest(onProgress) {
+      // 周波数プール (17.5kHz〜19.5kHzの中から分散配置)
+      const testFrequencies = [17500, 17800, 18100, 18400, 18700, 19000, 19300];
+      const results = [];
+      const tbody = document.getElementById("bodyMulti");
+      tbody.innerHTML = "";
+
+      for (let waveCount = 2; waveCount <= 7; waveCount++) {
+        const activeFreqs = testFrequencies.slice(0, waveCount);
+
+        // 事前暗騒音
+        await new Promise(r => setTimeout(r, 40));
+        const preData = new Float32Array(analyser.frequencyBinCount);
+        analyser.getFloatFrequencyData(preData);
+
+        // 多重発音 (100ms)
+        const now = audioCtx.currentTime;
+        const oscs = [], gains = [];
+        const targetGainPerWave = 0.12 / Math.sqrt(waveCount); // PAPR過大防止
+
+        for (let i = 0; i < waveCount; i++) {
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.frequency.setValueAtTime(activeFreqs[i], now);
+          g.gain.setValueAtTime(0, now);
+          g.gain.linearRampToValueAtTime(targetGainPerWave, now + 0.005);
+          g.gain.setValueAtTime(targetGainPerWave, now + 0.095);
+          g.gain.linearRampToValueAtTime(0, now + 0.10);
+          o.connect(g); g.connect(audioCtx.destination);
+          o.start(now); o.stop(now + 0.11);
+          oscs.push(o); gains.push(g);
+        }
+
+        // 受信解析
+        await new Promise(r => setTimeout(r, 60));
+        const sigData = new Float32Array(analyser.frequencyBinCount);
+        analyser.getFloatFrequencyData(sigData);
+
+        const detectedFreqs = [];
+        let avgPeak = 0;
+        let allPassed = true;
+
+        activeFreqs.forEach(f => {
+          const db = getPeakDb(sigData, f);
+          const noise = getPeakDb(preData, f);
+          avgPeak += db;
+          if (db - noise >= 12.0) {
+            detectedFreqs.push(f);
+          } else {
+            allPassed = false;
+          }
+        });
+        avgPeak = parseFloat((avgPeak / waveCount).toFixed(1));
+
+        await new Promise(r => setTimeout(r, 80)); // 減衰インターバル
+
+        results.push({ waveCount, sent: activeFreqs, detected: detectedFreqs, avgPeak, pass: allPassed });
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${waveCount}波 同時</td><td>[${activeFreqs.join(",")}]</td><td>[${detectedFreqs.join(",")}]</td><td>${avgPeak} dB</td><td style="color:${allPassed?'var(--green)':'var(--red)'};font-weight:bold;">${allPassed?'PASS':'FAIL'}</td>`;
+        tbody.appendChild(tr);
+
+        if (onProgress) onProgress((waveCount - 1) / 6);
       }
+      return results;
+    }
+
+    // =========================================================================
+    // テスト 3: 時間間隔スロット限界テスト (50ms, 80ms, 100ms, 120ms, 150ms)
+    // =========================================================================
+    async function runSlotTimingTest(onProgress) {
+      const intervals = [150, 120, 100, 80, 50]; // 長い方から順に短縮
+      const tripA = [17600, 18200, 18800];
+      const tripB = [17900, 18500, 19100];
+      const results = [];
+      const tbody = document.getElementById("bodySlot");
+      tbody.innerHTML = "";
+
+      for (let idx = 0; idx < intervals.length; idx++) {
+        const slotMs = intervals[idx];
+        const slotSec = slotMs / 1000.0;
+        const now = audioCtx.currentTime + 0.05;
+
+        // パケットA発音
+        const oscsA = tripA.map(f => {
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.frequency.setValueAtTime(f, now);
+          g.gain.setValueAtTime(0, now);
+          g.gain.linearRampToValueAtTime(0.04, now + 0.005);
+          g.gain.setValueAtTime(0.04, now + slotSec - 0.005);
+          g.gain.linearRampToValueAtTime(0, now + slotSec);
+          o.connect(g); g.connect(audioCtx.destination);
+          o.start(now); o.stop(now + slotSec + 0.02);
+          return o;
+        });
+
+        // パケットB発音 (スロット直後に切り替え)
+        const tB = now + slotSec;
+        const oscsB = tripB.map(f => {
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.frequency.setValueAtTime(f, tB);
+          g.gain.setValueAtTime(0, tB);
+          g.gain.linearRampToValueAtTime(0.04, tB + 0.005);
+          g.gain.setValueAtTime(0.04, tB + slotSec - 0.005);
+          g.gain.linearRampToValueAtTime(0, tB + slotSec);
+          o.connect(g); g.connect(audioCtx.destination);
+          o.start(tB); o.stop(tB + slotSec + 0.02);
+          return o;
+        });
+
+        // スロットAのサンプリング (A中央)
+        await new Promise(r => setTimeout(r, (slotMs * 0.5) + 50));
+        const dataA = new Float32Array(analyser.frequencyBinCount);
+        analyser.getFloatFrequencyData(dataA);
+
+        // スロットBのサンプリング (B中央)
+        await new Promise(r => setTimeout(r, slotMs));
+        const dataB = new Float32Array(analyser.frequencyBinCount);
+        analyser.getFloatFrequencyData(dataB);
+
+        // 分離検証: A窓でTripAが強くTripBが弱いか、B窓でTripBが強くTripAが弱いか
+        const powerA_in_A = tripA.reduce((acc, f) => acc + getPeakDb(dataA, f), 0) / 3;
+        const powerB_in_A = tripB.reduce((acc, f) => acc + getPeakDb(dataA, f), 0) / 3;
+        const powerB_in_B = tripB.reduce((acc, f) => acc + getPeakDb(dataB, f), 0) / 3;
+        const powerA_in_B = tripA.reduce((acc, f) => acc + getPeakDb(dataB, f), 0) / 3;
+
+        const sepA = powerA_in_A - powerB_in_A;
+        const sepB = powerB_in_B - powerA_in_B;
+        const minSep = parseFloat(Math.min(sepA, sepB).toFixed(1));
+        const pass = minSep >= 6.0; // 前後スロットの分離が6dB以上あればPASS
+
+        await new Promise(r => setTimeout(r, 100)); // インターバル
+
+        results.push({ slotMs, minSep, pass });
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${slotMs} ms</td><td>TripA → TripB</td><td>A分離:${sepA.toFixed(1)}dB, B分離:${sepB.toFixed(1)}dB</td><td>マージン ${minSep} dB</td><td style="color:${pass?'var(--green)':'var(--red)'};font-weight:bold;">${pass?'PASS':'FAIL'}</td>`;
+        tbody.appendChild(tr);
+
+        if (onProgress) onProgress((idx + 1) / intervals.length);
+      }
+      return results;
+    }
+
+    // =========================================================================
+    // 全自動実行シーケンサー
+    // =========================================================================
+    document.getElementById("btnLoopback").onclick = async () => {
+      const btn = document.getElementById("btnLoopback");
+      btn.disabled = true;
+      btn.className = "running";
+      sysBadge.className = "badge run";
+      sysBadge.textContent = "全自動テスト中";
 
       try {
-        rxStream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 }
-        });
-        rxCtx = new (window.AudioContext || window.webkitAudioContext)();
-        analyser = rxCtx.createAnalyser();
-        analyser.fftSize = FFT_SIZE;
-        analyser.smoothingTimeConstant = 0.0;
-        rxCtx.createMediaStreamSource(rxStream).connect(analyser);
+        await initAudio();
 
-        const binWidth = rxCtx.sampleRate / FFT_SIZE;
-        statusBadge.className = "status-badge run";
-        statusText.textContent = "静寂暗騒音サンプリング中 (1秒)...";
+        // 1. 周波数スキャン (201周波数: 約25秒)
+        statusText.textContent = "1/3: 17k〜21kHz (20Hz刻み) スキャン中...";
+        const scanRes = await runFrequencyScanTest(p => pFill.style.width = `${p * 40}%`);
 
-        // 暗騒音フロアを学習
-        noiseFloorMap = await measureNoiseFloor(1000, binWidth);
+        // 2. 多重波発音 (2〜7波: 約3秒)
+        statusText.textContent = "2/3: 2〜7波 同時発音ストレステスト中...";
+        const multiRes = await runSimultaneousWavesTest(p => pFill.style.width = `${40 + p * 30}%`);
 
-        isListening = true;
-        currentTestIdx = 0;
-        testResults = [];
-        btn.textContent = "受信停止";
-        statusBadge.className = "status-badge active";
-        statusBadge.textContent = "待機中 (Test 1/4)";
-        statusText.textContent = "送信側の【2. 送信開始】を押してください。";
-        requestAnimationFrame(rxLoop);
+        // 3. スロット間隔 (50〜150ms: 約3秒)
+        statusText.textContent = "3/3: スロット間隔 (50〜150ms) 限界テスト中...";
+        const slotRes = await runSlotTimingTest(p => pFill.style.width = `${70 + p * 30}%`);
+
+        // サマリー算出
+        const passedFreqs = scanRes.filter(r => r.pass).map(r => r.freq);
+        const minF = passedFreqs.length > 0 ? Math.min(...passedFreqs) : 0;
+        const maxF = passedFreqs.length > 0 ? Math.max(...passedFreqs) : 0;
+        const avgNoise = (scanRes.reduce((a, b) => a + b.preNoiseDb, 0) / scanRes.length).toFixed(1);
+
+        const passedMulti = multiRes.filter(r => r.pass).map(r => r.waveCount);
+        const maxWaves = passedMulti.length > 0 ? Math.max(...passedMulti) : 0;
+
+        const passedSlots = slotRes.filter(r => r.pass).map(r => r.slotMs);
+        const minSlot = passedSlots.length > 0 ? Math.min(...passedSlots) : 0;
+
+        document.getElementById("sumBand").textContent = `${minF}Hz 〜 ${maxF}Hz`;
+        document.getElementById("sumFloor").textContent = `${avgNoise} dB`;
+        document.getElementById("sumMaxWaves").textContent = `${maxWaves} 波 同時`;
+        document.getElementById("sumMinSlot").textContent = `${minSlot} ms 限界`;
+
+        // Minify JSON化
+        const fullReport = {
+          device: { ua: navigator.userAgent, sr: audioCtx.sampleRate, fft: FFT_SIZE, bin: parseFloat((audioCtx.sampleRate / FFT_SIZE).toFixed(2)) },
+          summary: { band: [minF, maxF], floorAvg: parseFloat(avgNoise), maxWaves, minSlotMs: minSlot },
+          scan20Hz: scanRes.map(r => [r.freq, r.preNoiseDb, r.peakDb, r.snr, r.pass ? 1 : 0]),
+          multiWaves: multiRes.map(r => ({ w: r.waveCount, ok: r.pass, avgDb: r.avgPeak })),
+          slotTiming: slotRes.map(r => ({ ms: r.slotMs, sep: r.minSep, ok: r.pass }))
+        };
+
+        jsonOut.value = JSON.stringify(fullReport);
+        statusText.textContent = "全診断完了！JSONをコピーできます。";
+        sysBadge.className = "badge active";
+        sysBadge.textContent = "完了";
       } catch (e) {
-        alert("マイク起動失敗: " + e.message);
+        alert("エラー: " + e.message);
+        statusText.textContent = "エラー終了";
+      } finally {
+        btn.disabled = false;
+        btn.className = "";
       }
     };
-
-    function measureNoiseFloor(durationMs, binWidth) {
-      return new Promise(resolve => {
-        const start = performance.now();
-        const accum = Array.from({ length: NUM_CH }, () => []);
-
-        function loop() {
-          const data = new Float32Array(analyser.frequencyBinCount);
-          analyser.getFloatFrequencyData(data);
-          for (let i = 0; i < NUM_CH; i++) accum[i].push(getStrictPeak(data, FREQS[i], binWidth));
-
-          if (performance.now() - start < durationMs) {
-            requestAnimationFrame(loop);
-          } else {
-            const mean = arr => arr.reduce((a, b) => a + b, 0) / (arr.length || 1);
-            resolve(accum.map(s => parseFloat(mean(s).toFixed(1))));
-          }
-        }
-        loop();
-      });
-    }
-
-    let trigCount = 0, recording = false, testStartTime = 0;
-    let frameRecords = [];
-
-    function rxLoop() {
-      if (!isListening) return;
-
-      const dataArray = new Float32Array(analyser.frequencyBinCount);
-      analyser.getFloatFrequencyData(dataArray);
-      const binWidth = rxCtx.sampleRate / analyser.fftSize;
-      const now = performance.now();
-
-      const trigDb = getStrictPeak(dataArray, TRIGGER_FREQ, binWidth);
-      const guardDb = getStrictPeak(dataArray, GUARD_FREQ, binWidth);
-      // 差分プロミネンス (近傍ガード比)
-      const diffDb = trigDb - guardDb;
-
-      if (!recording) {
-        // 環境誤爆を完全遮断: ガード差13dB以上 かつ 絶対強度-95dB以上
-        if (diffDb > 13.0 && trigDb > -95.0) {
-          trigCount++;
-        } else {
-          trigCount = 0;
-        }
-
-        if (trigCount >= 2) {
-          trigCount = 0;
-          recording = true;
-          testStartTime = now;
-          frameRecords = [];
-          statusBadge.className = "status-badge run";
-          statusBadge.textContent = `記録中 (${currentTestIdx + 1}/4: ${SUITE[currentTestIdx].name})`;
-        }
-      } else {
-        const elapsed = now - testStartTime;
-        if (elapsed <= 480) {
-          const chPowers = [];
-          for (let i = 0; i < NUM_CH; i++) {
-            chPowers.push(parseFloat(getStrictPeak(dataArray, FREQS[i], binWidth).toFixed(1)));
-          }
-          frameRecords.push([parseFloat(elapsed.toFixed(1)), chPowers]);
-        } else {
-          recording = false;
-          analyzeRun(frameRecords, SUITE[currentTestIdx]);
-          currentTestIdx++;
-
-          if (currentTestIdx < SUITE.length) {
-            statusBadge.className = "status-badge active";
-            statusBadge.textContent = `待機中 (${currentTestIdx + 1}/4)`;
-          } else {
-            statusBadge.className = "status-badge active";
-            statusBadge.textContent = "全診断完了!";
-            statusText.textContent = "診断が完了しました。Minify JSONをコピーして使用できます。";
-            finalizeReport();
-          }
-        }
-      }
-
-      requestAnimationFrame(rxLoop);
-    }
-
-    function analyzeRun(frames, cfg) {
-      const row = document.getElementById(`row-${currentTestIdx}`);
-
-      const traceWave = (chs, startT, endT) => {
-        return chs.map(ch => {
-          let maxDb = -999, peakT = 0;
-          frames.forEach(f => {
-            const t = f[0], db = f[1][ch];
-            if (t >= startT && t <= endT && db > maxDb) {
-              maxDb = db;
-              peakT = t;
-            }
-          });
-          return { ch, peakT, maxDb };
-        });
-      };
-
-      const t1Stats = traceWave(cfg.t1, 40, 200);
-      const t2Stats = traceWave(cfg.t2, 120, 360);
-
-      const t1AvgPeak = t1Stats.reduce((a, b) => a + b.maxDb, 0) / 3;
-      const t1AvgFloor = cfg.t1.reduce((a, b) => a + noiseFloorMap[b], 0) / 3;
-      const snr = parseFloat((t1AvgPeak - t1AvgFloor).toFixed(1));
-
-      // 分離度
-      let minSep = 999;
-      cfg.t2.forEach(ch => {
-        frames.forEach(f => {
-          if (f[0] >= 140 && f[0] <= 320) {
-            const cur = f[1][ch];
-            const l = ch > 0 ? f[1][ch - 1] : -999;
-            const r = ch < NUM_CH - 1 ? f[1][ch + 1] : -999;
-            const sep = cur - Math.max(l, r);
-            if (sep < minSep) minSep = sep;
-          }
-        });
-      });
-
-      const pass = snr > 18 && minSep > 2.0;
-
-      row.querySelector(".t1").textContent = t1Stats.map(s => `${s.peakT}ms(${s.maxDb.toFixed(0)}dB)`).join(" ");
-      row.querySelector(".t2").textContent = t2Stats.map(s => `${s.peakT}ms(${s.maxDb.toFixed(0)}dB)`).join(" ");
-      row.querySelector(".snr").textContent = `${snr} dB`;
-      row.querySelector(".sep").textContent = `${minSep.toFixed(1)} dB`;
-      const resEl = row.querySelector(".res");
-      resEl.textContent = pass ? "PASS" : "FAIL";
-      resEl.style.color = pass ? "var(--green)" : "var(--red)";
-
-      testResults.push({
-        idx: currentTestIdx,
-        name: cfg.name,
-        slot: cfg.slot,
-        t1: t1Stats,
-        t2: t2Stats,
-        snr,
-        sep: parseFloat(minSep.toFixed(1)),
-        pass,
-        frames
-      });
-    }
-
-    function finalizeReport() {
-      // 1. T1到達遅延中心 (平均極大到達時刻)
-      const allT1 = testResults.flatMap(r => r.t1.map(w => w.peakT));
-      const avgT1Peak = Math.round(allT1.reduce((a, b) => a + b, 0) / (allT1.length || 1));
-      document.getElementById("resDelay").textContent = `${avgT1Peak} ms`;
-
-      // 2. 最短スロット限界
-      const passSlots = testResults.filter(r => r.pass).map(r => r.slot);
-      const limitSlot = passSlots.length > 0 ? Math.min(...passSlots) : 100;
-      const slotEl = document.getElementById("resSlot");
-      slotEl.textContent = `${limitSlot} ms`;
-      slotEl.className = `metric-val ${limitSlot <= 70 ? 'green' : (limitSlot <= 85 ? 'warn' : 'red')}`;
-
-      // 3. 周波数減衰スロープ
-      const rWide = testResults.find(r => r.name === "高域広帯");
-      let slope = 0;
-      if (rWide) {
-        const pLow = rWide.t2.find(w => w.ch === 0)?.maxDb || -999;
-        const pHigh = rWide.t2.find(w => w.ch === 42)?.maxDb || -999;
-        slope = parseFloat(((pLow - pHigh) / 2.352).toFixed(2)); // dB/kHz
-      }
-      document.getElementById("resSlope").textContent = `-${slope} dB/kHz`;
-
-      // 4. 最適サンプリング窓の算出 (T1極大とスロット長から前後のマージンを自動フィッティング)
-      const w1 = [Math.max(10, Math.round(avgT1Peak - limitSlot * 0.45)), Math.round(avgT1Peak + limitSlot * 0.45)];
-      const w2 = [Math.round(avgT1Peak + limitSlot * 0.85), Math.round(avgT1Peak + limitSlot * 1.85)];
-      const wCD = [Math.round(avgT1Peak + limitSlot * 1.95), Math.round(avgT1Peak + limitSlot * 2.95)];
-
-      document.getElementById("resW1").textContent = `[${w1[0]}, ${w1[1]}] ms`;
-      document.getElementById("resW2").textContent = `[${w2[0]}, ${w2[1]}] ms`;
-
-      // 5. IMDゴースト
-      let maxGhost = -999, ghostCh = -1;
-      testResults.forEach(r => {
-        const active = new Set([...SUITE[r.idx].t1, ...SUITE[r.idx].t2]);
-        r.frames.forEach(f => {
-          f[1].forEach((db, ch) => {
-            if (!active.has(ch) && db > maxGhost) { maxGhost = db; ghostCh = ch; }
-          });
-        });
-      });
-      document.getElementById("resImd").textContent = `CH${ghostCh} (${maxGhost.toFixed(0)}dB)`;
-
-      // Minify JSON 生成
-      const minProfile = {
-        meta: { ua: navigator.userAgent, sr: rxCtx.sampleRate },
-        tuned: {
-          slotMs: limitSlot,
-          w1, w2, wCD,
-          slopeDbKHz: slope,
-          minDb: Math.round(-100 + (slope > 3 ? 4 : 0))
-        },
-        bench: testResults.map(r => ({
-          n: r.name, slot: r.slot, snr: r.snr, sep: r.sep, ok: r.pass,
-          t1: r.t1.map(w => [w.ch, w.peakT, parseFloat(w.maxDb.toFixed(1))]),
-          t2: r.t2.map(w => [w.ch, w.peakT, parseFloat(w.maxDb.toFixed(1))])
-        }))
-      };
-
-      const jsonStr = JSON.stringify(minProfile);
-      jsonOut.value = jsonStr;
-      localStorage.setItem("otosyn_device_tuned", jsonStr);
-    }
 
     document.getElementById("btnCopy").onclick = () => {
       if (!jsonOut.value) return;
